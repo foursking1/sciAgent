@@ -1,4 +1,4 @@
-# K-Dense Web Clone 开发总结报告
+# SciAgent 开发总结报告
 
 ## 项目状态：MVP 核心功能完成 ✅
 

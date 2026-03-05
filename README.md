@@ -1,6 +1,6 @@
-# K-Dense Web Clone
+# SciAgent
 
-> AI 驱动的研究自动化平台 - 从问题到解决方案的端到端自动化
+> AI 驱动的科学研宄自动化平台 - 从问题到解决方案的端到端自动化
 
 ## 产品定位
 
@@ -63,7 +63,7 @@ docker-compose logs -f frontend
 ## 项目结构
 
 ```
-k-dense-clone/
+sciagent/
 ├── backend/
 │   ├── api/routes/        # API 路由 (auth, sessions, files)
 │   ├── db/models/         # 数据模型 (MySQL)

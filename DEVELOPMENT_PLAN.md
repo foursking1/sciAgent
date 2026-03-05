@@ -1,4 +1,4 @@
-# K-Dense Web Clone 开发计划
+# SciAgent 开发计划
 
 ## 项目概述
 

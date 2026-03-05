@@ -4,12 +4,12 @@ services:
   # MySQL 8.0 Database
   mysql:
     image: mysql:8.0
-    container_name: kdense-mysql
+    container_name: sciagent-mysql
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
-      MYSQL_DATABASE: kdense
-      MYSQL_USER: kdense
+      MYSQL_DATABASE: sciagent
+      MYSQL_USER: sciagent
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-changeme}
       TZ: Asia/Shanghai
     ports:
@@ -18,7 +18,7 @@ services:
       - mysql_data:/var/lib/mysql
       - ./backend/db/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
-      - kdense
+      - sciagent
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
@@ -31,14 +31,14 @@ services:
   # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: kdense-redis
+    container_name: sciagent-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
-      - kdense
+      - sciagent
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       timeout: 3s
@@ -49,12 +49,12 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: kdense-backend
+    container_name: sciagent-backend
     restart: unless-stopped
     env_file:
       - .env
     environment:
-      DATABASE_URL: mysql+aiomysql://kdense:${MYSQL_PASSWORD:-changeme}@mysql:3306/kdense?charset=utf8mb4
+      DATABASE_URL: mysql+aiomysql://sciagent:${MYSQL_PASSWORD:-changeme}@mysql:3306/sciagent?charset=utf8mb4
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-changeme}
       WORKSPACE_BASE: /workspaces
@@ -70,7 +70,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - kdense
+      - sciagent
     ports:
       - "8000:8000"
 
@@ -79,7 +79,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: kdense-frontend
+    container_name: sciagent-frontend
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_URL: http://backend:8000
@@ -88,10 +88,10 @@ services:
     depends_on:
       - backend
     networks:
-      - kdense
+      - sciagent
 
 networks:
-  kdense:
+  sciagent:
     driver: bridge
 
 volumes:

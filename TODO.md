@@ -1,4 +1,4 @@
-# K-Dense Web Clone - 待办工作清单
+# SciAgent - 待办工作清单
 
 > 最后更新：2026-03-05
 > 当前状态：MVP 核心功能完成，API 层和 agentic 集成待实现
