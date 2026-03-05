@@ -1,0 +1,105 @@
+version: "3.9"
+
+services:
+  # MySQL 8.0 Database
+  mysql:
+    image: mysql:8.0
+    container_name: kdense-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: kdense
+      MYSQL_USER: kdense
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-changeme}
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - kdense
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: kdense-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - kdense
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 3s
+      retries: 5
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: kdense-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: mysql+aiomysql://kdense:${MYSQL_PASSWORD:-changeme}@mysql:3306/kdense?charset=utf8mb4
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-changeme}
+      WORKSPACE_BASE: /workspaces
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+    volumes:
+      - ./backend:/app
+      - workspaces:/workspaces
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - kdense
+    ports:
+      - "8000:8000"
+
+  # Next.js Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: kdense-frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://backend:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - kdense
+
+networks:
+  kdense:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  redis_data:
+  workspaces:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./workspaces

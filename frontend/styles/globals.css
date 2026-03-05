@@ -1,0 +1,206 @@
+/**
+ * K-Dense Web Clone - Global Styles
+ * Design System: Scientific Minimalism
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Primary Colors - Deep Space Blue */
+  --primary-50: #f0f7ff;
+  --primary-100: #e0efff;
+  --primary-200: #bae0ff;
+  --primary-300: #7cc5ff;
+  --primary-400: #36a5ff;
+  --primary-500: #0080ff;
+  --primary-600: #0066ea;
+  --primary-700: #0054c9;
+  --primary-800: #0946a3;
+  --primary-900: #0f3d86;
+
+  /* Accent - Quantum Purple */
+  --accent-500: #8b5cf6;
+  --accent-600: #7c3aed;
+
+  /* Background - Deep Space */
+  --background: #0a0a0f;
+  --surface: #12121a;
+  --surface-200: #1a1a25;
+
+  /* Data Visualization */
+  --data-1: #0080ff;
+  --data-2: #8b5cf6;
+  --data-3: #10b981;
+  --data-4: #f59e0b;
+  --data-5: #ef4444;
+}
+
+@layer base {
+  * {
+    @apply border-gray-800;
+  }
+
+  body {
+    @apply bg-background text-gray-100;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  code, pre {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+}
+
+@layer components {
+  /* Glass morphism effect */
+  .glass {
+    @apply bg-surface/50 backdrop-blur-xl border border-gray-800/50;
+  }
+
+  /* Scientific data card */
+  .data-card {
+    @apply bg-surface border border-gray-800 rounded-xl p-4
+           hover:border-primary-500/50 transition-colors duration-200;
+  }
+
+  /* Gradient text for headlines */
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary-400 via-accent-500 to-primary-400
+           bg-clip-text text-transparent;
+  }
+
+  /* Animated gradient border */
+  .gradient-border {
+    @apply relative;
+  }
+
+  .gradient-border::before {
+    content: '';
+    @apply absolute inset-0 rounded-xl -z-10;
+    background: linear-gradient(45deg, var(--primary-500), var(--accent-500), var(--primary-500));
+    background-size: 200% 200%;
+    animation: gradient 3s ease infinite;
+  }
+
+  /* Button variants */
+  .btn-primary {
+    @apply px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white
+           rounded-lg font-medium transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
+           focus:ring-offset-background shadow-lg shadow-primary-500/30;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 bg-surface hover:bg-surface-200 text-gray-200
+           rounded-lg font-medium transition-all duration-200
+           border border-gray-700;
+  }
+
+  .btn-ghost {
+    @apply px-4 py-2 bg-transparent hover:bg-gray-800 text-gray-400
+           hover:text-white rounded-lg font-medium transition-all duration-200;
+  }
+
+  /* Input styles */
+  .input {
+    @apply w-full px-4 py-2 bg-surface border border-gray-700
+           rounded-lg text-gray-100 placeholder-gray-500
+           focus:outline-none focus:border-primary-500 focus:ring-1
+           focus:ring-primary-500 transition-colors duration-200;
+  }
+
+  /* Scrollbar - Minimal */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-700 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-600;
+  }
+}
+
+@layer utilities {
+  /* Text utilities */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Animation utilities */
+  @keyframes gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .animate-gradient {
+    animation: gradient 3s ease infinite;
+  }
+
+  /* Fade in animation */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
+  }
+
+  /* Pulse animation for streaming */
+  @keyframes pulse-subtle {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  .animate-pulse-subtle {
+    animation: pulse-subtle 2s ease-in-out infinite;
+  }
+}
+
+/* Chat message animations */
+.message-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.message-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms, transform 300ms;
+}
+
+/* Syntax highlighting (for CodeBlock) */
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #6b7280;
+}
+
+.token.string {
+  color: #10b981;
+}
+
+.token.number {
+  color: #f59e0b;
+}
+
+.token.keyword,
+.token.function {
+  color: #8b5cf6;
+}
+
+.token.operator,
+.token.punctuation {
+  color: #9ca3af;
+}
