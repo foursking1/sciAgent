@@ -3,9 +3,12 @@ File API routes.
 """
 import os
 import shutil
+import logging
 from datetime import datetime
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+
+logger = logging.getLogger(__name__)
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -115,9 +118,11 @@ async def list_files(
     session = await _verify_session_access(session_id, current_user.id, db)
 
     workspace_path = Path(session.working_dir)
+    logger.info(f"Scanning workspace: {workspace_path}, exists: {workspace_path.exists()}")
 
     # Ensure workspace exists
     if not workspace_path.exists():
+        logger.warning(f"Workspace does not exist: {workspace_path}")
         return {
             "files": [],
             "total": 0,
@@ -127,36 +132,41 @@ async def list_files(
 
     # Scan the workspace directory
     def scan_directory(path: Path, relative_path: str = ""):
-        for item in path.iterdir():
-            item_relative_path = os.path.join(relative_path, item.name) if relative_path else item.name
+        try:
+            for item in path.iterdir():
+                item_relative_path = os.path.join(relative_path, item.name) if relative_path else item.name
+                logger.debug(f"Found item: {item_relative_path}, is_dir: {item.is_dir()}")
 
-            if item.is_dir():
-                # Add directory
-                files.append({
-                    "id": len(files),
-                    "session_id": session_id,
-                    "filename": item.name,
-                    "file_path": item_relative_path,
-                    "file_size": 0,
-                    "content_type": "directory",
-                    "created_at": datetime.fromtimestamp(item.stat().st_ctime).isoformat(),
-                })
-                # Recursively scan subdirectory
-                scan_directory(item, item_relative_path)
-            else:
-                # Add file
-                stat = item.stat()
-                files.append({
-                    "id": len(files),
-                    "session_id": session_id,
-                    "filename": item.name,
-                    "file_path": item_relative_path,
-                    "file_size": stat.st_size,
-                    "content_type": None,
-                    "created_at": datetime.fromtimestamp(stat.st_ctime).isoformat(),
-                })
+                if item.is_dir():
+                    # Add directory
+                    files.append({
+                        "id": len(files),
+                        "session_id": session_id,
+                        "filename": item.name,
+                        "file_path": item_relative_path,
+                        "file_size": 0,
+                        "content_type": "directory",
+                        "created_at": datetime.fromtimestamp(item.stat().st_ctime),
+                    })
+                    # Recursively scan subdirectory
+                    scan_directory(item, item_relative_path)
+                else:
+                    # Add file
+                    stat = item.stat()
+                    files.append({
+                        "id": len(files),
+                        "session_id": session_id,
+                        "filename": item.name,
+                        "file_path": item_relative_path,
+                        "file_size": stat.st_size,
+                        "content_type": None,
+                        "created_at": datetime.fromtimestamp(stat.st_ctime),
+                    })
+        except Exception as e:
+            logger.error(f"Error scanning directory {path}: {e}")
 
     scan_directory(workspace_path)
+    logger.info(f"Found {len(files)} items in workspace")
 
     # Sort: directories first, then files, both alphabetically
     files.sort(key=lambda f: (f["content_type"] != "directory", f["filename"]))
