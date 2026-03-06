@@ -15,7 +15,7 @@ class File(Base):
 
     Attributes:
         id: Primary key
-        session_id: Foreign key to Session
+        session_id: Foreign key to Session (UUID string)
         filename: Original filename
         file_path: Full path to the file
         file_size: Size in bytes
@@ -26,8 +26,8 @@ class File(Base):
     __tablename__ = "files"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    session_id: Mapped[int] = mapped_column(
-        Integer,
+    session_id: Mapped[str] = mapped_column(
+        String(100),
         ForeignKey("sessions.id", ondelete="CASCADE"),
         nullable=False,
         index=True

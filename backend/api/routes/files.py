@@ -107,68 +107,85 @@ async def upload_file(
 @router.get("/{session_id}", response_model=FileListResponse)
 async def list_files(
     session_id: str,
+    current_path: str = "",
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
 ) -> dict:
     """
-    List files in a session.
-    Scans the actual working directory to show all files and directories.
+    List files in a session at a specific path.
+
+    - **current_path**: Relative path within the workspace (e.g., "data/processed")
     """
     # Verify session access
     session = await _verify_session_access(session_id, current_user.id, db)
 
+    # Build full path
     workspace_path = Path(session.working_dir)
-    logger.info(f"Scanning workspace: {workspace_path}, exists: {workspace_path.exists()}")
+    if current_path:
+        target_path = workspace_path / current_path
+    else:
+        target_path = workspace_path
 
-    # Ensure workspace exists
-    if not workspace_path.exists():
-        logger.warning(f"Workspace does not exist: {workspace_path}")
-        return {
-            "files": [],
-            "total": 0,
-        }
+    # Security check: ensure we're within workspace
+    try:
+        target_path = target_path.resolve()
+        workspace_resolved = workspace_path.resolve()
+        if not str(target_path).startswith(str(workspace_resolved)):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: path outside workspace",
+            )
+    except Exception as e:
+        logger.error(f"Path resolution error: {e}")
+        return {"files": [], "total": 0}
+
+    logger.info(f"Scanning path: {target_path}, exists: {target_path.exists()}")
+
+    # Ensure path exists and is a directory
+    if not target_path.exists() or not target_path.is_dir():
+        return {"files": [], "total": 0}
 
     files = []
 
-    # Scan the workspace directory
-    def scan_directory(path: Path, relative_path: str = ""):
-        try:
-            for item in path.iterdir():
-                item_relative_path = os.path.join(relative_path, item.name) if relative_path else item.name
-                logger.debug(f"Found item: {item_relative_path}, is_dir: {item.is_dir()}")
+    # Scan the target directory
+    try:
+        for item in target_path.iterdir():
+            # Skip hidden files/directories
+            if item.name.startswith('.'):
+                continue
 
-                if item.is_dir():
-                    # Add directory
-                    files.append({
-                        "id": len(files),
-                        "session_id": session_id,
-                        "filename": item.name,
-                        "file_path": item_relative_path,
-                        "file_size": 0,
-                        "content_type": "directory",
-                        "created_at": datetime.fromtimestamp(item.stat().st_ctime),
-                    })
-                    # Recursively scan subdirectory
-                    scan_directory(item, item_relative_path)
-                else:
-                    # Add file
-                    stat = item.stat()
-                    files.append({
-                        "id": len(files),
-                        "session_id": session_id,
-                        "filename": item.name,
-                        "file_path": item_relative_path,
-                        "file_size": stat.st_size,
-                        "content_type": None,
-                        "created_at": datetime.fromtimestamp(stat.st_ctime),
-                    })
-        except Exception as e:
-            logger.error(f"Error scanning directory {path}: {e}")
+            # Build relative path from workspace root
+            relative_path = str(item.relative_to(workspace_path))
 
-    scan_directory(workspace_path)
-    logger.info(f"Found {len(files)} items in workspace")
+            logger.debug(f"Found item: {relative_path}, is_dir: {item.is_dir()}")
 
-    # Sort: directories first, then files, both alphabetically
+            if item.is_dir():
+                files.append({
+                    "id": len(files),
+                    "session_id": session_id,
+                    "filename": item.name,
+                    "file_path": relative_path,
+                    "file_size": 0,
+                    "content_type": "directory",
+                    "created_at": datetime.fromtimestamp(item.stat().st_ctime),
+                })
+            else:
+                stat = item.stat()
+                files.append({
+                    "id": len(files),
+                    "session_id": session_id,
+                    "filename": item.name,
+                    "file_path": relative_path,
+                    "file_size": stat.st_size,
+                    "content_type": None,
+                    "created_at": datetime.fromtimestamp(stat.st_ctime),
+                })
+    except Exception as e:
+        logger.error(f"Error scanning directory {target_path}: {e}")
+
+    logger.info(f"Found {len(files)} items in {current_path or 'root'}")
+
+    # Sort: directories first, then files
     files.sort(key=lambda f: (f["content_type"] != "directory", f["filename"]))
 
     return {
@@ -261,3 +278,103 @@ async def delete_file(
     if file_record:
         await db.delete(file_record)
         await db.commit()
+
+
+@router.get("/{session_id}/preview/{file_path:path}")
+async def preview_file(
+    session_id: str,
+    file_path: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """
+    Preview a file's content.
+    Returns file content as text for code/text files, or metadata for binary files.
+
+    Supported text formats: txt, md, json, yaml, yml, py, js, ts, jsx, tsx, html, css, sql, csv, log
+    Supported images: png, jpg, jpeg, gif, svg, webp
+    """
+    # Verify session access
+    session = await _verify_session_access(session_id, current_user.id, db)
+
+    # Construct full file path
+    full_path = os.path.join(session.working_dir, file_path)
+
+    # Security check: ensure file is within workspace
+    workspace_base = session.working_dir
+    if not os.path.abspath(full_path).startswith(os.path.abspath(workspace_base)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: file path traversal detected",
+        )
+
+    if not os.path.exists(full_path) or not os.path.isfile(full_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found",
+        )
+
+    # Get file info
+    file_name = os.path.basename(file_path)
+    file_ext = file_name.split('.')[-1].lower() if '.' in file_name else ''
+    file_size = os.path.getsize(full_path)
+
+    # Text file extensions
+    text_extensions = {
+        'txt', 'md', 'markdown', 'json', 'yaml', 'yml', 'py', 'js', 'ts',
+        'jsx', 'tsx', 'html', 'htm', 'css', 'scss', 'sass', 'less', 'sql',
+        'csv', 'log', 'sh', 'bash', 'zsh', 'fish', 'ps1', 'bat', 'cmd',
+        'c', 'cpp', 'h', 'hpp', 'java', 'go', 'rs', 'swift', 'kt', 'kts',
+        'rb', 'php', 'pl', 'pm', 'lua', 'r', 'm', 'mm', 'scala', 'groovy',
+        'dockerfile', 'makefile', 'cmake', 'toml', 'ini', 'cfg', 'conf',
+        'properties', 'env', 'gitignore', 'gitattributes', 'editorconfig'
+    }
+
+    # Image file extensions
+    image_extensions = {'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico'}
+
+    try:
+        if file_ext in text_extensions:
+            # Read as text
+            with open(full_path, 'r', encoding='utf-8', errors='replace') as f:
+                content = f.read()
+
+            # Limit preview size (100KB max)
+            max_size = 100 * 1024
+            if len(content) > max_size:
+                content = content[:max_size] + '\n\n... [File truncated, too large to preview]'
+
+            return {
+                "type": "text",
+                "filename": file_name,
+                "extension": file_ext,
+                "size": file_size,
+                "content": content,
+            }
+
+        elif file_ext in image_extensions:
+            # Return image metadata and download URL
+            return {
+                "type": "image",
+                "filename": file_name,
+                "extension": file_ext,
+                "size": file_size,
+                "url": f"/api/files/{session_id}/{file_path}",
+            }
+
+        else:
+            # Binary file - return metadata only
+            return {
+                "type": "binary",
+                "filename": file_name,
+                "extension": file_ext,
+                "size": file_size,
+                "message": "Binary file - download to view",
+            }
+
+    except Exception as e:
+        logger.error(f"Error previewing file {full_path}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to read file: {str(e)}",
+        )

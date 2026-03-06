@@ -2,7 +2,7 @@
 Message model definition.
 """
 from datetime import datetime
-from sqlalchemy import String, DateTime, Integer, ForeignKey, Text, Enum as SQLEnum
+from sqlalchemy import String, DateTime, Integer, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -22,7 +22,7 @@ class Message(Base):
 
     Attributes:
         id: Primary key
-        session_id: Foreign key to Session
+        session_id: Foreign key to Session (UUID string)
         content: Message content text
         role: Role of the message sender (user/assistant/system)
         created_at: Timestamp of message creation
@@ -31,8 +31,8 @@ class Message(Base):
     __tablename__ = "messages"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    session_id: Mapped[int] = mapped_column(
-        Integer,
+    session_id: Mapped[str] = mapped_column(
+        String(100),
         ForeignKey("sessions.id", ondelete="CASCADE"),
         nullable=False,
         index=True

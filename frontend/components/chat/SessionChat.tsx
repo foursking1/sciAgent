@@ -6,6 +6,7 @@ import { useSSE, type StreamEvent, type FileItem } from '@/hooks/useSSE'
 import { EventStream } from '@/components/chat/EventStream'
 import { ChatInput } from '@/components/chat/ChatInput'
 import { FileBrowser } from '@/components/chat/FileBrowser'
+import { FilePreview } from '@/components/chat/FilePreview'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -29,6 +30,8 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
   const [events, setEvents] = useState<StreamEvent[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const [connectionError, setConnectionError] = useState<Error | null>(null)
+  const [currentPath, setCurrentPath] = useState('')
+  const [previewFile, setPreviewFile] = useState<FileItem | null>(null)
 
   const eventSourceRef = useRef<EventSource | null>(null)
 
@@ -176,7 +179,7 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
     if (!token) return
 
     try {
-      const fileList = await filesApi.list(token, sessionId)
+      const fileList = await filesApi.list(token, sessionId, currentPath)
       setFiles(fileList.map(f => ({
         name: f.filename,
         path: f.file_path,
@@ -186,13 +189,13 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
     } catch (err) {
       console.error('Error refreshing files:', err)
     }
-  }, [sessionId, token])
+  }, [sessionId, token, currentPath])
 
   // Load initial files
   useEffect(() => {
     if (!token) return
 
-    filesApi.list(token, sessionId)
+    filesApi.list(token, sessionId, currentPath)
       .then(fileList => {
         setFiles(fileList.map(f => ({
           name: f.filename,
@@ -202,11 +205,18 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
         })))
       })
       .catch(err => console.error('Error loading files:', err))
-  }, [sessionId, token])
+  }, [sessionId, token, currentPath])
 
-  // Handle file select
+  // Handle file select - open preview for files
   const handleSelect = useCallback((file: FileItem) => {
-    console.log('Selected file:', file)
+    if (file.type !== 'directory') {
+      setPreviewFile(file)
+    }
+  }, [])
+
+  // Handle directory navigation
+  const handleNavigate = useCallback((path: string) => {
+    setCurrentPath(path)
   }, [])
 
   // Handle back navigation
@@ -352,14 +362,26 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
         <aside className="w-80 flex-shrink-0 border-l border-gray-800 p-4 overflow-hidden">
           <FileBrowser
             files={files}
+            currentPath={currentPath}
             isLoading={false}
             onDownload={handleDownload}
             onRefresh={handleRefresh}
             onSelect={handleSelect}
+            onNavigate={handleNavigate}
             className="h-full"
           />
         </aside>
       </main>
+
+      {/* File Preview Panel */}
+      {previewFile && (
+        <FilePreview
+          sessionId={sessionId}
+          filePath={previewFile.path}
+          fileName={previewFile.name}
+          onClose={() => setPreviewFile(null)}
+        />
+      )}
     </div>
   )
 }

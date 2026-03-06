@@ -13,7 +13,8 @@ interface SessionPageProps {
  * Renders the SessionChat component with the session ID from params
  */
 export default function SessionPage({ params }: SessionPageProps) {
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || ''
+  // Use backend URL directly since frontend and backend are on different ports
+  const apiBaseUrl = 'http://localhost:8000'
 
   return <SessionChat sessionId={params.id} apiBaseUrl={apiBaseUrl} />
 }

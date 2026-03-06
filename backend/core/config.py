@@ -8,14 +8,17 @@ from functools import lru_cache
 class Settings(BaseSettings):
     """Application settings"""
 
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",  # Ignore extra environment variables
+    )
 
     # Application
-    APP_NAME: str = "K-Dense Web Clone"
+    APP_NAME: str = "SciAgent"
     DEBUG: bool = True
 
     # Database
-    DATABASE_URL: str = "mysql+aiomysql://root:password@localhost:3306/kdense"
+    DATABASE_URL: str = "mysql+aiomysql://root:password@localhost:3306/sciagent"
     DATABASE_ECHO: bool = False
 
     # Redis

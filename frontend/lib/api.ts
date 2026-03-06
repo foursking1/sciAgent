@@ -211,15 +211,15 @@ export const filesApi = {
     );
   },
 
-  async list(token: string, sessionId: string): Promise<FileRecord[]> {
-    const data = await apiCall<{ files: FileRecord[]; total: number }>(
-      `/api/files/${sessionId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+  async list(token: string, sessionId: string, currentPath?: string): Promise<FileRecord[]> {
+    const url = currentPath
+      ? `/api/files/${sessionId}?current_path=${encodeURIComponent(currentPath)}`
+      : `/api/files/${sessionId}`;
+    const data = await apiCall<{ files: FileRecord[]; total: number }>(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
     return data.files;
   },
 
@@ -227,9 +227,19 @@ export const filesApi = {
     return `${API_BASE_URL}/api/files/${sessionId}/${encodeURIComponent(filePath)}`;
   },
 
-  async delete(token: string, filePath: string, sessionId: string): Promise<void> {
-    await apiCall<void>(`/api/files/${encodeURIComponent(filePath)}?session_id=${sessionId}`, {
-      method: 'DELETE',
+  async preview(token: string, sessionId: string, filePath: string): Promise<{ type: string; filename: string; extension: string; size: number; content?: string; url?: string; message?: string }> {
+    return apiCall(`/api/files/${sessionId}/preview/${encodeURIComponent(filePath)}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  },
+
+  /**
+   * Preview a file's content
+   */
+  async preview(token: string, sessionId: string, filePath: string): Promise<FilePreview> {
+    return apiCall<FilePreview>(`/api/files/${sessionId}/preview/${encodeURIComponent(filePath)}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },

@@ -1,20 +1,58 @@
 'use client';
 
-import { useAuth, useUserSessions } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import { Plus, LogOut, Clock, MessageSquare, Activity } from 'lucide-react';
-import { useEffect } from 'react';
+import { Plus, LogOut, Clock, MessageSquare, Activity, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { sessionsApi, type Session } from '@/lib/api';
+
+interface SessionWithMeta extends Session {
+  messageCount?: number;
+}
 
 export default function DashboardPage() {
-  const { user, logout, isAuthenticated, isLoading } = useAuth();
-  const { sessions, isLoading: sessionsLoading, error } = useUserSessions();
+  const { user, logout, isAuthenticated, isLoading, token } = useAuth();
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [isLoadingSessions, setIsLoadingSessions] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  // Load sessions
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push('/login');
+    if (!isAuthenticated || !token) {
+      return;
     }
-  }, [isLoading, isAuthenticated, router]);
+
+    const loadSessions = async () => {
+      try {
+        setIsLoadingSessions(true);
+        setError(null);
+        const data = await sessionsApi.list(token);
+        setSessions(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load sessions');
+      } finally {
+        setIsLoadingSessions(false);
+      }
+    };
+
+    loadSessions();
+  }, [isAuthenticated, token]);
+
+  // Handle session deletion
+  const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    if (!token) return;
+
+    if (!confirm('Are you sure you want to delete this session?')) return;
+
+    try {
+      await sessionsApi.delete(token, sessionId);
+      setSessions(prev => prev.filter(s => s.id !== sessionId));
+    } catch (err) {
+      alert('Failed to delete session');
+    }
+  };
 
   if (isLoading) {
     return (
@@ -28,6 +66,7 @@ export default function DashboardPage() {
   }
 
   if (!isAuthenticated || !user) {
+    router.push('/login');
     return null;
   }
 
@@ -38,10 +77,10 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold">
-              {user.full_name.charAt(0).toUpperCase()}
+              {user.full_name?.charAt(0).toUpperCase() || user.email.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-white">{user.full_name}</h1>
+              <h1 className="text-lg font-semibold text-white">{user.full_name || 'User'}</h1>
               <p className="text-sm text-gray-400">{user.email}</p>
             </div>
           </div>
@@ -60,7 +99,7 @@ export default function DashboardPage() {
         {/* Welcome Section */}
         <div className="mb-8">
           <h2 className="text-3xl font-bold gradient-text mb-2">
-            Welcome back, {user.full_name.split(' ')[0]}!
+            Welcome back, {user.full_name?.split(' ')[0] || user.email.split('@')[0]}!
           </h2>
           <p className="text-gray-400">
             Manage your sessions and start new conversations
@@ -70,7 +109,15 @@ export default function DashboardPage() {
         {/* New Session Button */}
         <div className="mb-8">
           <button
-            onClick={() => router.push('/session/new')}
+            onClick={async () => {
+              if (!token) return;
+              try {
+                const session = await sessionsApi.create(token);
+                router.push(`/session/${session.id}`);
+              } catch (err) {
+                alert('Failed to create session');
+              }
+            }}
             className="btn-primary flex items-center gap-2"
           >
             <Plus className="w-5 h-5" />
@@ -86,7 +133,7 @@ export default function DashboardPage() {
               Your Sessions
             </h3>
             <span className="text-sm text-gray-400">
-              {sessionsLoading ? 'Loading...' : `${sessions.length} sessions`}
+              {isLoadingSessions ? 'Loading...' : `${sessions.length} sessions`}
             </span>
           </div>
 
@@ -96,7 +143,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {sessionsLoading ? (
+          {isLoadingSessions ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
                 <div
@@ -116,7 +163,15 @@ export default function DashboardPage() {
               <Activity className="w-12 h-12 text-gray-600 mx-auto mb-4" />
               <p className="text-gray-400 mb-4">No sessions yet</p>
               <button
-                onClick={() => router.push('/session/new')}
+                onClick={async () => {
+                  if (!token) return;
+                  try {
+                    const session = await sessionsApi.create(token);
+                    router.push(`/session/${session.id}`);
+                  } catch (err) {
+                    alert('Failed to create session');
+                  }
+                }}
                 className="btn-secondary inline-flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
@@ -126,7 +181,7 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-3">
               {sessions.map((session) => (
-                <SessionCard key={session.id} session={session} />
+                <SessionCard key={session.id} session={session} onDelete={handleDeleteSession} />
               ))}
             </div>
           )}
@@ -136,7 +191,7 @@ export default function DashboardPage() {
   );
 }
 
-function SessionCard({ session }: { session: { id: string; title: string; created_at: string; updated_at: string } }) {
+function SessionCard({ session, onDelete }: { session: Session; onDelete: (e: React.MouseEvent, id: string) => void }) {
   const router = useRouter();
 
   const formatDate = (dateString: string) => {
@@ -157,27 +212,34 @@ function SessionCard({ session }: { session: { id: string; title: string; create
   };
 
   return (
-    <button
+    <div
       onClick={() => router.push(`/session/${session.id}`)}
-      className="w-full data-card flex items-center gap-4 group"
+      className="w-full data-card flex items-center gap-4 group cursor-pointer relative"
     >
       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500/20 to-accent-500/20 flex items-center justify-center border border-primary-500/30 group-hover:border-primary-500 transition-colors">
         <MessageSquare className="w-5 h-5 text-primary-400" />
       </div>
       <div className="flex-1 text-left">
         <h4 className="font-medium text-gray-100 group-hover:text-primary-400 transition-colors truncate">
-          {session.title || 'Untitled Session'}
+          Session {session.id.slice(0, 8)}...
         </h4>
         <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
           <Clock className="w-3 h-3" />
-          <span>Updated {formatDate(session.updated_at)}</span>
+          <span>Created {formatDate(session.created_at)}</span>
         </div>
       </div>
+      <button
+        onClick={(e) => onDelete(e, session.id)}
+        className="p-2 text-gray-500 hover:text-red-400 transition-colors"
+        aria-label="Delete session"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
       <div className="text-gray-600 group-hover:text-primary-400 transition-colors">
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>
       </div>
-    </button>
+    </div>
   );
 }

@@ -2,12 +2,29 @@
 
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, MessageSquare } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useState } from 'react';
+import { sessionsApi } from '@/lib/api';
 
 export default function NewSessionPage() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, token } = useAuth();
   const router = useRouter();
+  const [isCreating, setIsCreating] = useState(false);
+
+  const handleCreateSession = async () => {
+    if (!token) return;
+
+    setIsCreating(true);
+    try {
+      const session = await sessionsApi.create(token);
+      router.push(`/session/${session.id}`);
+    } catch (err) {
+      alert('Failed to create session');
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -18,6 +35,11 @@ export default function NewSessionPage() {
         </div>
       </div>
     );
+  }
+
+  if (!isAuthenticated) {
+    router.push('/login');
+    return null;
   }
 
   return (
@@ -52,11 +74,16 @@ export default function NewSessionPage() {
           </p>
 
           <button
-            onClick={() => router.push('/session/chat')}
-            className="btn-primary inline-flex items-center gap-2 px-8 py-3 text-lg"
+            onClick={handleCreateSession}
+            disabled={isCreating}
+            className="btn-primary inline-flex items-center gap-2 px-8 py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <MessageSquare className="w-5 h-5" />
-            <span>Start Chatting</span>
+            {isCreating ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <MessageSquare className="w-5 h-5" />
+            )}
+            <span>{isCreating ? 'Creating...' : 'Start Chatting'}</span>
           </button>
         </div>
       </div>

@@ -15,10 +15,12 @@ export interface FileItem {
 
 export interface FileBrowserProps {
   files?: FileItem[]
+  currentPath?: string
   isLoading?: boolean
   onDownload?: (file: FileItem) => void
   onRefresh?: () => void
   onSelect?: (file: FileItem) => void
+  onNavigate?: (path: string) => void
   className?: string
   emptyMessage?: string
 }
@@ -174,8 +176,43 @@ const getFileIcon = (fileName: string, type?: 'file' | 'directory') => {
 }
 
 /**
- * Format file size to human-readable format
+ * Breadcrumb navigation component
  */
+const Breadcrumb: React.FC<{
+  currentPath: string
+  onNavigate: (path: string) => void
+}> = ({ currentPath, onNavigate }) => {
+  const parts = currentPath ? currentPath.split('/').filter(Boolean) : []
+
+  return (
+    <div className="flex items-center gap-1 text-xs text-gray-400 overflow-hidden">
+      <button
+        onClick={() => onNavigate('')}
+        className="hover:text-gray-200 transition-colors flex-shrink-0"
+      >
+        Root
+      </button>
+      {parts.map((part, index) => {
+        const path = parts.slice(0, index + 1).join('/')
+        const isLast = index === parts.length - 1
+        return (
+          <React.Fragment key={path}>
+            <span className="text-gray-600">/</span>
+            <button
+              onClick={() => !isLast && onNavigate(path)}
+              className={cn(
+                'transition-colors truncate max-w-[100px]',
+                isLast ? 'text-gray-200 font-medium' : 'hover:text-gray-200'
+              )}
+            >
+              {part}
+            </button>
+          </React.Fragment>
+        )
+      })}
+    </div>
+  )
+}
 const formatFileSize = (bytes?: number): string => {
   if (bytes === undefined) return ''
 
@@ -197,12 +234,14 @@ const formatFileSize = (bytes?: number): string => {
  */
 export const FileBrowser: React.FC<FileBrowserProps> = ({
   files = [],
+  currentPath = '',
   isLoading = false,
   onDownload,
   onRefresh,
   onSelect,
+  onNavigate,
   className,
-  emptyMessage = 'No files in workspace',
+  emptyMessage = 'No files in this folder',
 }) => {
   const handleDownload = useCallback(
     (file: FileItem) => {
@@ -213,9 +252,16 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
 
   const handleSelect = useCallback(
     (file: FileItem) => {
-      onSelect?.(file)
+      if (file.type === 'directory' && onNavigate) {
+        // Navigate into directory
+        const newPath = currentPath ? `${currentPath}/${file.name}` : file.name
+        onNavigate(newPath)
+      } else {
+        // Select file for preview
+        onSelect?.(file)
+      }
     },
-    [onSelect]
+    [onSelect, onNavigate, currentPath]
   )
 
   const containerClasses = cn(
@@ -246,14 +292,35 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
     <div className={containerClasses}>
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-800">
-        <h3 className="text-sm font-medium text-gray-200">Workspace Files</h3>
+        <div className="flex items-center gap-3 min-w-0">
+          {currentPath && onNavigate && (
+            <button
+              onClick={() => {
+                const parent = currentPath.split('/').slice(0, -1).join('/')
+                onNavigate(parent)
+              }}
+              className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors flex-shrink-0"
+              aria-label="Go to parent directory"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+            </button>
+          )}
+          <div className="min-w-0">
+            <h3 className="text-sm font-medium text-gray-200">Workspace Files</h3>
+            {onNavigate && (
+              <Breadcrumb currentPath={currentPath} onNavigate={onNavigate} />
+            )}
+          </div>
+        </div>
         {onRefresh && (
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={onRefresh}
-            className="p-1.5 h-auto"
+            className="p-1.5 h-auto flex-shrink-0"
             aria-label="Refresh files"
           >
             <RefreshIcon className="w-4 h-4" />

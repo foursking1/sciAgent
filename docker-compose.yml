@@ -3,7 +3,7 @@ version: "3.9"
 services:
   # MySQL 8.0 Database
   mysql:
-    image: mysql:8.0
+    image: docker.1ms.run/library/mysql:8.0
     container_name: sciagent-mysql
     restart: unless-stopped
     environment:
@@ -30,7 +30,7 @@ services:
 
   # Redis Cache
   redis:
-    image: redis:7-alpine
+    image: docker.1ms.run/library/redis:7-alpine
     container_name: sciagent-redis
     restart: unless-stopped
     ports:
@@ -47,8 +47,8 @@ services:
   # FastAPI Backend
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: sciagent-backend
     restart: unless-stopped
     env_file:
@@ -58,10 +58,16 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-changeme}
       WORKSPACE_BASE: /workspaces
+      # Anthropic/DashScope Configuration
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-https://coding.dashscope.aliyuncs.com/apps/anthropic}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      CODING_MODEL: ${CODING_MODEL:-qwen3.5-plus}
+      # OpenRouter Configuration
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_API_BASE: ${OPENROUTER_API_BASE:-https://openai.sohoyo.io/v1}
+      # Disable Claude Code nested session check
+      CLAUDECODE: ""
     volumes:
-      - ./backend:/app
       - workspaces:/workspaces
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
@@ -73,6 +79,7 @@ services:
       - sciagent
     ports:
       - "8000:8000"
+    command: ["bash", "./backend/start.sh"]
 
   # Next.js Frontend
   frontend:
