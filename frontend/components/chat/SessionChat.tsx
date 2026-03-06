@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSSE, type StreamEvent, type FileItem } from '@/hooks/useSSE'
 import { EventStream } from '@/components/chat/EventStream'
@@ -8,6 +8,8 @@ import { ChatInput } from '@/components/chat/ChatInput'
 import { FileBrowser } from '@/components/chat/FileBrowser'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/hooks/useAuth'
+import { sessionsApi, filesApi } from '@/lib/api'
 
 export interface SessionPageProps {
   sessionId: string
@@ -20,32 +22,90 @@ export interface SessionPageProps {
  */
 export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageProps) {
   const router = useRouter()
+  const { token } = useAuth()
   const [message, setMessage] = useState('')
   const [files, setFiles] = useState<FileItem[]>([])
   const [isSending, setIsSending] = useState(false)
+  const [events, setEvents] = useState<StreamEvent[]>([])
+  const [isConnected, setIsConnected] = useState(false)
+  const [connectionError, setConnectionError] = useState<Error | null>(null)
 
-  // SSE connection
-  const sseUrl = `${apiBaseUrl}/api/sessions/${sessionId}/events`
-  const { events, isConnected, error, isLoading: isConnecting, disconnect } = useSSE(sseUrl)
+  const eventSourceRef = useRef<EventSource | null>(null)
 
-  // Extract files from completed events
-  useEffect(() => {
-    const completedEvents = events.filter(
-      (e): e is Extract<StreamEvent, { type: 'completed' }> => e.type === 'completed'
-    )
+  // Connect to SSE stream when sending a message
+  const connectToStream = useCallback((messageContent: string) => {
+    const url = `${apiBaseUrl}/api/sessions/${sessionId}/chat`
 
-    if (completedEvents.length > 0) {
-      const latestCompleted = completedEvents[completedEvents.length - 1]
-      if (latestCompleted.files_created) {
-        const newFiles: FileItem[] = latestCompleted.files_created.map((path) => ({
-          name: path.split('/').pop() || path,
-          path,
-          type: 'file' as const,
-        }))
-        setFiles(newFiles)
+    // Close existing connection
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close()
+    }
+
+    // Create new EventSource with message in body via fetch + ReadableStream
+    // Since EventSource doesn't support POST with body, we use a workaround
+    const connectSSE = async () => {
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ content: messageContent }),
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to connect to chat stream')
+        }
+
+        const reader = response.body?.getReader()
+        if (!reader) {
+          throw new Error('ReadableStream not supported')
+        }
+
+        setIsConnected(true)
+        setConnectionError(null)
+
+        const decoder = new TextDecoder()
+        let buffer = ''
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) {
+            setIsConnected(false)
+            break
+          }
+
+          const chunk = decoder.decode(value, { stream: true })
+          buffer += chunk
+
+          // Parse SSE messages
+          const messages = buffer.split('\n\n')
+          buffer = messages.pop() || ''
+
+          for (const msg of messages) {
+            const lines = msg.split('\n')
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const data = JSON.parse(line.slice(6)) as StreamEvent
+                  setEvents(prev => [...prev, data])
+                } catch (e) {
+                  console.error('Failed to parse SSE message:', e)
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('SSE connection error:', err)
+        setConnectionError(err instanceof Error ? err : new Error('Connection failed'))
+        setIsConnected(false)
       }
     }
-  }, [events])
+
+    connectSSE()
+  }, [sessionId, apiBaseUrl, token])
 
   // Handle send message
   const handleSubmit = useCallback(
@@ -53,120 +113,155 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
       if (!content.trim()) return
 
       setIsSending(true)
+      // Don't clear events - append to existing conversation
 
       try {
-        // Send message to API
-        const response = await fetch(`${apiBaseUrl}/api/sessions/${sessionId}/messages`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ content }),
-        })
-
-        if (!response.ok) {
-          throw new Error('Failed to send message')
-        }
+        // Connect to stream and send message
+        connectToStream(content)
       } catch (err) {
         console.error('Error sending message:', err)
       } finally {
         setIsSending(false)
       }
     },
-    [sessionId, apiBaseUrl]
+    [connectToStream]
   )
 
   // Handle file upload
   const handleFileUpload = useCallback(
     async (uploadedFiles: FileList) => {
-      const formData = new FormData()
-
-      Array.from(uploadedFiles).forEach((file) => {
-        formData.append('files', file)
-      })
+      if (!token) {
+        console.error('No authentication token')
+        return
+      }
 
       try {
-        const response = await fetch(
-          `${apiBaseUrl}/api/sessions/${sessionId}/files`,
-          {
-            method: 'POST',
-            body: formData,
-          }
-        )
+        const result = await filesApi.upload(token, sessionId, uploadedFiles)
 
-        if (!response.ok) {
-          throw new Error('Failed to upload files')
-        }
-
-        const result = await response.json()
-
-        // Update files list
-        if (result.files) {
-          setFiles((prev) => [...prev, ...result.files])
-        }
+        // Refresh files list
+        const fileList = await filesApi.list(token, sessionId)
+        setFiles(fileList.map(f => ({
+          name: f.filename,
+          path: f.file_path,
+          size: f.file_size,
+          type: 'file' as const,
+        })))
       } catch (err) {
         console.error('Error uploading files:', err)
       }
     },
-    [sessionId, apiBaseUrl]
+    [sessionId, token]
   )
 
   // Handle file download
   const handleDownload = useCallback(
     async (file: FileItem) => {
       try {
-        const response = await fetch(
-          `${apiBaseUrl}/api/sessions/${sessionId}/files/${encodeURIComponent(file.path)}`
-        )
-
-        if (!response.ok) {
-          throw new Error('Failed to download file')
-        }
-
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
+        const url = filesApi.getDownloadUrl(sessionId, file.path)
         const a = document.createElement('a')
         a.href = url
         a.download = file.name
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)
-        window.URL.revokeObjectURL(url)
       } catch (err) {
         console.error('Error downloading file:', err)
       }
     },
-    [sessionId, apiBaseUrl]
+    [sessionId]
   )
 
   // Handle file refresh
   const handleRefresh = useCallback(async () => {
+    if (!token) return
+
     try {
-      const response = await fetch(
-        `${apiBaseUrl}/api/sessions/${sessionId}/files`
-      )
-
-      if (!response.ok) {
-        throw new Error('Failed to refresh files')
-      }
-
-      const result = await response.json()
-      setFiles(result.files || [])
+      const fileList = await filesApi.list(token, sessionId)
+      setFiles(fileList.map(f => ({
+        name: f.filename,
+        path: f.file_path,
+        size: f.file_size,
+        type: 'file' as const,
+      })))
     } catch (err) {
       console.error('Error refreshing files:', err)
     }
-  }, [sessionId, apiBaseUrl])
+  }, [sessionId, token])
+
+  // Load initial files
+  useEffect(() => {
+    if (!token) return
+
+    filesApi.list(token, sessionId)
+      .then(fileList => {
+        setFiles(fileList.map(f => ({
+          name: f.filename,
+          path: f.file_path,
+          size: f.file_size,
+          type: 'file' as const,
+        })))
+      })
+      .catch(err => console.error('Error loading files:', err))
+  }, [sessionId, token])
 
   // Handle file select
   const handleSelect = useCallback((file: FileItem) => {
     console.log('Selected file:', file)
-    // Could open a modal or side panel to preview file content
   }, [])
 
   // Handle back navigation
   const handleBack = useCallback(() => {
     router.push('/dashboard')
   }, [router])
+
+  // Load historical messages when session changes (no race condition version)
+  useEffect(() => {
+    if (!token || !sessionId) return
+
+    const loadMessages = async () => {
+      try {
+        // Reset state first - all in one place to prevent race conditions
+        setEvents([])
+        setMessage('')
+        setIsSending(false)
+        setIsConnected(false)
+        setConnectionError(null)
+
+        // Load historical messages
+        const messages = await sessionsApi.getMessages(token, sessionId)
+        // Convert messages to StreamEvent format
+        const historicalEvents: StreamEvent[] = messages.map(msg => {
+          if (msg.role === 'user') {
+            return {
+              type: 'user_message',
+              content: msg.content,
+              timestamp: msg.created_at,
+            } as StreamEvent
+          } else {
+            return {
+              type: 'message',
+              content: msg.content,
+              timestamp: msg.created_at,
+            } as StreamEvent
+          }
+        })
+        setEvents(historicalEvents)
+      } catch (err) {
+        console.error('Error loading messages:', err)
+      }
+    }
+
+    loadMessages()
+  }, [sessionId, token])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
+      }
+    }
+  }, [])
 
   const containerClasses = cn(
     'min-h-screen bg-background',
@@ -206,20 +301,20 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
                 <span
                   className={cn(
                     'w-2 h-2 rounded-full',
-                    isConnected ? 'bg-emerald-500' : isConnecting ? 'bg-yellow-500' : 'bg-red-500'
+                    isConnected ? 'bg-emerald-500' : isSending ? 'bg-yellow-500' : 'bg-gray-500'
                   )}
                   aria-hidden="true"
                 />
                 <span className="text-xs text-gray-500">
-                  {isConnecting ? 'Connecting...' : isConnected ? 'Connected' : 'Disconnected'}
+                  {isSending ? 'Processing...' : isConnected ? 'Connected' : 'Ready'}
                 </span>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {error && (
-              <span className="text-sm text-red-400" title={error.message}>
+            {connectionError && (
+              <span className="text-sm text-red-400" title={connectionError.message}>
                 Connection error
               </span>
             )}
@@ -243,9 +338,9 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
               onChange={setMessage}
               onSubmit={handleSubmit}
               onFileUpload={handleFileUpload}
-              disabled={!isConnected}
+              disabled={isSending}
               isLoading={isSending}
-              placeholder={isConnected ? 'Type your message...' : 'Connecting...'}
+              placeholder={isSending ? 'Processing...' : 'Type your message...'}
             />
             <p className="text-xs text-gray-500 mt-2 text-center">
               Press Enter to send, Shift+Enter for new line
