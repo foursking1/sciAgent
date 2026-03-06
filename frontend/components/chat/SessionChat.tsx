@@ -144,7 +144,7 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
           name: f.filename,
           path: f.file_path,
           size: f.file_size,
-          type: 'file' as const,
+          type: f.content_type === 'directory' ? 'directory' : 'file',
         })))
       } catch (err) {
         console.error('Error uploading files:', err)
@@ -181,7 +181,7 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
         name: f.filename,
         path: f.file_path,
         size: f.file_size,
-        type: 'file' as const,
+        type: f.content_type === 'directory' ? 'directory' : 'file',
       })))
     } catch (err) {
       console.error('Error refreshing files:', err)
@@ -198,7 +198,7 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
           name: f.filename,
           path: f.file_path,
           size: f.file_size,
-          type: 'file' as const,
+          type: f.content_type === 'directory' ? 'directory' : 'file',
         })))
       })
       .catch(err => console.error('Error loading files:', err))
