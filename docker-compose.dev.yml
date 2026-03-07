@@ -52,27 +52,24 @@ services:
     container_name: sciagent-backend-dev
     restart: unless-stopped
     env_file:
-      - .env
+      # 使用 path/.env 文件，不受系统环境变量影响
+      - path: .env
+        required: true
     environment:
+      # 固定配置（不使用变量替换）
       ENVIRONMENT: development
       DEBUG: "true"
       DATABASE_URL: mysql+aiomysql://sciagent:${MYSQL_PASSWORD:-changeme}@mysql:3306/sciagent?charset=utf8mb4
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://redis:6379/0
       JWT_SECRET: ${JWT_SECRET:-changeme}
       WORKSPACE_BASE: /workspaces
-      # Anthropic/DashScope Configuration
-      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-https://coding.dashscope.aliyuncs.com/apps/anthropic}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      CODING_MODEL: ${CODING_MODEL:-qwen3.5-plus}
-      # OpenRouter Configuration
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      OPENROUTER_API_BASE: ${OPENROUTER_API_BASE:-https://openai.sohoyo.io/v1}
-      # Disable Claude Code nested session check
+      # 禁用 Claude Code 嵌套会话检查
       CLAUDECODE: ""
     volumes:
       # Mount source code for hot reload
       - ./backend:/app/backend:ro
       - ./scientific-skills:/app/scientific-skills:ro
+      - ./agentic-data-scientist:/app/agentic-data-scientist:ro
       # Persistent volumes
       - workspaces:/workspaces
       - /var/run/docker.sock:/var/run/docker.sock

@@ -60,12 +60,37 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"  DataScientist: Preload failed: {e}")
 
+    # 启动 Task Worker
+    try:
+        from backend.services.task_worker import start_task_worker
+        await start_task_worker(max_concurrent=3)
+        logger.info(f"  TaskWorker: Started successfully")
+    except Exception as e:
+        logger.warning(f"  TaskWorker: Start failed: {e}")
+
     logger.info("SciAgent backend is ready!")
     logger.info("=" * 60)
     yield
     # Shutdown
     logger.info("=" * 60)
     logger.info("Shutting down SciAgent backend...")
+
+    # 停止 Task Worker
+    try:
+        from backend.services.task_worker import stop_task_worker
+        await stop_task_worker()
+        logger.info("  TaskWorker: Stopped")
+    except Exception as e:
+        logger.warning(f"  TaskWorker: Stop failed: {e}")
+
+    # 关闭 Task Queue Redis 连接
+    try:
+        from backend.services.task_queue import task_queue
+        await task_queue.close()
+        logger.info("  TaskQueue: Closed")
+    except Exception as e:
+        logger.warning(f"  TaskQueue: Close failed: {e}")
+
     logger.info("=" * 60)
 
 
@@ -145,6 +170,16 @@ async def health_check():
         "version": "0.1.0",
         "environment": settings.ENVIRONMENT,
     }
+
+
+# Stats endpoint
+@app.get("/stats", tags=["Stats"])
+async def get_stats():
+    """
+    Get DataScientist cache statistics.
+    """
+    from backend.services.session_manager import session_manager
+    return session_manager.get_stats()
 
 
 # Root endpoint

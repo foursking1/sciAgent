@@ -90,3 +90,6 @@ temp/
 *.pem
 *.key
 secrets/
+
+# Cloned external repos
+agentic-data-scientist/

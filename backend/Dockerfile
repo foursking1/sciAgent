@@ -22,8 +22,9 @@ COPY backend/requirements.txt .
 RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
     pip install --no-cache-dir -r requirements.txt
 
-# Install agentic-data-scientist from Gitee
-RUN pip install --no-cache-dir git+https://gitee.com/foursking1/agentic-data-scientist.git
+# Copy agentic-data-scientist from local
+COPY agentic-data-scientist /app/agentic-data-scientist
+RUN pip install --no-cache-dir /app/agentic-data-scientist
 
 # Copy application code
 COPY backend ./backend
