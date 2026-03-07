@@ -28,6 +28,7 @@ export function FilePreview({ sessionId, filePath, fileName, onClose }: FilePrev
   const [preview, setPreview] = useState<PreviewData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [imageBlobUrl, setImageBlobUrl] = useState<string | null>(null)
 
   useEffect(() => {
     if (!token) return
@@ -36,8 +37,24 @@ export function FilePreview({ sessionId, filePath, fileName, onClose }: FilePrev
       try {
         setLoading(true)
         setError(null)
+        setImageBlobUrl(null)
         const data = await filesApi.preview(token, sessionId, filePath)
         setPreview(data)
+
+        // If it's an image, fetch it with authentication and create a blob URL
+        if (data.type === 'image' && token) {
+          const imageUrl = filesApi.getDownloadUrl(sessionId, filePath)
+          const response = await fetch(imageUrl, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          })
+          if (response.ok) {
+            const blob = await response.blob()
+            const blobUrl = URL.createObjectURL(blob)
+            setImageBlobUrl(blobUrl)
+          }
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load preview')
       } finally {
@@ -46,6 +63,13 @@ export function FilePreview({ sessionId, filePath, fileName, onClose }: FilePrev
     }
 
     loadPreview()
+
+    // Cleanup blob URL on unmount or when filePath changes
+    return () => {
+      if (imageBlobUrl) {
+        URL.revokeObjectURL(imageBlobUrl)
+      }
+    }
   }, [token, sessionId, filePath])
 
   // Close on Escape key
@@ -166,12 +190,17 @@ export function FilePreview({ sessionId, filePath, fileName, onClose }: FilePrev
             </div>
           ) : preview?.type === 'image' ? (
             <div className="h-full flex items-center justify-center p-4 bg-surface-200/30">
-              {preview.url && (
+              {imageBlobUrl ? (
                 <img
-                  src={preview.url}
+                  src={imageBlobUrl}
                   alt={preview.filename}
                   className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
                 />
+              ) : (
+                <div className="text-center">
+                  <div className="w-8 h-8 border-2 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mx-auto mb-3" />
+                  <p className="text-sm text-gray-500">Loading image...</p>
+                </div>
               )}
             </div>
           ) : (

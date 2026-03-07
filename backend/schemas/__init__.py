@@ -17,7 +17,7 @@ from backend.schemas.sessions import (
     MessageResponse,
 )
 from backend.schemas.files import (
-    FileResponse,
+    FileInfo,
     FileListResponse,
     FileUploadResponse,
 )
@@ -37,7 +37,7 @@ __all__ = [
     "MessageCreate",
     "MessageResponse",
     # Files
-    "FileResponse",
+    "FileInfo",
     "FileListResponse",
     "FileUploadResponse",
 ]

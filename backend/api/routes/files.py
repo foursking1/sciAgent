@@ -7,9 +7,9 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi.responses import FileResponse as FastAPIFileResponse
 
 logger = logging.getLogger(__name__)
-from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -17,7 +17,6 @@ from backend.db.database import get_db_session
 from backend.db.models.session import Session
 from backend.db.models.file import File as FileModel
 from backend.schemas.files import (
-    FileResponse,
     FileListResponse,
     FileUploadResponse,
 )
@@ -194,92 +193,6 @@ async def list_files(
     }
 
 
-@router.get("/{session_id}/{file_path:path}")
-async def download_file(
-    session_id: str,
-    file_path: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db_session),
-):
-    """
-    Download a file from a session.
-    """
-    # Verify session access
-    session = await _verify_session_access(session_id, current_user.id, db)
-
-    # Construct full file path
-    full_path = os.path.join(session.working_dir, file_path)
-
-    # Security check: ensure file is within workspace
-    workspace_base = session.working_dir
-    if not os.path.abspath(full_path).startswith(os.path.abspath(workspace_base)):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied: file path traversal detected",
-        )
-
-    if not os.path.exists(full_path):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="File not found",
-        )
-
-    return FileResponse(
-        path=full_path,
-        filename=os.path.basename(file_path),
-    )
-
-
-@router.delete("/{file_path:path}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_file(
-    file_path: str,
-    session_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db_session),
-) -> None:
-    """
-    Delete a file from a session.
-    """
-    # Verify session access
-    session = await _verify_session_access(session_id, current_user.id, db)
-
-    # Construct full file path
-    full_path = os.path.join(session.working_dir, file_path)
-
-    # Security check: ensure file is within workspace
-    workspace_base = session.working_dir
-    if not os.path.abspath(full_path).startswith(os.path.abspath(workspace_base)):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied: file path traversal detected",
-        )
-
-    if not os.path.exists(full_path):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="File not found",
-        )
-
-    # Delete file from filesystem
-    try:
-        os.remove(full_path)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete file: {str(e)}",
-        )
-
-    # Delete from database
-    result = await db.execute(
-        select(FileModel).where(FileModel.file_path == full_path)
-    )
-    file_record = result.scalar_one_or_none()
-
-    if file_record:
-        await db.delete(file_record)
-        await db.commit()
-
-
 @router.get("/{session_id}/preview/{file_path:path}")
 async def preview_file(
     session_id: str,
@@ -307,6 +220,8 @@ async def preview_file(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied: file path traversal detected",
         )
+
+    logger.info(f"Previewing file: {full_path}, exists: {os.path.exists(full_path)}")
 
     if not os.path.exists(full_path) or not os.path.isfile(full_path):
         raise HTTPException(
@@ -378,3 +293,89 @@ async def preview_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to read file: {str(e)}",
         )
+
+
+@router.get("/{session_id}/{file_path:path}")
+async def download_file(
+    session_id: str,
+    file_path: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+):
+    """
+    Download a file from a session.
+    """
+    # Verify session access
+    session = await _verify_session_access(session_id, current_user.id, db)
+
+    # Construct full file path
+    full_path = os.path.join(session.working_dir, file_path)
+
+    # Security check: ensure file is within workspace
+    workspace_base = session.working_dir
+    if not os.path.abspath(full_path).startswith(os.path.abspath(workspace_base)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: file path traversal detected",
+        )
+
+    if not os.path.exists(full_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found",
+        )
+
+    return FastAPIFileResponse(
+        path=full_path,
+        filename=os.path.basename(file_path),
+    )
+
+
+@router.delete("/{session_id}/{file_path:path}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_file(
+    session_id: str,
+    file_path: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> None:
+    """
+    Delete a file from a session.
+    """
+    # Verify session access
+    session = await _verify_session_access(session_id, current_user.id, db)
+
+    # Construct full file path
+    full_path = os.path.join(session.working_dir, file_path)
+
+    # Security check: ensure file is within workspace
+    workspace_base = session.working_dir
+    if not os.path.abspath(full_path).startswith(os.path.abspath(workspace_base)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: file path traversal detected",
+        )
+
+    if not os.path.exists(full_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found",
+        )
+
+    # Delete file from filesystem
+    try:
+        os.remove(full_path)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete file: {str(e)}",
+        )
+
+    # Delete from database
+    result = await db.execute(
+        select(FileModel).where(FileModel.file_path == full_path)
+    )
+    file_record = result.scalar_one_or_none()
+
+    if file_record:
+        await db.delete(file_record)
+        await db.commit()

@@ -6,8 +6,8 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
 
-class FileResponse(BaseModel):
-    """File response schema"""
+class FileInfo(BaseModel):
+    """File info schema"""
     id: int
     session_id: str
     filename: str
@@ -21,7 +21,7 @@ class FileResponse(BaseModel):
 
 class FileListResponse(BaseModel):
     """Response for listing files"""
-    files: list[FileResponse]
+    files: list[FileInfo]
     total: int
     current_path: str = ""
 
