@@ -16,20 +16,74 @@ SciAgent - AI-driven scientific research automation platform. End-to-end agent w
 
 ## Quick Start
 
+### Development Environment (Recommended for development)
+
+See [DEVELOPMENT.md](./DEVELOPMENT.md) for detailed documentation.
+
 ```bash
-# Start all services (MySQL, Redis, Backend, Frontend)
-docker-compose up -d
+# Start development environment with hot reload
+docker compose -f docker-compose.dev.yml up -d
 
 # View logs
-docker-compose logs -f backend
-docker-compose logs -f frontend
+docker compose -f docker-compose.dev.yml logs -f backend
+docker compose -f docker-compose.dev.yml logs -f frontend
+
+# Stop development environment
+docker compose -f docker-compose.dev.yml down
+```
+
+### Production Environment
+
+```bash
+# Start production environment
+docker compose up -d
+
+# View logs
+docker compose logs -f backend
+docker compose logs -f frontend
+
+# Stop production environment
+docker compose down
 ```
 
 Access: Frontend http://localhost:3000 | API http://localhost:8000 | Docs http://localhost:8000/docs
 
+### Environment Distinction
+
+| Aspect | Development | Production |
+|--------|-------------|------------|
+| Compose file | docker-compose.dev.yml | docker-compose.yml |
+| Container names | *-dev suffix | No suffix |
+| Hot reload | ✅ Enabled | ❌ Disabled |
+| Debug mode | ✅ Enabled | ❌ Disabled |
+| DEV badge in UI | ✅ Visible | ❌ Hidden |
+| Health check | `"environment": "development"` | `"environment": "production"` |
+
 ## Development Commands
 
-### Backend
+### Docker Development Environment (Recommended)
+
+```bash
+# Start development environment with hot reload
+docker compose -f docker-compose.dev.yml up -d
+
+# View backend logs
+docker compose -f docker-compose.dev.yml logs -f backend
+
+# View frontend logs
+docker compose -f docker-compose.dev.yml logs -f frontend
+
+# Restart backend service
+docker compose -f docker-compose.dev.yml restart backend
+
+# Restart frontend service
+docker compose -f docker-compose.dev.yml restart frontend
+
+# Stop development environment
+docker compose -f docker-compose.dev.yml down
+```
+
+### Local Backend Development
 
 ```bash
 cd backend
@@ -54,7 +108,7 @@ uv run ruff check .
 uv run black . --check
 ```
 
-### Frontend
+### Local Frontend Development
 
 ```bash
 cd frontend
