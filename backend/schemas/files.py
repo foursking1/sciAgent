@@ -24,7 +24,6 @@ class FileListResponse(BaseModel):
     files: list[FileResponse]
     total: int
     current_path: str = ""
-    current_path: str = ""
 
 
 class FileUploadResponse(BaseModel):

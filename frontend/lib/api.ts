@@ -38,6 +38,16 @@ export interface FileRecord {
   created_at: string;
 }
 
+export interface FilePreview {
+  type: 'text' | 'image' | 'binary';
+  filename: string;
+  extension: string;
+  size: number;
+  content?: string;
+  url?: string;
+  message?: string;
+}
+
 // Helper function for API calls
 async function apiCall<T>(
   endpoint: string,
@@ -225,14 +235,6 @@ export const filesApi = {
 
   getDownloadUrl(sessionId: string, filePath: string): string {
     return `${API_BASE_URL}/api/files/${sessionId}/${encodeURIComponent(filePath)}`;
-  },
-
-  async preview(token: string, sessionId: string, filePath: string): Promise<{ type: string; filename: string; extension: string; size: number; content?: string; url?: string; message?: string }> {
-    return apiCall(`/api/files/${sessionId}/preview/${encodeURIComponent(filePath)}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
   },
 
   /**
