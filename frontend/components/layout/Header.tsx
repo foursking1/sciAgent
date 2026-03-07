@@ -2,6 +2,26 @@ import React, { useState, useRef, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
 
+/**
+ * Environment badge component - shows current environment
+ */
+const EnvironmentBadge: React.FC = () => {
+  // Check if we're in development mode
+  const isDev = process.env.NODE_ENV === 'development' ||
+                process.env.NEXT_PUBLIC_ENVIRONMENT === 'development'
+
+  if (!isDev) return null
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+        <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 mr-1.5 animate-pulse"></span>
+        DEV
+      </span>
+    </div>
+  )
+}
+
 export interface User {
   name: string
   email: string
@@ -279,43 +299,46 @@ export const Header: React.FC<HeaderProps> = ({
     <header className={headerClasses}>
       <div className={innerClasses}>
         {/* Logo */}
-        <button
-          onClick={onDashboard}
-          className={cn(
-            'flex items-center gap-3',
-            'focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-lg',
-            'transition-colors duration-200'
-          )}
-          aria-label="K-Dense Home"
-        >
-          <div
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onDashboard}
             className={cn(
-              'w-8 h-8 rounded-lg',
-              'bg-gradient-to-br from-primary-500 to-accent-500',
-              'flex items-center justify-center',
-              'shadow-lg shadow-primary-500/30'
+              'flex items-center gap-3',
+              'focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-lg',
+              'transition-colors duration-200'
             )}
-            aria-hidden="true"
+            aria-label="K-Dense Home"
           >
-            <svg
-              className="w-5 h-5 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+            <div
+              className={cn(
+                'w-8 h-8 rounded-lg',
+                'bg-gradient-to-br from-primary-500 to-accent-500',
+                'flex items-center justify-center',
+                'shadow-lg shadow-primary-500/30'
+              )}
               aria-hidden="true"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 10V3L4 14h7v7l9-11h-7z"
-              />
-            </svg>
-          </div>
-          <span className="text-lg font-semibold text-white hidden sm:block">
-            K-Dense
-          </span>
-        </button>
+              <svg
+                className="w-5 h-5 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
+              </svg>
+            </div>
+            <span className="text-lg font-semibold text-white hidden sm:block">
+              K-Dense
+            </span>
+          </button>
+          <EnvironmentBadge />
+        </div>
 
         {/* Right side */}
         <div className="flex items-center gap-2">

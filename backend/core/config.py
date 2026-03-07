@@ -15,6 +15,7 @@ class Settings(BaseSettings):
 
     # Application
     APP_NAME: str = "SciAgent"
+    ENVIRONMENT: str = "development"  # development, production
     DEBUG: bool = True
 
     # Database

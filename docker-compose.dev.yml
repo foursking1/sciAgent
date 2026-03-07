@@ -54,6 +54,8 @@ services:
     env_file:
       - .env
     environment:
+      ENVIRONMENT: development
+      DEBUG: "true"
       DATABASE_URL: mysql+aiomysql://sciagent:${MYSQL_PASSWORD:-changeme}@mysql:3306/sciagent?charset=utf8mb4
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-changeme}
@@ -67,8 +69,6 @@ services:
       OPENROUTER_API_BASE: ${OPENROUTER_API_BASE:-https://openai.sohoyo.io/v1}
       # Disable Claude Code nested session check
       CLAUDECODE: ""
-      # Development mode
-      DEBUG: "1"
     volumes:
       # Mount source code for hot reload
       - ./backend:/app/backend:ro
@@ -95,6 +95,8 @@ services:
     container_name: sciagent-frontend-dev
     restart: unless-stopped
     environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_ENVIRONMENT: development
       NEXT_PUBLIC_API_URL: http://localhost:8000
       WATCHPACK_POLLING: "true"
     ports:

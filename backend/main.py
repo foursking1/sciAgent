@@ -143,6 +143,7 @@ async def health_check():
         "status": "healthy",
         "app": settings.APP_NAME,
         "version": "0.1.0",
+        "environment": settings.ENVIRONMENT,
     }
 
 
