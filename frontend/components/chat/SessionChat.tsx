@@ -12,7 +12,7 @@ import { DataSourceModal } from '@/components/data-sources/DataSourceModal'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { sessionsApi, filesApi, type Session } from '@/lib/api'
-import { PanelRightClose, PanelRightOpen, PanelLeftOpen } from 'lucide-react'
+import { PanelRightClose, PanelRightOpen, PanelLeftOpen, Globe, Lock, Copy, Check } from 'lucide-react'
 
 export interface SessionPageProps {
   sessionId: string
@@ -39,6 +39,7 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
   const [isFilePanelOpen, setIsFilePanelOpen] = useState(true) // Default open
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false) // Sidebar collapse state
   const [isDataSourceModalOpen, setIsDataSourceModalOpen] = useState(false) // Data source modal
+  const [copied, setCopied] = useState(false) // Copy link state
 
   const eventSourceRef = useRef<EventSource | null>(null)
   const eventStreamRef = useRef<EventStreamRef>(null)
@@ -284,6 +285,26 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
     }
   }, [token, sessionId, currentMode, message])
 
+  // Handle toggle public status
+  const handleTogglePublic = useCallback(async () => {
+    if (!token || !session) return
+
+    try {
+      const updated = await sessionsApi.setPublic(token, sessionId, !session.is_public)
+      setSession(updated)
+    } catch (err) {
+      console.error('Failed to toggle public status:', err)
+    }
+  }, [token, sessionId, session])
+
+  // Handle copy public link
+  const handleCopyLink = useCallback(async () => {
+    const url = `${window.location.origin}/session/public/${sessionId}`
+    await navigator.clipboard.writeText(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }, [sessionId])
+
   // Load historical messages when session changes (no race condition version)
   useEffect(() => {
     if (!token || !sessionId) return
@@ -410,6 +431,38 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
                 <span className="text-sm text-red-400" title={connectionError.message}>
                   连接错误
                 </span>
+              )}
+              {/* Public status indicator */}
+              {session?.is_public && (
+                <span className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-primary-500/20 text-primary-400 border border-primary-500/30">
+                  <Globe className="w-3 h-3" />
+                  Public
+                </span>
+              )}
+              {/* Toggle public button */}
+              <button
+                onClick={handleTogglePublic}
+                className={cn(
+                  'p-2 rounded-lg transition-colors',
+                  session?.is_public
+                    ? 'bg-primary-500/20 text-primary-400'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                )}
+                aria-label={session?.is_public ? 'Make private' : 'Make public'}
+                title={session?.is_public ? 'Make private' : 'Share'}
+              >
+                {session?.is_public ? <Globe className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
+              </button>
+              {/* Copy public link button */}
+              {session?.is_public && (
+                <button
+                  onClick={handleCopyLink}
+                  className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+                  aria-label="Copy public link"
+                  title="Copy public link"
+                >
+                  {copied ? <Check className="w-5 h-5 text-green-400" /> : <Copy className="w-5 h-5" />}
+                </button>
               )}
               {/* Toggle file panel button */}
               <button

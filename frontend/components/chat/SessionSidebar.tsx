@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Clock, MessageSquare, Trash2, ChevronLeft, ChevronRight, Database } from 'lucide-react'
+import { Plus, Clock, MessageSquare, Trash2, ChevronLeft, ChevronDown, ChevronRight, Database } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { sessionsApi, type Session } from '@/lib/api'
 
@@ -20,11 +20,11 @@ interface SessionSidebarProps {
  *
  * Features:
  * - Collapsible sidebar (fully hidden when collapsed)
- * - Shows title (first message), time, and preview (last message)
+ * - Data source market entry (above history)
+ * - Collapsible history tab
  * - Create new session
  * - Delete session
  * - Highlight current session
- * - Data source market entry
  */
 export function SessionSidebar({
   token,
@@ -38,6 +38,14 @@ export function SessionSidebar({
   const [sessions, setSessions] = useState<Session[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false) // 默认折叠
+
+  // 当有当前会话时，自动展开历史列表
+  useEffect(() => {
+    if (currentSessionId && sessions.some(s => s.id === currentSessionId)) {
+      setIsHistoryExpanded(true)
+    }
+  }, [currentSessionId, sessions])
 
   // Load sessions
   const loadSessions = useCallback(async () => {
@@ -129,7 +137,7 @@ export function SessionSidebar({
         className
       )}
     >
-      {/* Header */}
+      {/* Header - 新建会话 */}
       <div className="flex-shrink-0 p-4 border-b border-gray-800">
         <button
           onClick={handleCreateSession}
@@ -140,118 +148,141 @@ export function SessionSidebar({
         </button>
       </div>
 
-      {/* Session list */}
-      <div className="flex-1 overflow-y-auto">
-        {isLoading ? (
-          <div className="p-4 space-y-3">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="animate-pulse">
-                <div className="h-4 bg-gray-700 rounded w-3/4 mb-2" />
-                <div className="h-3 bg-gray-700 rounded w-1/2" />
-              </div>
-            ))}
-          </div>
-        ) : error ? (
-          <div className="p-4 text-center">
-            <p className="text-sm text-red-400">{error}</p>
-            <button
-              onClick={loadSessions}
-              className="mt-2 text-sm text-primary-400 hover:text-primary-300"
-            >
-              重试
-            </button>
-          </div>
-        ) : sessions.length === 0 ? (
-          <div className="p-4 text-center">
-            <MessageSquare className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-            <p className="text-sm text-gray-400">暂无会话</p>
-            <p className="text-xs text-gray-500 mt-1">点击上方按钮创建新会话</p>
-          </div>
-        ) : (
-          <div className="p-2 space-y-1">
-            {sessions.map(session => (
-              <div
-                key={session.id}
-                onClick={() => router.push(`/session/${session.id}`)}
-                className={cn(
-                  'group relative p-3 rounded-lg cursor-pointer transition-all',
-                  'hover:bg-surface',
-                  session.id === currentSessionId
-                    ? 'bg-primary-500/10 border border-primary-500/30'
-                    : 'border border-transparent'
-                )}
-              >
-                {/* Title */}
-                <h4 className={cn(
-                  'font-medium text-sm truncate',
-                  session.id === currentSessionId ? 'text-primary-400' : 'text-gray-200'
-                )}>
-                  {getSessionTitle(session)}
-                </h4>
-
-                {/* Time */}
-                <div className="flex items-center gap-1 mt-1">
-                  <Clock className="w-3 h-3 text-gray-500" />
-                  <span className="text-xs text-gray-500">{formatDate(session.created_at)}</span>
-                </div>
-
-                {/* Preview */}
-                {session.preview && (
-                  <p className="text-xs text-gray-500 mt-1 truncate">
-                    {session.preview}
-                  </p>
-                )}
-
-                {/* Delete button */}
-                <button
-                  onClick={(e) => handleDeleteSession(e, session.id)}
-                  className={cn(
-                    'absolute top-2 right-2 p-1.5 rounded-lg transition-all',
-                    'text-gray-500 hover:text-red-400 hover:bg-red-500/10',
-                    'opacity-0 group-hover:opacity-100'
-                  )}
-                  aria-label="删除会话"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-
-                {/* Active indicator */}
-                {session.id === currentSessionId && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-primary-500 rounded-r-full" />
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div className="flex-shrink-0 p-3 border-t border-gray-800 space-y-2">
-        {/* Data Source Market Button */}
+      {/* 数据源 Market 按钮 */}
+      <div className="flex-shrink-0 p-4 border-b border-gray-800">
         <button
           onClick={onOpenDataSourceMarket}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-surface hover:bg-gray-700 text-gray-300 text-sm transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-surface hover:bg-gray-700 text-gray-300 text-sm transition-colors border border-gray-700"
         >
-          <Database className="w-4 h-4" />
+          <Database className="w-4 h-4 text-primary-400" />
           <span>数据源 Market</span>
         </button>
+      </div>
 
-        {/* Session count and toggle */}
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-gray-500">
-            {sessions.length} 个会话
-          </p>
-          {onToggle && (
-            <button
-              onClick={onToggle}
-              className="p-1 rounded hover:bg-gray-700 text-gray-500 hover:text-gray-300 transition-colors"
-              aria-label={isCollapsed ? '展开侧边栏' : '折叠侧边栏'}
-              title={isCollapsed ? '展开侧边栏' : '折叠侧边栏'}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
+      {/* 历史会话 Tab */}
+      <div className="flex-1 overflow-hidden flex flex-col">
+        {/* Tab Header */}
+        <button
+          onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
+          className="w-full flex items-center justify-between p-4 hover:bg-surface transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-gray-400" />
+            <span className="text-sm font-medium text-gray-300">历史会话</span>
+            {sessions.length > 0 && (
+              <span className="text-xs text-gray-500">({sessions.length})</span>
+            )}
+          </div>
+          <ChevronRight
+            className={cn(
+              'w-4 h-4 text-gray-500 transition-transform duration-200',
+              isHistoryExpanded && 'rotate-90'
+            )}
+          />
+        </button>
+
+        {/* Session list - 可折叠 */}
+        <div
+          className={cn(
+            'flex-1 overflow-y-auto transition-all duration-300',
+            isHistoryExpanded ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'
+          )}
+        >
+          {isLoading ? (
+            <div className="p-4 space-y-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-4 bg-gray-700 rounded w-3/4 mb-2" />
+                  <div className="h-3 bg-gray-700 rounded w-1/2" />
+                </div>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="p-4 text-center">
+              <p className="text-sm text-red-400">{error}</p>
+              <button
+                onClick={loadSessions}
+                className="mt-2 text-sm text-primary-400 hover:text-primary-300"
+              >
+                重试
+              </button>
+            </div>
+          ) : sessions.length === 0 ? (
+            <div className="p-4 text-center">
+              <p className="text-sm text-gray-500">暂无历史会话</p>
+            </div>
+          ) : (
+            <div className="p-2 space-y-1">
+              {sessions.map(session => (
+                <div
+                  key={session.id}
+                  onClick={() => router.push(`/session/${session.id}`)}
+                  className={cn(
+                    'group relative p-3 rounded-lg cursor-pointer transition-all',
+                    'hover:bg-surface',
+                    session.id === currentSessionId
+                      ? 'bg-primary-500/10 border border-primary-500/30'
+                      : 'border border-transparent'
+                  )}
+                >
+                  {/* Title */}
+                  <h4 className={cn(
+                    'font-medium text-sm truncate',
+                    session.id === currentSessionId ? 'text-primary-400' : 'text-gray-200'
+                  )}>
+                    {getSessionTitle(session)}
+                  </h4>
+
+                  {/* Time */}
+                  <div className="flex items-center gap-1 mt-1">
+                    <Clock className="w-3 h-3 text-gray-500" />
+                    <span className="text-xs text-gray-500">{formatDate(session.created_at)}</span>
+                  </div>
+
+                  {/* Preview */}
+                  {session.preview && (
+                    <p className="text-xs text-gray-500 mt-1 truncate">
+                      {session.preview}
+                    </p>
+                  )}
+
+                  {/* Delete button */}
+                  <button
+                    onClick={(e) => handleDeleteSession(e, session.id)}
+                    className={cn(
+                      'absolute top-2 right-2 p-1.5 rounded-lg transition-all',
+                      'text-gray-500 hover:text-red-400 hover:bg-red-500/10',
+                      'opacity-0 group-hover:opacity-100'
+                    )}
+                    aria-label="删除会话"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+
+                  {/* Active indicator */}
+                  {session.id === currentSessionId && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-primary-500 rounded-r-full" />
+                  )}
+                </div>
+              ))}
+            </div>
           )}
         </div>
+      </div>
+
+      {/* Footer - 折叠按钮 */}
+      <div className="flex-shrink-0 p-3 border-t border-gray-800">
+        {onToggle && (
+          <button
+            onClick={onToggle}
+            className="w-full flex items-center justify-center gap-2 p-2 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-700 transition-colors text-sm"
+            aria-label="折叠侧边栏"
+            title="折叠侧边栏"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span>收起侧边栏</span>
+          </button>
+        )}
       </div>
     </div>
   )

@@ -18,9 +18,28 @@ export interface Session {
   title: string | null;
   agent_type: string | null;
   current_mode: string;
+  is_public: boolean;
   created_at: string;
   updated_at: string | null;
   preview?: string;
+}
+
+export interface PublicSession {
+  id: string;
+  title: string | null;
+  current_mode: string;
+  created_at: string;
+  preview_image: string | null;
+  pdf_path: string | null;
+}
+
+export interface PublicSessionDetail {
+  id: string;
+  title: string | null;
+  current_mode: string;
+  created_at: string;
+  messages: Message[];
+  is_owner: boolean;
 }
 
 export interface Message {
@@ -255,6 +274,19 @@ export const sessionsApi = {
       }
     );
   },
+
+  /**
+   * Toggle session public status
+   */
+  async setPublic(token: string, sessionId: string, isPublic: boolean): Promise<Session> {
+    return apiCall<Session>(`/api/sessions/${sessionId}/public`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ is_public: isPublic }),
+    });
+  },
 };
 
 // Files API
@@ -302,6 +334,35 @@ export const filesApi = {
         Authorization: `Bearer ${token}`,
       },
     });
+  },
+
+  /**
+   * Get public file URL (no auth required)
+   */
+  getPublicFileUrl(sessionId: string, filePath: string): string {
+    return `${API_BASE_URL}/api/files/public/${sessionId}/${encodeURIComponent(filePath)}`;
+  },
+};
+
+// Public API (no authentication required)
+export const publicApi = {
+  /**
+   * List all public sessions
+   */
+  async listSessions(): Promise<PublicSession[]> {
+    const data = await apiCall<{ sessions: PublicSession[]; total: number }>('/api/sessions/public');
+    return data.sessions;
+  },
+
+  /**
+   * Get a public session with messages
+   */
+  async getSession(sessionId: string, token?: string): Promise<PublicSessionDetail> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return apiCall<PublicSessionDetail>(`/api/sessions/public/${sessionId}`, { headers });
   },
 };
 

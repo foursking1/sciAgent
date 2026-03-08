@@ -23,9 +23,40 @@ class SessionResponse(BaseModel):
     title: Optional[str] = None
     agent_type: Optional[str] = None
     current_mode: str = "data-question"
+    is_public: bool = False
     created_at: datetime
     updated_at: Optional[datetime] = None
     preview: Optional[str] = None  # Last message preview
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PublicSessionResponse(BaseModel):
+    """Public session response for landing page"""
+    id: str
+    title: Optional[str] = None
+    current_mode: str = "data-question"
+    created_at: datetime
+    preview_image: Optional[str] = None  # Path to preview image
+    pdf_path: Optional[str] = None  # Path to generated PDF
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PublicSessionListResponse(BaseModel):
+    """Response for listing public sessions"""
+    sessions: list[PublicSessionResponse]
+    total: int
+
+
+class PublicSessionDetail(BaseModel):
+    """Detailed public session with messages"""
+    id: str
+    title: Optional[str] = None
+    current_mode: str = "data-question"
+    created_at: datetime
+    messages: list["MessageResponse"]
+    is_owner: bool = False  # True if current user owns this session
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -39,6 +70,11 @@ class SessionListResponse(BaseModel):
 class ModeUpdate(BaseModel):
     """Schema for updating session mode"""
     mode: SessionMode = Field(..., description="New mode")
+
+
+class PublicUpdate(BaseModel):
+    """Schema for updating session public status"""
+    is_public: bool = Field(..., description="Whether session is public")
 
 
 class MessageCreate(BaseModel):

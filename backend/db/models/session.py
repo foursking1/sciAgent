@@ -46,6 +46,11 @@ class Session(Base):
         default="data-question",
         server_default="data-question"
     )
+    is_public: Mapped[bool] = mapped_column(
+        default=False,
+        server_default="0",
+        nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

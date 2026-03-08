@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import { Plus, LogOut, Clock, MessageSquare, Activity, Trash2 } from 'lucide-react';
+import { Plus, LogOut, Clock, MessageSquare, Activity, Trash2, Globe, Lock, Copy, Check } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { sessionsApi, type Session } from '@/lib/api';
 
@@ -51,6 +51,19 @@ export default function DashboardPage() {
       setSessions(prev => prev.filter(s => s.id !== sessionId));
     } catch (err) {
       alert('Failed to delete session');
+    }
+  };
+
+  // Handle toggle public status
+  const handleTogglePublic = async (e: React.MouseEvent, sessionId: string, isPublic: boolean) => {
+    e.stopPropagation();
+    if (!token) return;
+
+    try {
+      const updated = await sessionsApi.setPublic(token, sessionId, !isPublic);
+      setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, is_public: updated.is_public } : s));
+    } catch (err) {
+      alert('Failed to update session visibility');
     }
   };
 
@@ -181,7 +194,12 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-3">
               {sessions.map((session) => (
-                <SessionCard key={session.id} session={session} onDelete={handleDeleteSession} />
+                <SessionCard
+                  key={session.id}
+                  session={session}
+                  onDelete={handleDeleteSession}
+                  onTogglePublic={handleTogglePublic}
+                />
               ))}
             </div>
           )}
@@ -191,8 +209,17 @@ export default function DashboardPage() {
   );
 }
 
-function SessionCard({ session, onDelete }: { session: Session; onDelete: (e: React.MouseEvent, id: string) => void }) {
+function SessionCard({
+  session,
+  onDelete,
+  onTogglePublic,
+}: {
+  session: Session;
+  onDelete: (e: React.MouseEvent, id: string) => void;
+  onTogglePublic: (e: React.MouseEvent, id: string, isPublic: boolean) => void;
+}) {
   const router = useRouter();
+  const [copied, setCopied] = useState(false);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -211,6 +238,14 @@ function SessionCard({ session, onDelete }: { session: Session; onDelete: (e: Re
     }
   };
 
+  const handleCopyLink = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const url = `${window.location.origin}/session/public/${session.id}`;
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div
       onClick={() => router.push(`/session/${session.id}`)}
@@ -220,14 +255,46 @@ function SessionCard({ session, onDelete }: { session: Session; onDelete: (e: Re
         <MessageSquare className="w-5 h-5 text-primary-400" />
       </div>
       <div className="flex-1 text-left">
-        <h4 className="font-medium text-gray-100 group-hover:text-primary-400 transition-colors truncate">
-          Session {session.id.slice(0, 8)}...
-        </h4>
+        <div className="flex items-center gap-2">
+          <h4 className="font-medium text-gray-100 group-hover:text-primary-400 transition-colors truncate">
+            {session.title || `Session ${session.id.slice(0, 8)}...`}
+          </h4>
+          {session.is_public && (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-primary-500/20 text-primary-400 border border-primary-500/30">
+              <Globe className="w-3 h-3" />
+              Public
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
           <Clock className="w-3 h-3" />
           <span>Created {formatDate(session.created_at)}</span>
         </div>
       </div>
+
+      {/* Share button */}
+      <button
+        onClick={(e) => onTogglePublic(e, session.id, session.is_public || false)}
+        className={`p-2 transition-colors ${session.is_public ? 'text-primary-400 hover:text-primary-300' : 'text-gray-500 hover:text-white'}`}
+        aria-label={session.is_public ? 'Make private' : 'Make public'}
+        title={session.is_public ? 'Make private' : 'Make public'}
+      >
+        {session.is_public ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+      </button>
+
+      {/* Copy link button (only show if public) */}
+      {session.is_public && (
+        <button
+          onClick={handleCopyLink}
+          className="p-2 text-gray-500 hover:text-white transition-colors"
+          aria-label="Copy public link"
+          title="Copy public link"
+        >
+          {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+        </button>
+      )}
+
+      {/* Delete button */}
       <button
         onClick={(e) => onDelete(e, session.id)}
         className="p-2 text-gray-500 hover:text-red-400 transition-colors"
@@ -235,6 +302,7 @@ function SessionCard({ session, onDelete }: { session: Session; onDelete: (e: Re
       >
         <Trash2 className="w-4 h-4" />
       </button>
+
       <div className="text-gray-600 group-hover:text-primary-400 transition-colors">
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

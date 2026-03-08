@@ -3,8 +3,11 @@ Session API routes.
 """
 import json
 import logging
+from typing import Optional
+from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -18,10 +21,14 @@ from backend.schemas.sessions import (
     SessionResponse,
     SessionListResponse,
     ModeUpdate,
+    PublicUpdate,
     MessageCreate,
     MessageResponse,
     TaskResponse,
     TaskStatusResponse,
+    PublicSessionResponse,
+    PublicSessionListResponse,
+    PublicSessionDetail,
 )
 from backend.schemas.auth import TokenData
 from backend.api.routes.auth import get_current_user, get_current_user_for_sse
@@ -30,6 +37,147 @@ from backend.services.task_queue import task_queue, TaskStatus
 from backend.db.models.user import User
 
 router = APIRouter()
+
+# Security for optional auth
+security = HTTPBearer(auto_error=False)
+
+
+async def get_current_user_optional(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    db: AsyncSession = Depends(get_db_session),
+) -> User | None:
+    """Get current user if authenticated, otherwise return None"""
+    if credentials is None:
+        return None
+
+    try:
+        from backend.services.auth import verify_token
+        token_data = verify_token(credentials.credentials)
+        if token_data is None:
+            return None
+
+        result = await db.execute(
+            select(User).where(User.id == token_data.user_id)
+        )
+        return result.scalar_one_or_none()
+    except Exception:
+        return None
+
+
+# ============ Helper functions ============
+
+async def _find_preview_image(working_dir: str) -> str | None:
+    """Find the first image file in workspace for preview"""
+    workspace = Path(working_dir)
+    if not workspace.exists():
+        return None
+
+    image_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.webp'}
+
+    # Look in common output directories
+    search_paths = [workspace / "outputs", workspace / "figures", workspace]
+
+    for search_path in search_paths:
+        if not search_path.exists():
+            continue
+        for file in search_path.rglob("*"):
+            if file.is_file() and file.suffix.lower() in image_extensions:
+                return str(file.relative_to(workspace))
+
+    return None
+
+
+async def _find_pdf(working_dir: str) -> str | None:
+    """Find PDF file in workspace"""
+    workspace = Path(working_dir)
+    if not workspace.exists():
+        return None
+
+    # Look for PDFs
+    for file in workspace.rglob("*.pdf"):
+        return str(file.relative_to(workspace))
+
+    return None
+
+
+# ============ Public Session Endpoints (must come before /{session_id}) ============
+
+@router.get("/public", response_model=PublicSessionListResponse)
+async def list_public_sessions(
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """
+    List all public sessions (no authentication required).
+    Returns sessions with preview image and PDF paths.
+    """
+    result = await db.execute(
+        select(Session)
+        .where(Session.is_public == True)
+        .order_by(Session.created_at.desc())
+    )
+    sessions = result.scalars().all()
+
+    public_sessions = []
+    for session in sessions:
+        # Find preview image and PDF in workspace
+        preview_image = await _find_preview_image(session.working_dir)
+        pdf_path = await _find_pdf(session.working_dir)
+
+        public_sessions.append(PublicSessionResponse(
+            id=session.id,
+            title=session.title,
+            current_mode=session.current_mode,
+            created_at=session.created_at,
+            preview_image=preview_image,
+            pdf_path=pdf_path,
+        ))
+
+    return {
+        "sessions": public_sessions,
+        "total": len(public_sessions),
+    }
+
+
+@router.get("/public/{session_id}", response_model=PublicSessionDetail)
+async def get_public_session(
+    session_id: str,
+    current_user: User | None = Depends(get_current_user_optional),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """
+    Get a public session with messages (no authentication required).
+    """
+    result = await db.execute(
+        select(Session).where(Session.id == session_id, Session.is_public == True)
+    )
+    session = result.scalar_one_or_none()
+
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found or not public",
+        )
+
+    # Get messages
+    messages = await session_manager.get_messages(
+        session_id=session_id,
+        db=db,
+    )
+
+    # Check if current user is owner
+    is_owner = current_user is not None and current_user.id == session.user_id
+
+    return PublicSessionDetail(
+        id=session.id,
+        title=session.title,
+        current_mode=session.current_mode,
+        created_at=session.created_at,
+        messages=messages,
+        is_owner=is_owner,
+    )
+
+
+# ============ Authenticated Session Endpoints ============
 
 
 @router.post("", response_model=SessionResponse, status_code=status.HTTP_201_CREATED)
@@ -427,4 +575,34 @@ async def cancel_task(
     # Get updated status
     task = await task_queue.get_status(task_id)
     return task.to_dict()
+
+
+@router.patch("/{session_id}/public", response_model=SessionResponse)
+async def toggle_session_public(
+    session_id: str,
+    public_data: PublicUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> Session:
+    """
+    Toggle session public status (owner only).
+    """
+    # Query session directly from database
+    result = await db.execute(
+        select(Session).where(Session.id == session_id, Session.user_id == current_user.id)
+    )
+    session = result.scalar_one_or_none()
+
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
+
+    # Update public status
+    session.is_public = public_data.is_public
+    await db.commit()
+    await db.refresh(session)
+
+    return session
 

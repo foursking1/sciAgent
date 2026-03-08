@@ -27,6 +27,54 @@ from backend.db.models.user import User
 router = APIRouter()
 
 
+# ============ Public File Endpoint ============
+
+@router.get("/public/{session_id}/{file_path:path}")
+async def download_public_file(
+    session_id: str,
+    file_path: str,
+    db: AsyncSession = Depends(get_db_session),
+):
+    """
+    Download a file from a public session (no authentication required).
+    """
+    # Verify session is public
+    result = await db.execute(
+        select(Session).where(Session.id == session_id, Session.is_public == True)
+    )
+    session = result.scalar_one_or_none()
+
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found or not public",
+        )
+
+    # Construct full file path
+    full_path = os.path.join(session.working_dir, file_path)
+
+    # Security check: ensure file is within workspace
+    workspace_base = session.working_dir
+    if not os.path.abspath(full_path).startswith(os.path.abspath(workspace_base)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: file path traversal detected",
+        )
+
+    if not os.path.exists(full_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found",
+        )
+
+    return FastAPIFileResponse(
+        path=full_path,
+        filename=os.path.basename(file_path),
+    )
+
+
+# ============ Authenticated File Endpoints ============
+
 async def _verify_session_access(
     session_id: str,
     user_id: int,

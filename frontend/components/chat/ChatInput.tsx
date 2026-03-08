@@ -122,8 +122,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isFocused, setIsFocused] = useState(false)
 
-  // 兼容旧的 mode 值
-  const normalizedMode = mode === 'normal' ? 'data-question' : mode === 'research' ? 'scientific-experiment' : mode
+  // Normalize mode value (handle legacy modes)
+  const normalizedMode = ((mode as string) === 'normal' ? 'data-question' : (mode as string) === 'research' ? 'scientific-experiment' : mode) as SessionMode
   const currentMode = MODE_CONFIGS[normalizedMode] || MODE_CONFIGS['data-question']
 
   // Auto-resize textarea
