@@ -1,23 +1,44 @@
 # SciAgent
 
-> AI 驱动的科学研宄自动化平台 - 从问题到解决方案的端到端自动化
+> AI 驱动的科学研究自动化平台 - 从问题到解决方案的端到端自动化
 
-## 产品定位
+## 产品功能
 
-类似 [K-Dense Web](https://www.k-dense.ai/) 的 AI 研究代理平台，集成 [agentic-data-scientist](https://github.com/K-Dense-AI/agentic-data-scientist) 框架，提供：
+SciAgent 是一个面向科研人员的 AI 助手平台，通过多 Agent 协作实现科学研究的自动化工作流。
 
-- 🔬 **科学数据分析** - 支持 200+ 科学数据格式
-- 🤖 **多 Agent 工作流** - Planning → Execution → Summary
-- 📊 **可视化输出** - 图表、报告、论文生成
-- 🔌 **插件扩展** - 250+ 数据库连接器
+### 核心能力
+
+- 🔬 **数据分析** - 支持 200+ 科学数据格式，自动分析并生成可视化图表
+- 📝 **论文写作** - 学术写作助手，支持多种论文模板和引用格式
+- 🧪 **实验设计** - 科学实验方案设计与分析
+- 📊 **数据抽取** - 数据提取、清洗与转换
+
+### 工作模式
+
+平台提供 4 种专业工作模式，针对不同研究场景优化：
+
+| 模式 | 说明 | 适用场景 |
+|------|------|----------|
+| **data-question** | 数据问题 | 数据查询、统计分析、可视化 |
+| **scientific-experiment** | 科学实验 | 实验设计、假设验证、结果分析 |
+| **data-extraction** | 数据抽取 | 数据提取、格式转换、清洗 |
+| **paper-writing** | 论文写作 | 学术写作、文献综述、论文润色 |
+
+### 会话管理
+
+- 创建/删除/查看会话
+- 会话公开分享（支持预览图和 PDF 下载）
+- 消息历史记录
+- 实时 SSE 流式响应
+- 任务队列系统（支持取消、状态查询）
 
 ## 技术栈
 
 ### 后端
 - **框架**: FastAPI 0.115
-- **数据库**: MySQL 8.0 + aiomysql
+- **数据库**: MySQL 8.0 + SQLAlchemy 2.0 (async)
 - **缓存**: Redis 7
-- **核心引擎**: agentic-data-scientist >= 0.2.0
+- **核心引擎**: agentic-data-scientist >= 0.2.2
 - **认证**: JWT + bcrypt
 
 ### 前端
@@ -31,30 +52,37 @@
 
 ## 快速开始
 
-### 1. 环境准备
+### 开发环境
 
 ```bash
 # 克隆仓库
-git clone <repo-url>
-cd k-dense-clone
+git clone https://gitee.com/foursking1/sci-agent.git
+cd sci-agent
 
 # 复制环境变量
 cp .env.example .env
 # 编辑 .env 填入 API keys
-```
 
-### 2. 启动服务
-
-```bash
-# Docker Compose 一键启动
-docker-compose up -d
+# 启动开发环境（热重载）
+docker compose -f docker-compose.dev.yml up -d
 
 # 查看日志
-docker-compose logs -f backend
-docker-compose logs -f frontend
+docker compose -f docker-compose.dev.yml logs -f backend
+docker compose -f docker-compose.dev.yml logs -f frontend
 ```
 
-### 3. 访问应用
+### 生产环境
+
+```bash
+# 启动生产环境
+docker compose up -d
+
+# 查看日志
+docker compose logs -f backend
+docker compose logs -f frontend
+```
+
+### 访问应用
 
 - **前端**: http://localhost:3000
 - **后端 API**: http://localhost:8000
@@ -65,80 +93,18 @@ docker-compose logs -f frontend
 ```
 sciagent/
 ├── backend/
-│   ├── api/routes/        # API 路由 (auth, sessions, files)
-│   ├── db/models/         # 数据模型 (MySQL)
-│   ├── services/          # 业务逻辑 (auth, session_manager)
-│   └── tests/             # 测试用例
+│   ├── api/routes/        # API 路由 (auth, sessions, files, data_sources)
+│   ├── db/models/         # SQLAlchemy 数据模型
+│   ├── services/          # 业务逻辑 (auth, session_manager, task_queue)
+│   └── tests/             # pytest 测试用例
 ├── frontend/
 │   ├── app/               # Next.js 页面
-│   ├── components/        # UI 组件
-│   └── styles/            # 设计系统
-├── e2e/                   # Playwright 端到端测试
+│   ├── components/        # UI 组件 (chat, layout, ui)
+│   └── lib/               # API 客户端、工具函数
+├── scientific-skills/     # 科学分析技能包
 ├── workspaces/            # 用户工作区
-├── docker-compose.yml
-└── DEVELOPMENT_PLAN.md    # 详细开发计划
+└── docker-compose.yml
 ```
-
-## 核心功能
-
-### 1. 用户认证
-- [x] JWT Token 认证
-- [x] 用户注册/登录
-- [ ] API Key 管理
-
-### 2. 会话管理
-- [x] 创建/删除会话
-- [x] 会话列表
-- [x] 消息历史
-
-### 3. Agentic 分析
-- [ ] SSE 流式事件
-- [ ] 文件上传/解析
-- [ ] 代码执行 (Docker 沙箱)
-- [ ] 科学 Skills 集成
-
-### 4. 文件管理
-- [ ] 工作区文件浏览器
-- [ ] 生成文件下载
-
-## 开发模式
-
-### TDD 工作流
-
-```bash
-# 1. 运行测试 (Red)
-uv run pytest backend/tests/ -v
-
-# 2. 实现代码让测试通过 (Green)
-# 编辑 backend/services/...
-
-# 3. 重构 (Refactor)
-
-# 4. 重复
-```
-
-### 前端开发
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-### 端到端测试
-
-```bash
-npx playwright test
-```
-
-## 设计系统
-
-**理念**: 科学 × 简约 × 未来感
-
-- **主色调**: 深空蓝 (#0080ff)
-- **强调色**: 量子紫 (#8b5cf6)
-- **背景**: 深空灰 (#0a0a0f)
-- **字体**: Inter (UI) + JetBrains Mono (代码)
 
 ## 环境配置
 
@@ -153,11 +119,16 @@ JWT_SECRET=your-secret-key
 
 # API Keys (必需)
 ANTHROPIC_API_KEY=sk-ant-xxx
-OPENROUTER_API_KEY=xxx
+LITELLM_API_KEY=xxx
+LITELLM_API_BASE=https://openrouter.ai/api/v1
 
-# 工作区
-WORKSPACE_BASE=./workspaces
+# Model Configuration
+DEFAULT_MODEL=google/gemini-2.5-pro
+REVIEW_MODEL=google/gemini-2.5-pro
+CODING_MODEL=claude-sonnet-4-5-20250929
 ```
+
+完整配置请参考 [.env.example](./.env.example)。
 
 ## API 示例
 
@@ -167,52 +138,61 @@ WORKSPACE_BASE=./workspaces
 curl -X POST http://localhost:8000/api/sessions \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
-  -d '{"agent_type": "claude_code"}'
+  -d '{"mode": "data-question"}'
 ```
 
-### 发送消息 (SSE)
+### 发送消息并获取任务 ID
 
 ```bash
-curl -N "http://localhost:8000/api/sessions/{id}/events?message=Analyze+this+data" \
+curl -X POST http://localhost:8000/api/sessions/{id}/chat \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"content": "分析这个数据集并生成可视化图表"}'
+```
+
+### 流式获取事件 (SSE)
+
+```bash
+curl -N "http://localhost:8000/api/sessions/{id}/events?task_id={task_id}" \
   -H "Authorization: Bearer <token>"
 ```
 
-## 测试覆盖率
+## 开发指南
+
+详细开发文档请参考 [DEVELOPMENT.md](./DEVELOPMENT.md)。
+
+### 本地开发
 
 ```bash
 # 后端
-pytest backend/tests/ --cov=backend --cov-report=html
+cd backend
+uv sync
+uv run uvicorn backend.main:app --reload
 
 # 前端
-npm test -- --coverage
+cd frontend
+npm install
+npm run dev
 
-# 端到端
-npx playwright test --reporter=html
+# 测试
+uv run pytest backend/tests/ -v
 ```
 
-## 部署
+## 设计系统
 
-### 生产环境配置
+**理念**: 科学 × 简约 × 未来感
 
-```bash
-# docker-compose.prod.yml
-# - 启用 HTTPS
-# - 配置 Nginx 反向代理
-# - 设置数据库备份
-# - 配置日志收集
-```
+- **主色调**: 深空蓝 (#0080ff)
+- **强调色**: 量子紫 (#8b5cf6)
+- **背景**: 深空灰 (#0a0a0f)
+- **字体**: Inter (UI) + JetBrains Mono (代码)
 
 ## 参考资料
 
-- [agentic-data-scientist 文档](https://github.com/K-Dense-AI/agentic-data-scientist)
-- [K-Dense Web](https://www.k-dense.ai/)
+- [agentic-data-scientist](https://github.com/K-Dense-AI/agentic-data-scientist)
 - [FastAPI 文档](https://fastapi.tiangolo.com/)
 - [Next.js 文档](https://nextjs.org/docs)
 
 ## License
 
 MIT
-
-## Contributing
-
-欢迎提交 Issue 和 PR！
