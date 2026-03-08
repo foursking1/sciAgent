@@ -59,6 +59,9 @@ SciAgent 是一个面向科研人员的 AI 助手平台，通过多 Agent 协作
 git clone https://gitee.com/foursking1/sci-agent.git
 cd sci-agent
 
+# 克隆核心引擎（开发环境需要）
+git clone https://gitee.com/foursking1/agentic-data-scientist.git
+
 # 复制环境变量
 cp .env.example .env
 # 编辑 .env 填入 API keys
