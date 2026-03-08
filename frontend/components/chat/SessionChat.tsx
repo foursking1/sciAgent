@@ -8,10 +8,11 @@ import { FileBrowser } from '@/components/chat/FileBrowser'
 import { FilePreview } from '@/components/chat/FilePreview'
 import { SessionSidebar } from '@/components/chat/SessionSidebar'
 import { ThinkingIndicator, useThinkingState } from '@/components/chat/ThinkingIndicator'
+import { DataSourceModal } from '@/components/data-sources/DataSourceModal'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { sessionsApi, filesApi, type Session } from '@/lib/api'
-import { PanelRightClose, PanelRightOpen } from 'lucide-react'
+import { PanelRightClose, PanelRightOpen, PanelLeftOpen } from 'lucide-react'
 
 export interface SessionPageProps {
   sessionId: string
@@ -36,6 +37,8 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
   const [currentMode, setCurrentMode] = useState<SessionMode>('data-question')
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null)
   const [isFilePanelOpen, setIsFilePanelOpen] = useState(true) // Default open
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false) // Sidebar collapse state
+  const [isDataSourceModalOpen, setIsDataSourceModalOpen] = useState(false) // Data source modal
 
   const eventSourceRef = useRef<EventSource | null>(null)
   const eventStreamRef = useRef<EventStreamRef>(null)
@@ -349,12 +352,26 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
 
   return (
     <div className={containerClasses}>
-      {/* Left sidebar - Session list (fixed) */}
+      {/* Left sidebar - Session list (collapsible) */}
       <SessionSidebar
         token={token || ''}
         currentSessionId={sessionId}
-        className="w-[280px] flex-shrink-0"
+        isCollapsed={isSidebarCollapsed}
+        onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        onOpenDataSourceMarket={() => setIsDataSourceModalOpen(true)}
       />
+
+      {/* Expand sidebar button - shows when sidebar is collapsed */}
+      {isSidebarCollapsed && (
+        <button
+          onClick={() => setIsSidebarCollapsed(false)}
+          className="fixed left-0 top-1/2 -translate-y-1/2 z-30 p-2 bg-surface-200 border border-gray-800 border-l-0 rounded-r-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
+          aria-label="展开侧边栏"
+          title="展开侧边栏"
+        >
+          <PanelLeftOpen className="w-4 h-4" />
+        </button>
+      )}
 
       {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -456,7 +473,13 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
       </div>
 
       {/* Fixed Input area at bottom */}
-      <div className="fixed bottom-0 left-[280px] right-0 z-20 border-t border-gray-800 bg-background/95 backdrop-blur-xl">
+      <div
+        className={cn(
+          'fixed bottom-0 right-0 z-20 border-t border-gray-800 bg-background/95 backdrop-blur-xl',
+          'transition-all duration-300 ease-in-out',
+          isSidebarCollapsed ? 'left-0' : 'left-[280px]'
+        )}
+      >
         <div
           className={cn(
             'transition-all duration-300 ease-in-out',
@@ -492,6 +515,13 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
           onClose={() => setPreviewFile(null)}
         />
       )}
+
+      {/* Data Source Market Modal */}
+      <DataSourceModal
+        isOpen={isDataSourceModalOpen}
+        onClose={() => setIsDataSourceModalOpen(false)}
+        token={token || ''}
+      />
     </div>
   )
 }

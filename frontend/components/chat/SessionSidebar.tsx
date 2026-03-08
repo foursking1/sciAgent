@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Clock, MessageSquare, Trash2 } from 'lucide-react'
+import { Plus, Clock, MessageSquare, Trash2, ChevronLeft, ChevronRight, Database } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { sessionsApi, type Session } from '@/lib/api'
 
@@ -10,19 +10,30 @@ interface SessionSidebarProps {
   token: string
   currentSessionId: string
   className?: string
+  isCollapsed?: boolean
+  onToggle?: () => void
+  onOpenDataSourceMarket?: () => void
 }
 
 /**
  * SessionSidebar - Left sidebar displaying session list
  *
  * Features:
- * - Fixed display (always visible)
+ * - Collapsible sidebar (fully hidden when collapsed)
  * - Shows title (first message), time, and preview (last message)
  * - Create new session
  * - Delete session
  * - Highlight current session
+ * - Data source market entry
  */
-export function SessionSidebar({ token, currentSessionId, className }: SessionSidebarProps) {
+export function SessionSidebar({
+  token,
+  currentSessionId,
+  className,
+  isCollapsed = false,
+  onToggle,
+  onOpenDataSourceMarket
+}: SessionSidebarProps) {
   const router = useRouter()
   const [sessions, setSessions] = useState<Session[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -110,7 +121,14 @@ export function SessionSidebar({ token, currentSessionId, className }: SessionSi
   }
 
   return (
-    <div className={cn('flex flex-col bg-surface-200 border-r border-gray-800', className)}>
+    <div
+      className={cn(
+        'flex flex-col bg-surface-200 border-r border-gray-800',
+        'transition-all duration-300 ease-in-out overflow-hidden',
+        isCollapsed ? 'w-0 opacity-0 border-r-0' : 'w-[280px] opacity-100',
+        className
+      )}
+    >
       {/* Header */}
       <div className="flex-shrink-0 p-4 border-b border-gray-800">
         <button
@@ -208,10 +226,32 @@ export function SessionSidebar({ token, currentSessionId, className }: SessionSi
       </div>
 
       {/* Footer */}
-      <div className="flex-shrink-0 p-3 border-t border-gray-800">
-        <p className="text-xs text-gray-500 text-center">
-          {sessions.length} 个会话
-        </p>
+      <div className="flex-shrink-0 p-3 border-t border-gray-800 space-y-2">
+        {/* Data Source Market Button */}
+        <button
+          onClick={onOpenDataSourceMarket}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-surface hover:bg-gray-700 text-gray-300 text-sm transition-colors"
+        >
+          <Database className="w-4 h-4" />
+          <span>数据源 Market</span>
+        </button>
+
+        {/* Session count and toggle */}
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-gray-500">
+            {sessions.length} 个会话
+          </p>
+          {onToggle && (
+            <button
+              onClick={onToggle}
+              className="p-1 rounded hover:bg-gray-700 text-gray-500 hover:text-gray-300 transition-colors"
+              aria-label={isCollapsed ? '展开侧边栏' : '折叠侧边栏'}
+              title={isCollapsed ? '展开侧边栏' : '折叠侧边栏'}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )

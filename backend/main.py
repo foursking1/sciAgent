@@ -14,7 +14,7 @@ from fastapi.exceptions import RequestValidationError
 
 from backend.core.config import settings
 from backend.db.database import create_db_and_tables
-from backend.api.routes import auth, sessions, files
+from backend.api.routes import auth, sessions, files, data_sources
 
 
 # 配置日志
@@ -164,6 +164,11 @@ app.include_router(
     files.router,
     prefix="/api/files",
     tags=["Files"],
+)
+
+app.include_router(
+    data_sources.router,
+    tags=["DataSources"],
 )
 
 

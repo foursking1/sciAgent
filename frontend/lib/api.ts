@@ -52,6 +52,33 @@ export interface FilePreview {
   message?: string;
 }
 
+// DataSource types
+export interface DataSource {
+  id: number;
+  user_id: number;
+  name: string;
+  type: 'database' | 'vector_store' | 'skill';
+  config: Record<string, unknown>;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface DataSourceCreate {
+  name: string;
+  type: 'database' | 'vector_store' | 'skill';
+  config: Record<string, unknown>;
+  description?: string;
+}
+
+export interface DataSourceUpdate {
+  name?: string;
+  config?: Record<string, unknown>;
+  description?: string;
+  is_active?: boolean;
+}
+
 // Helper function for API calls
 async function apiCall<T>(
   endpoint: string,
@@ -275,5 +302,84 @@ export const filesApi = {
         Authorization: `Bearer ${token}`,
       },
     });
+  },
+};
+
+// DataSources API
+export const dataSourcesApi = {
+  /**
+   * List all data sources for the current user
+   */
+  async list(token: string): Promise<DataSource[]> {
+    const data = await apiCall<{ data_sources: DataSource[]; total: number }>('/api/data-sources', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return data.data_sources;
+  },
+
+  /**
+   * Get a specific data source by ID
+   */
+  async get(token: string, id: number): Promise<DataSource> {
+    return apiCall<DataSource>(`/api/data-sources/${id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  },
+
+  /**
+   * Create a new data source
+   */
+  async create(token: string, data: DataSourceCreate): Promise<DataSource> {
+    return apiCall<DataSource>('/api/data-sources', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Update a data source
+   */
+  async update(token: string, id: number, data: DataSourceUpdate): Promise<DataSource> {
+    return apiCall<DataSource>(`/api/data-sources/${id}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Delete a data source
+   */
+  async delete(token: string, id: number): Promise<void> {
+    await apiCall<void>(`/api/data-sources/${id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  },
+
+  /**
+   * Test a data source connection
+   */
+  async test(token: string, id: number): Promise<{ success: boolean; message: string; details?: Record<string, unknown> }> {
+    return apiCall<{ success: boolean; message: string; details?: Record<string, unknown> }>(
+      `/api/data-sources/${id}/test`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
   },
 };
