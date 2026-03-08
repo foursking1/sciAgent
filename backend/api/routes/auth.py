@@ -1,10 +1,11 @@
 """
 Authentication API routes.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from typing import Optional
 
 from backend.db.database import get_db_session
 from backend.db.models.user import User
@@ -88,6 +89,30 @@ async def get_current_user(
         detail="Not authenticated",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+
+async def get_current_user_for_sse(
+    token: Optional[str] = Query(None, description="JWT token for SSE authentication"),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    db: AsyncSession = Depends(get_db_session),
+) -> User:
+    """
+    Get the current authenticated user for SSE endpoints.
+
+    Accepts token via query parameter (for EventSource) or Authorization header.
+    """
+    # Try query parameter first (for EventSource)
+    if token:
+        payload = decode_token(token)
+        if payload is not None and payload.get("sub") is not None:
+            user_id = int(payload["sub"])
+            result = await db.execute(select(User).where(User.id == user_id))
+            user = result.scalar_one_or_none()
+            if user is not None and user.is_active:
+                return user
+
+    # Fall back to header-based auth
+    return await get_current_user(credentials, db)
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)

@@ -1,16 +1,17 @@
 'use client'
 
 import React, { useState, useCallback, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import { useSSE, type StreamEvent, type FileItem } from '@/hooks/useSSE'
-import { EventStream } from '@/components/chat/EventStream'
-import { ChatInput } from '@/components/chat/ChatInput'
+import { EventStream, type EventStreamRef } from '@/components/chat/EventStream'
+import { ChatInput, SessionMode, MODE_CONFIGS } from '@/components/chat/ChatInput'
 import { FileBrowser } from '@/components/chat/FileBrowser'
 import { FilePreview } from '@/components/chat/FilePreview'
-import { Button } from '@/components/ui/Button'
+import { SessionSidebar } from '@/components/chat/SessionSidebar'
+import { ThinkingIndicator, useThinkingState } from '@/components/chat/ThinkingIndicator'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
-import { sessionsApi, filesApi } from '@/lib/api'
+import { sessionsApi, filesApi, type Session } from '@/lib/api'
+import { PanelRightClose, PanelRightOpen } from 'lucide-react'
 
 export interface SessionPageProps {
   sessionId: string
@@ -22,7 +23,6 @@ export interface SessionPageProps {
  * Manages SSE connection, event stream, file upload, and chat layout
  */
 export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageProps) {
-  const router = useRouter()
   const { token } = useAuth()
   const [message, setMessage] = useState('')
   const [files, setFiles] = useState<FileItem[]>([])
@@ -32,103 +32,143 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
   const [connectionError, setConnectionError] = useState<Error | null>(null)
   const [currentPath, setCurrentPath] = useState('')
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
+  const [currentMode, setCurrentMode] = useState<SessionMode>('data-question')
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null)
+  const [isFilePanelOpen, setIsFilePanelOpen] = useState(true) // Default open
 
   const eventSourceRef = useRef<EventSource | null>(null)
+  const eventStreamRef = useRef<EventStreamRef>(null)
+
+  // Thinking state for dynamic indicator
+  const { thinkingState, activeToolName, updateFromEvent, reset: resetThinkingState } = useThinkingState()
 
   // Connect to SSE stream when sending a message
-  const connectToStream = useCallback((messageContent: string) => {
-    const url = `${apiBaseUrl}/api/sessions/${sessionId}/chat`
-
+  const connectToStream = useCallback(async (messageContent: string) => {
     // Close existing connection
     if (eventSourceRef.current) {
       eventSourceRef.current.close()
     }
 
-    // Create new EventSource with message in body via fetch + ReadableStream
-    // Since EventSource doesn't support POST with body, we use a workaround
-    const connectSSE = async () => {
-      try {
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ content: messageContent }),
-        })
+    try {
+      // Step 1: Submit chat request and get task_id
+      const chatUrl = `${apiBaseUrl}/api/sessions/${sessionId}/chat`
+      const chatResponse = await fetch(chatUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ content: messageContent }),
+      })
 
-        if (!response.ok) {
-          throw new Error('Failed to connect to chat stream')
-        }
-
-        const reader = response.body?.getReader()
-        if (!reader) {
-          throw new Error('ReadableStream not supported')
-        }
-
-        setIsConnected(true)
-        setConnectionError(null)
-
-        const decoder = new TextDecoder()
-        let buffer = ''
-
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) {
-            setIsConnected(false)
-            break
-          }
-
-          const chunk = decoder.decode(value, { stream: true })
-          buffer += chunk
-
-          // Parse SSE messages
-          const messages = buffer.split('\n\n')
-          buffer = messages.pop() || ''
-
-          for (const msg of messages) {
-            const lines = msg.split('\n')
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                try {
-                  const data = JSON.parse(line.slice(6)) as StreamEvent
-                  setEvents(prev => [...prev, data])
-                } catch (e) {
-                  console.error('Failed to parse SSE message:', e)
-                }
-              }
-            }
-          }
-        }
-      } catch (err) {
-        console.error('SSE connection error:', err)
-        setConnectionError(err instanceof Error ? err : new Error('Connection failed'))
-        setIsConnected(false)
+      if (!chatResponse.ok) {
+        throw new Error('Failed to submit chat request')
       }
+
+      const { task_id } = await chatResponse.json()
+
+      if (!task_id) {
+        throw new Error('No task_id returned from server')
+      }
+
+      // Store task_id for cancellation
+      setCurrentTaskId(task_id)
+
+      // Step 2: Connect to SSE stream with task_id and token
+      const eventsUrl = `${apiBaseUrl}/api/sessions/${sessionId}/events?task_id=${task_id}&token=${token}`
+      const eventSource = new EventSource(eventsUrl)
+      eventSourceRef.current = eventSource
+
+      setIsConnected(true)
+      setConnectionError(null)
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data) as StreamEvent
+          console.log('[SSE] Received event:', data.type, data)
+          setEvents(prev => [...prev, data])
+
+          // Update thinking state based on event
+          updateFromEvent(data)
+
+          // Check for completion
+          if (data.type === 'completed' || data.type === 'error' || data.type === 'cancelled') {
+            eventSource.close()
+            setIsConnected(false)
+            setCurrentTaskId(null)
+          }
+        } catch (e) {
+          console.error('Failed to parse SSE message:', e)
+        }
+      }
+
+      eventSource.onerror = (err) => {
+        console.error('SSE connection error:', err)
+        setConnectionError(new Error('Connection error'))
+        setIsConnected(false)
+        eventSource.close()
+      }
+
+    } catch (err) {
+      console.error('Error connecting to stream:', err)
+      setConnectionError(err instanceof Error ? err : new Error('Connection failed'))
+      setIsConnected(false)
     }
+  }, [sessionId, apiBaseUrl, token, updateFromEvent])
 
-    connectSSE()
-  }, [sessionId, apiBaseUrl, token])
-
-  // Handle send message
+  // Handle send message with optimistic update
   const handleSubmit = useCallback(
     async (content: string) => {
       if (!content.trim()) return
 
+      // Optimistic update: immediately show user message
+      const userEvent: StreamEvent = {
+        type: 'user_message',
+        content: content,
+        timestamp: new Date().toISOString(),
+      }
+      setEvents(prev => [...prev, userEvent])
       setIsSending(true)
-      // Don't clear events - append to existing conversation
+
+      // Scroll to bottom after message is added
+      setTimeout(() => {
+        eventStreamRef.current?.scrollToBottom()
+      }, 0)
+
+      // Initialize thinking state
+      updateFromEvent({ type: 'started' })
 
       try {
         // Connect to stream and send message
-        connectToStream(content)
+        await connectToStream(content)
       } catch (err) {
         console.error('Error sending message:', err)
       } finally {
         setIsSending(false)
       }
     },
-    [connectToStream]
+    [connectToStream, updateFromEvent]
   )
+
+  // Handle stop generation
+  const handleStop = useCallback(async () => {
+    if (!token || !currentTaskId) return
+
+    try {
+      await sessionsApi.cancelTask(token, sessionId, currentTaskId)
+      // Close the SSE connection
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
+        eventSourceRef.current = null
+      }
+      setIsConnected(false)
+      setIsSending(false)
+      setCurrentTaskId(null)
+    } catch (err) {
+      console.error('Error cancelling task:', err)
+    }
+  }, [token, sessionId, currentTaskId])
 
   // Handle file upload
   const handleFileUpload = useCallback(
@@ -219,10 +259,27 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
     setCurrentPath(path)
   }, [])
 
-  // Handle back navigation
-  const handleBack = useCallback(() => {
-    router.push('/dashboard')
-  }, [router])
+  // Handle mode change
+  const handleModeChange = useCallback(async (newMode: SessionMode) => {
+    if (!token || newMode === currentMode) return
+
+    // 检查新模式是否禁用
+    const newModeConfig = MODE_CONFIGS[newMode]
+    if (newModeConfig.disabled) return
+
+    try {
+      const updatedSession = await sessionsApi.switchMode(token, sessionId, newMode)
+      setCurrentMode(updatedSession.current_mode as SessionMode)
+      setSession(updatedSession)
+
+      // 如果新模式有自动命令且输入框为空，填充到输入框
+      if (newModeConfig.autoCommand && !message.trim()) {
+        setMessage(newModeConfig.autoCommand)
+      }
+    } catch (err) {
+      console.error('Failed to switch mode:', err)
+    }
+  }, [token, sessionId, currentMode, message])
 
   // Load historical messages when session changes (no race condition version)
   useEffect(() => {
@@ -236,6 +293,17 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
         setIsSending(false)
         setIsConnected(false)
         setConnectionError(null)
+
+        // Load session info
+        const sessionData = await sessionsApi.get(token, sessionId)
+        setSession(sessionData)
+
+        // 兼容旧的 mode 值
+        const rawMode = sessionData.current_mode as SessionMode
+        const normalizedMode = rawMode === 'normal' ? 'data-question'
+          : rawMode === 'research' ? 'scientific-experiment'
+          : rawMode || 'data-question'
+        setCurrentMode(normalizedMode as SessionMode)
 
         // Load historical messages
         const messages = await sessionsApi.getMessages(token, sessionId)
@@ -252,6 +320,7 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
               type: 'message',
               content: msg.content,
               timestamp: msg.created_at,
+              is_stopped: msg.is_stopped,
             } as StreamEvent
           }
         })
@@ -275,103 +344,144 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
 
   const containerClasses = cn(
     'min-h-screen bg-background',
-    'flex flex-col'
+    'flex'
   )
 
   return (
     <div className={containerClasses}>
-      {/* Header */}
-      <header className="flex-shrink-0 border-b border-gray-800 bg-surface/50 backdrop-blur-xl">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-3">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleBack}
-              className="p-2 h-auto"
-              aria-label="Back to dashboard"
-            >
-              <svg
-                className="w-5 h-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="19" y1="12" x2="5" y2="12" />
-                <polyline points="12 19 5 12 12 5" />
-              </svg>
-            </Button>
-            <div>
-              <h1 className="text-lg font-semibold text-gray-100">Session</h1>
-              <div className="flex items-center gap-2">
-                <span
-                  className={cn(
-                    'w-2 h-2 rounded-full',
-                    isConnected ? 'bg-emerald-500' : isSending ? 'bg-yellow-500' : 'bg-gray-500'
-                  )}
-                  aria-hidden="true"
-                />
-                <span className="text-xs text-gray-500">
-                  {isSending ? 'Processing...' : isConnected ? 'Connected' : 'Ready'}
-                </span>
+      {/* Left sidebar - Session list (fixed) */}
+      <SessionSidebar
+        token={token || ''}
+        currentSessionId={sessionId}
+        className="w-[280px] flex-shrink-0"
+      />
+
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <header className="flex-shrink-0 border-b border-gray-800 bg-surface/50 backdrop-blur-xl">
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-3">
+              <div>
+                <h1 className="text-lg font-semibold text-gray-100">
+                  {session?.title || `会话 ${sessionId.slice(0, 8)}...`}
+                </h1>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={cn(
+                      'w-2 h-2 rounded-full',
+                      isConnected ? 'bg-emerald-500' : isSending ? 'bg-yellow-500' : 'bg-gray-500'
+                    )}
+                    aria-hidden="true"
+                  />
+                  <span className="text-xs text-gray-500">
+                    {isSending ? '处理中...' : isConnected ? '已连接' : '就绪'}
+                  </span>
+                  <span className={cn(
+                    'ml-2 px-2 py-0.5 rounded text-xs font-medium',
+                    MODE_CONFIGS[currentMode]?.bgColor || 'bg-gray-500/20',
+                    MODE_CONFIGS[currentMode]?.color || 'text-gray-400'
+                  )}>
+                    {MODE_CONFIGS[currentMode]?.label || currentMode}
+                  </span>
+                </div>
               </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {connectionError && (
+                <span className="text-sm text-red-400" title={connectionError.message}>
+                  连接错误
+                </span>
+              )}
+              {/* Toggle file panel button */}
+              <button
+                onClick={() => setIsFilePanelOpen(!isFilePanelOpen)}
+                className={cn(
+                  'p-2 rounded-lg transition-colors',
+                  isFilePanelOpen
+                    ? 'bg-primary-500/20 text-primary-400'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                )}
+                aria-label={isFilePanelOpen ? '关闭文件面板' : '打开文件面板'}
+                title={isFilePanelOpen ? '关闭文件面板' : '打开文件面板'}
+              >
+                {isFilePanelOpen ? (
+                  <PanelRightClose className="w-5 h-5" />
+                ) : (
+                  <PanelRightOpen className="w-5 h-5" />
+                )}
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* Main content */}
+        <main className="flex-1 flex overflow-hidden relative">
+          {/* Chat area */}
+          <div className="flex-1 flex flex-col min-w-0">
+            {/* Event stream - with bottom padding for fixed input */}
+            <div className="flex-1 overflow-hidden relative pb-[120px]">
+              <EventStream ref={eventStreamRef} events={events} className="h-full" />
+              {/* Thinking indicator - show when sending, default to 'analyzing' state */}
+              <ThinkingIndicator
+                isActive={isSending}
+                state={thinkingState === 'idle' ? 'analyzing' : thinkingState}
+                toolName={activeToolName}
+                className="absolute bottom-4 left-4 right-4"
+              />
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {connectionError && (
-              <span className="text-sm text-red-400" title={connectionError.message}>
-                Connection error
-              </span>
+          {/* File browser sidebar - collapsible with slide animation */}
+          <div
+            className={cn(
+              'flex-shrink-0 border-l border-gray-800 p-4 overflow-hidden',
+              'transition-all duration-300 ease-in-out',
+              isFilePanelOpen ? 'w-80 opacity-100' : 'w-0 opacity-0 border-l-0 p-0'
             )}
+          >
+            <FileBrowser
+              files={files}
+              currentPath={currentPath}
+              isLoading={false}
+              onDownload={handleDownload}
+              onRefresh={handleRefresh}
+              onSelect={handleSelect}
+              onNavigate={handleNavigate}
+              className="h-full"
+            />
           </div>
-        </div>
-      </header>
+        </main>
+      </div>
 
-      {/* Main content */}
-      <main className="flex-1 flex overflow-hidden">
-        {/* Chat area */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* Event stream */}
-          <div className="flex-1 overflow-hidden relative">
-            <EventStream events={events} className="h-full" />
-          </div>
-
-          {/* Input area */}
-          <div className="flex-shrink-0 p-4 border-t border-gray-800 bg-surface/50">
+      {/* Fixed Input area at bottom */}
+      <div className="fixed bottom-0 left-[280px] right-0 z-20 border-t border-gray-800 bg-background/95 backdrop-blur-xl">
+        <div
+          className={cn(
+            'transition-all duration-300 ease-in-out',
+            isFilePanelOpen ? 'mr-80' : 'mr-0'
+          )}
+        >
+          <div className="p-4 max-w-4xl mx-auto">
             <ChatInput
               value={message}
               onChange={setMessage}
               onSubmit={handleSubmit}
+              onStop={handleStop}
               onFileUpload={handleFileUpload}
               disabled={isSending}
               isLoading={isSending}
-              placeholder={isSending ? 'Processing...' : 'Type your message...'}
+              placeholder={isSending ? '处理中...' : '输入消息...'}
+              mode={currentMode}
+              onModeChange={handleModeChange}
             />
             <p className="text-xs text-gray-500 mt-2 text-center">
-              Press Enter to send, Shift+Enter for new line
+              按 Enter 发送，Shift+Enter 换行
             </p>
           </div>
         </div>
-
-        {/* File browser sidebar */}
-        <aside className="w-80 flex-shrink-0 border-l border-gray-800 p-4 overflow-hidden">
-          <FileBrowser
-            files={files}
-            currentPath={currentPath}
-            isLoading={false}
-            onDownload={handleDownload}
-            onRefresh={handleRefresh}
-            onSelect={handleSelect}
-            onNavigate={handleNavigate}
-            className="h-full"
-          />
-        </aside>
-      </main>
+      </div>
 
       {/* File Preview Panel */}
       {previewFile && (

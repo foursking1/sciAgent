@@ -26,6 +26,14 @@ class Settings(BaseSettings):
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
+    REDIS_URL: str = ""  # Optional: full Redis URL (overrides host/port/db)
+
+    @property
+    def effective_redis_url(self) -> str:
+        """Get the effective Redis URL"""
+        if self.REDIS_URL:
+            return self.REDIS_URL
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
     # Authentication
     SECRET_KEY: str = "your-secret-key-change-in-production"

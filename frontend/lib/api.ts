@@ -15,9 +15,12 @@ export interface Session {
   id: string;
   user_id: number;
   working_dir: string;
+  title: string | null;
   agent_type: string | null;
+  current_mode: string;
   created_at: string;
   updated_at: string | null;
+  preview?: string;
 }
 
 export interface Message {
@@ -25,6 +28,7 @@ export interface Message {
   session_id: string;
   content: string;
   role: 'user' | 'assistant' | 'system';
+  is_stopped?: boolean;
   created_at: string;
 }
 
@@ -148,13 +152,13 @@ export const sessionsApi = {
     });
   },
 
-  async create(token: string, agent_type?: string): Promise<Session> {
+  async create(token: string, agent_type?: string, mode?: string): Promise<Session> {
     return apiCall<Session>('/api/sessions', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ agent_type }),
+      body: JSON.stringify({ agent_type, mode }),
     });
   },
 
@@ -164,6 +168,16 @@ export const sessionsApi = {
       headers: {
         Authorization: `Bearer ${token}`,
       },
+    });
+  },
+
+  async switchMode(token: string, sessionId: string, mode: string): Promise<Session> {
+    return apiCall<Session>(`/api/sessions/${sessionId}/mode`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ mode }),
     });
   },
 
@@ -198,6 +212,21 @@ export const sessionsApi = {
    */
   getEventsUrl(sessionId: string): string {
     return `${API_BASE_URL}/api/sessions/${sessionId}/events`;
+  },
+
+  /**
+   * Cancel a running task
+   */
+  async cancelTask(token: string, sessionId: string, taskId: string): Promise<{ task_id: string; status: string }> {
+    return apiCall<{ task_id: string; status: string }>(
+      `/api/sessions/${sessionId}/tasks/${taskId}/cancel`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
   },
 };
 

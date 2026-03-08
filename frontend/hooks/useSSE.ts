@@ -13,6 +13,28 @@ export interface AgentMessageEvent {
   type: 'message'
   content: string
   timestamp: string
+  author?: string
+  is_thought?: boolean
+  is_partial?: boolean
+  is_stopped?: boolean
+  event_number?: number
+}
+
+export interface StatusEvent {
+  type: 'status'
+  task_id: string
+  status: string
+  timestamp: string
+}
+
+export interface UsageEvent {
+  type: 'usage'
+  timestamp: string
+  usage: {
+    total_input_tokens: number
+    cached_input_tokens: number
+    output_tokens: number
+  }
 }
 
 export interface FunctionCallEvent {
@@ -37,6 +59,12 @@ export interface CompletedEvent {
   timestamp: string
 }
 
+export interface CancelledEvent {
+  type: 'cancelled'
+  message: string
+  timestamp: string
+}
+
 export interface ErrorEvent {
   type: 'error'
   message: string
@@ -47,10 +75,15 @@ export interface ErrorEvent {
 export type StreamEvent =
   | UserMessageEvent
   | AgentMessageEvent
+  | StatusEvent
+  | UsageEvent
   | FunctionCallEvent
   | FunctionResponseEvent
   | CompletedEvent
+  | CancelledEvent
   | ErrorEvent
+  | { type: 'started'; task_id: string; session_id: string; timestamp: string }
+  | Record<string, unknown> // Fallback for unknown event types
 
 export interface FileItem {
   name: string

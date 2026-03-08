@@ -1,6 +1,6 @@
 'use client'
 
-import React, { memo } from 'react'
+import React, { memo, useImperativeHandle, forwardRef } from 'react'
 import { cn } from '@/lib/utils'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Button } from '@/components/ui/Button'
@@ -11,6 +11,7 @@ import type {
   FunctionCallEvent,
   FunctionResponseEvent,
   CompletedEvent,
+  CancelledEvent,
   ErrorEvent,
 } from '@/hooks/useSSE'
 
@@ -94,6 +95,20 @@ const AlertCircleIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 )
 
+const StopIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="6" y="6" width="12" height="12" rx="2" />
+  </svg>
+)
+
 const FileIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg
     className={className}
@@ -113,6 +128,31 @@ interface EventMessageProps {
   event: UserMessageEvent
 }
 
+// Helper function to format timestamp safely
+const formatTimestamp = (timestamp: string): string => {
+  try {
+    // Handle different timestamp formats
+    let date: Date
+    if (timestamp.includes('T') || timestamp.includes('-')) {
+      // ISO format or date string
+      date = new Date(timestamp)
+    } else if (timestamp.includes(':')) {
+      // Time-only format (HH:MM:SS.mmm) - use today's date
+      date = new Date(`1970-01-01T${timestamp}`)
+    } else {
+      date = new Date(timestamp)
+    }
+
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return new Date().toLocaleTimeString()
+    }
+    return date.toLocaleTimeString()
+  } catch {
+    return new Date().toLocaleTimeString()
+  }
+}
+
 const UserMessage: React.FC<EventMessageProps> = ({ event }) => {
   return (
     <div className="flex gap-3 animate-fade-in">
@@ -123,7 +163,7 @@ const UserMessage: React.FC<EventMessageProps> = ({ event }) => {
         <div className="flex items-center gap-2 mb-1">
           <span className="text-sm font-medium text-gray-200">You</span>
           <span className="text-xs text-gray-500">
-            {new Date(event.timestamp).toLocaleTimeString()}
+            {formatTimestamp(event.timestamp)}
           </span>
         </div>
         <div className="bg-surface-200 rounded-2xl rounded-tl-none px-4 py-3 inline-block max-w-full">
@@ -153,7 +193,7 @@ const AgentMessage: React.FC<AgentMessageProps> = memo(({ event }) => {
           <div className="flex items-center gap-2 mb-1">
             <span className="text-sm font-medium text-gray-200">Assistant</span>
             <span className="text-xs text-gray-500">
-              {new Date(event.timestamp).toLocaleTimeString()}
+              {formatTimestamp(event.timestamp)}
             </span>
           </div>
           <CodeBlock code={code.trim()} language={language || 'text'} />
@@ -171,11 +211,17 @@ const AgentMessage: React.FC<AgentMessageProps> = memo(({ event }) => {
         <div className="flex items-center gap-2 mb-1">
           <span className="text-sm font-medium text-gray-200">Assistant</span>
           <span className="text-xs text-gray-500">
-            {new Date(event.timestamp).toLocaleTimeString()}
+            {formatTimestamp(event.timestamp)}
           </span>
         </div>
         <div className="text-gray-300 whitespace-pre-wrap break-words leading-relaxed">
           {event.content}
+          {event.is_stopped && (
+            <span className="inline-flex items-center gap-1.5 ml-2 px-2 py-0.5 bg-yellow-500/10 text-yellow-400 text-xs rounded-full border border-yellow-500/20">
+              <StopIcon className="w-3 h-3" />
+              Stopped
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -202,7 +248,7 @@ const FunctionCall: React.FC<FunctionCallProps> = ({ event }) => {
         <div className="flex items-center gap-2 mb-1">
           <span className="text-sm font-medium text-purple-300">Calling: {event.name}</span>
           <span className="text-xs text-gray-500">
-            {new Date(event.timestamp).toLocaleTimeString()}
+            {formatTimestamp(event.timestamp)}
           </span>
         </div>
         <div className="bg-surface-200/50 rounded-lg border border-purple-500/20 overflow-hidden">
@@ -259,7 +305,7 @@ const FunctionResponse: React.FC<FunctionResponseProps> = ({ event }) => {
             Response from: {event.name}
           </span>
           <span className="text-xs text-gray-500">
-            {new Date(event.timestamp).toLocaleTimeString()}
+            {formatTimestamp(event.timestamp)}
           </span>
         </div>
         <div className="bg-surface-200/50 rounded-lg border border-emerald-500/20 overflow-hidden">
@@ -312,7 +358,7 @@ const Completed: React.FC<CompletedProps> = ({ event }) => {
         <div>
           <p className="text-sm font-medium text-emerald-300">Task completed successfully</p>
           <p className="text-xs text-gray-500 mt-1">
-            {new Date(event.timestamp).toLocaleTimeString()}
+            {formatTimestamp(event.timestamp)}
           </p>
         </div>
       </div>
@@ -328,7 +374,7 @@ const Completed: React.FC<CompletedProps> = ({ event }) => {
         <div className="flex items-center gap-2 mb-1">
           <span className="text-sm font-medium text-emerald-300">Task completed</span>
           <span className="text-xs text-gray-500">
-            {new Date(event.timestamp).toLocaleTimeString()}
+            {formatTimestamp(event.timestamp)}
           </span>
         </div>
         <div className="bg-emerald-500/10 rounded-lg border border-emerald-500/20 p-4 mt-2">
@@ -372,11 +418,36 @@ const Error: React.FC<ErrorProps> = ({ event }) => {
             </span>
           )}
           <span className="text-xs text-gray-500">
-            {new Date(event.timestamp).toLocaleTimeString()}
+            {formatTimestamp(event.timestamp)}
           </span>
         </div>
         <div className="bg-red-500/10 rounded-lg border border-red-500/20 px-4 py-3 mt-2">
           <p className="text-sm text-red-200">{event.message}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface CancelledProps {
+  event: CancelledEvent
+}
+
+const Cancelled: React.FC<CancelledProps> = ({ event }) => {
+  return (
+    <div className="flex gap-3 animate-fade-in">
+      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center border border-yellow-500/30">
+        <StopIcon className="w-5 h-5 text-yellow-400" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-sm font-medium text-yellow-300">Stopped</span>
+          <span className="text-xs text-gray-500">
+            {formatTimestamp(event.timestamp)}
+          </span>
+        </div>
+        <div className="bg-yellow-500/10 rounded-lg border border-yellow-500/20 px-4 py-3 mt-2">
+          <p className="text-sm text-yellow-200">{event.message}</p>
         </div>
       </div>
     </div>
@@ -388,13 +459,30 @@ interface EventStreamProps {
   className?: string
 }
 
+export interface EventStreamRef {
+  scrollToBottom: () => void
+}
+
 /**
  * EventStream component - renders different event types from the agent
  * Auto-scrolls to latest message and supports all stream event types
  */
-export const EventStream: React.FC<EventStreamProps> = ({ events, className }) => {
+export const EventStream = forwardRef<EventStreamRef, EventStreamProps>(({ events, className }, ref) => {
   const scrollRef = React.useRef<HTMLDivElement>(null)
   const [autoScroll, setAutoScroll] = React.useState(true)
+
+  // Expose scrollToBottom method via ref
+  useImperativeHandle(ref, () => ({
+    scrollToBottom: () => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTo({
+          top: scrollRef.current.scrollHeight,
+          behavior: 'smooth',
+        })
+        setAutoScroll(true)
+      }
+    }
+  }))
 
   // Auto-scroll to bottom when new events arrive
   React.useEffect(() => {
@@ -423,7 +511,9 @@ export const EventStream: React.FC<EventStreamProps> = ({ events, className }) =
   }
 
   const renderEvent = (event: StreamEvent, index: number) => {
-    switch (event.type) {
+    const eventWith_type = event as { type: string }
+
+    switch (eventWith_type.type) {
       case 'user_message':
         return <UserMessage key={index} event={event as UserMessageEvent} />
       case 'message':
@@ -434,14 +524,19 @@ export const EventStream: React.FC<EventStreamProps> = ({ events, className }) =
         return <FunctionResponse key={index} event={event as FunctionResponseEvent} />
       case 'completed':
         return <Completed key={index} event={event as CompletedEvent} />
+      case 'cancelled':
+        return <Cancelled key={index} event={event as CancelledEvent} />
       case 'error':
         return <Error key={index} event={event as ErrorEvent} />
+      case 'status':
+      case 'usage':
+      case 'started':
+        // Skip status/usage events in the message list
+        return null
       default:
-        return (
-          <div key={index} className="text-gray-500 text-sm">
-            Unknown event type: {(event as { type: string }).type}
-          </div>
-        )
+        // Log unknown events for debugging but don't render them
+        console.log('[EventStream] Skipping unknown event type:', eventWith_type.type)
+        return null
     }
   }
 
@@ -468,7 +563,7 @@ export const EventStream: React.FC<EventStreamProps> = ({ events, className }) =
       {!autoScroll && events.length > 0 && (
         <button
           onClick={scrollToBottom}
-          className="absolute bottom-24 right-4 px-3 py-1.5 bg-surface-200 border border-gray-700 rounded-full text-sm text-gray-400 hover:bg-surface hover:text-white transition-colors flex items-center gap-2"
+          className="absolute bottom-4 right-4 px-3 py-1.5 bg-surface-200 border border-gray-700 rounded-full text-sm text-gray-400 hover:bg-surface hover:text-white transition-colors flex items-center gap-2"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="6 9 12 15 18 9" />
@@ -478,6 +573,8 @@ export const EventStream: React.FC<EventStreamProps> = ({ events, className }) =
       )}
     </div>
   )
-}
+})
+
+EventStream.displayName = 'EventStream'
 
 export default EventStream

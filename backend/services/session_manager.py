@@ -38,6 +38,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger('SessionManager')
 
+# Session mode types
+VALID_MODES = ('data-question', 'scientific-experiment', 'data-extraction', 'paper-writing')
+
+# Mode to agent_type mapping
+MODE_AGENT_MAP = {
+    'data-question': 'claude_code',
+    'scientific-experiment': 'adk',
+    'data-extraction': 'claude_code',  # disabled for now
+    'paper-writing': 'claude_code',  # uses claude_code with auto command
+}
+
 
 @dataclass
 class CachedDataScientist:
@@ -277,7 +288,7 @@ class SessionManager:
         self,
         user_id: int,
         agent_type: str = "claude_code",
-        mode: str = "normal",
+        mode: str = "data-question",
         db: Optional[AsyncSession] = None,
     ) -> Session:
         """
@@ -286,7 +297,7 @@ class SessionManager:
         Args:
             user_id: ID of the user
             agent_type: Type of agent to use (default: "claude_code")
-            mode: Session mode ('normal' or 'research')
+            mode: Session mode ('data-question', 'scientific-experiment', 'data-extraction', 'paper-writing')
             db: Database session
 
         Returns:
@@ -297,11 +308,9 @@ class SessionManager:
         session_id = str(uuid.uuid4())
         working_dir = self._get_workspace_path(user_id, session_id)
 
-        # Determine agent_type based on mode if not specified
-        if mode == "research":
-            agent_type = "adk"
-        elif mode == "normal":
-            agent_type = agent_type or "claude_code"
+        # Determine agent_type based on mode
+        if mode in MODE_AGENT_MAP:
+            agent_type = MODE_AGENT_MAP[mode]
 
         logger.info(f"创建新会话：user_id={user_id}, agent_type={agent_type}, mode={mode}, session_id={session_id}")
 
@@ -387,23 +396,25 @@ class SessionManager:
         db: AsyncSession,
     ) -> Optional[Session]:
         """
-        Switch session mode between 'normal' and 'research'.
+        Switch session mode.
 
-        This updates the current_mode and agent_type:
-        - normal -> agent_type: claude_code
-        - research -> agent_type: adk
+        Available modes:
+        - data-question: 数据问题 - uses claude_code agent
+        - scientific-experiment: 科学实验 - uses adk agent
+        - data-extraction: 数据抽取 - uses claude_code agent
+        - paper-writing: 论文写作 - uses adk agent
 
         Args:
             session_id: Session ID
-            new_mode: New mode ('normal' or 'research')
+            new_mode: New mode
             user_id: User ID for authorization
             db: Database session
 
         Returns:
             Updated Session object or None if not found
         """
-        if new_mode not in ("normal", "research"):
-            raise ValueError(f"Invalid mode: {new_mode}")
+        if new_mode not in VALID_MODES:
+            raise ValueError(f"Invalid mode: {new_mode}. Valid modes: {VALID_MODES}")
 
         # Fetch session directly from database (bypass cache to ensure it's attached to this db session)
         query = select(Session).where(Session.id == session_id, Session.user_id == user_id)
@@ -415,7 +426,7 @@ class SessionManager:
 
         # Update mode and agent_type
         session.current_mode = new_mode
-        session.agent_type = "adk" if new_mode == "research" else "claude_code"
+        session.agent_type = MODE_AGENT_MAP.get(new_mode, "claude_code")
         session.updated_at = datetime.now()
 
         await db.commit()
@@ -438,7 +449,7 @@ class SessionManager:
         db: AsyncSession,
     ) -> list[Session]:
         """
-        List all sessions for a user.
+        List all sessions for a user with preview of last message.
         """
         logger.info(f"列出用户 {user_id} 的所有会话")
 
@@ -448,6 +459,23 @@ class SessionManager:
             .order_by(Session.created_at.desc())
         )
         sessions = list(result.scalars().all())
+
+        # Add preview (last message) for each session
+        for session in sessions:
+            try:
+                # Get the last message
+                msg_result = await db.execute(
+                    select(Message)
+                    .where(Message.session_id == session.id)
+                    .order_by(Message.created_at.desc())
+                    .limit(1)
+                )
+                last_msg = msg_result.scalar_one_or_none()
+                if last_msg:
+                    # Truncate preview to 100 chars
+                    session.preview = last_msg.content[:100] + ('...' if len(last_msg.content) > 100 else '')
+            except Exception as e:
+                logger.warning(f"Failed to get preview for session {session.id}: {e}")
 
         logger.info(f"找到 {len(sessions)} 个会话")
         return sessions

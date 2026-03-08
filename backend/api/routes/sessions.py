@@ -17,12 +17,16 @@ from backend.schemas.sessions import (
     SessionCreate,
     SessionResponse,
     SessionListResponse,
+    ModeUpdate,
     MessageCreate,
     MessageResponse,
+    TaskResponse,
+    TaskStatusResponse,
 )
 from backend.schemas.auth import TokenData
-from backend.api.routes.auth import get_current_user
+from backend.api.routes.auth import get_current_user, get_current_user_for_sse
 from backend.services.session_manager import session_manager
+from backend.services.task_queue import task_queue, TaskStatus
 from backend.db.models.user import User
 
 router = APIRouter()
@@ -38,10 +42,12 @@ async def create_session(
     Create a new session.
 
     - **agent_type**: Type of agent to use (default: "claude_code")
+    - **mode**: Session mode: 'data-question', 'scientific-experiment', 'data-extraction', 'paper-writing' (default: "data-question")
     """
     session = await session_manager.create_session(
         user_id=current_user.id,
         agent_type=session_data.agent_type,
+        mode=session_data.mode,
         db=db,
     )
     return session
@@ -109,6 +115,44 @@ async def delete_session(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session not found",
         )
+
+
+@router.patch("/{session_id}/mode", response_model=SessionResponse)
+async def switch_session_mode(
+    session_id: str,
+    mode_data: ModeUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> Session:
+    """
+    Switch session mode.
+
+    Available modes:
+    - data-question: 数据问题 - 数据查询与分析
+    - scientific-experiment: 科学实验 - 实验设计与分析
+    - data-extraction: 数据抽取 - 数据提取与清洗
+    - paper-writing: 论文写作 - 学术写作助手
+    """
+    try:
+        session = await session_manager.switch_mode(
+            session_id=session_id,
+            new_mode=mode_data.mode,
+            user_id=current_user.id,
+            db=db,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
+
+    return session
 
 
 @router.get("/{session_id}/messages", response_model=list[MessageResponse])
@@ -181,16 +225,17 @@ async def send_message(
 @router.get("/{session_id}/events")
 async def stream_events(
     session_id: str,
-    current_user: User = Depends(get_current_user),
+    task_id: str,
+    current_user: User = Depends(get_current_user_for_sse),
     db: AsyncSession = Depends(get_db_session),
 ):
     """
-    Stream events from DataScientist for a session.
-
-    This is the main SSE endpoint for real-time chat responses.
+    Stream events from a task via Server-Sent Events (SSE).
 
     Query parameters:
-    - **message**: The message to send to the agent
+    - **task_id**: The task ID returned from /chat endpoint
+
+    This endpoint streams real-time events from the agent execution.
     """
     # Verify session ownership
     session = await session_manager.get_session(
@@ -205,15 +250,28 @@ async def stream_events(
             detail="Session not found",
         )
 
-    # This endpoint is called via EventSource, which doesn't support POST with body
-    # The message should be passed via query parameter or the frontend should use
-    # a separate POST endpoint to initiate the conversation
+    # Verify task belongs to this session
+    task = await task_queue.get_status(task_id)
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found",
+        )
+
+    if task.session_id != session_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Task does not belong to this session",
+        )
 
     async def event_generator():
-        """Generate SSE events"""
-        # For now, yield a simple message - the actual integration requires
-        # the message to be passed differently
-        yield f"data: {json.dumps({'type': 'info', 'message': 'SSE connection established'})}\n\n"
+        """Generate SSE events from Redis pub/sub"""
+        try:
+            async for event in task_queue.stream_events(task_id, timeout=300.0):
+                yield f"data: {json.dumps(event)}\n\n"
+        except Exception as e:
+            logger.error(f"Error streaming events for task {task_id}: {e}")
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 
     return StreamingResponse(
         event_generator(),
@@ -221,17 +279,23 @@ async def stream_events(
     )
 
 
-@router.post("/{session_id}/chat")
+@router.post("/{session_id}/chat", response_model=TaskResponse)
 async def chat(
     session_id: str,
     message_data: MessageCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
-):
+) -> dict:
     """
-    Send a chat message and stream the response.
+    Send a chat message and get a task ID for streaming.
 
-    This is the main endpoint for interactive chat.
+    This is the main endpoint for interactive chat. It returns immediately
+    with a task_id that can be used to stream events via the /events endpoint.
+
+    Returns:
+        task_id: ID to use for streaming events
+        session_id: Session ID
+        status: Initial task status (pending)
     """
     # Verify session ownership
     session = await session_manager.get_session(
@@ -246,81 +310,121 @@ async def chat(
             detail="Session not found",
         )
 
-    # Store user message
-    user_message = await session_manager.add_message(
+    # Submit task to queue
+    task = await task_queue.submit(
         session_id=session_id,
-        content=message_data.content,
-        role=MessageRole.USER,
+        message=message_data.content,
+        user_id=current_user.id,
+    )
+
+    logger.info(f"Chat task submitted: {task.task_id}")
+
+    return {
+        "task_id": task.task_id,
+        "session_id": task.session_id,
+        "status": task.status.value,
+    }
+
+
+@router.get("/{session_id}/tasks/{task_id}", response_model=TaskStatusResponse)
+async def get_task_status(
+    session_id: str,
+    task_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """
+    Get the status of a task.
+
+    Returns:
+        task_id: Task ID
+        session_id: Session ID
+        status: Current task status
+        created_at: Task creation time
+        started_at: Task start time (if started)
+        completed_at: Task completion time (if completed)
+        error: Error message (if failed)
+    """
+    # Verify session ownership
+    session = await session_manager.get_session(
+        session_id=session_id,
+        user_id=current_user.id,
         db=db,
     )
 
-    async def event_generator():
-        """Generate SSE events from DataScientist"""
-        # Collect AI response content
-        ai_response_parts = []
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
 
-        try:
-            # Store user message event
-            user_event = {
-                'type': 'user_message',
-                'content': message_data.content,
-                'timestamp': user_message.created_at.isoformat(),
-            }
-            yield f"data: {json.dumps(user_event)}\n\n"
+    # Get task status
+    task = await task_queue.get_status(task_id)
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found",
+        )
 
-            # Stream from DataScientist
-            async for event_wrapper in session_manager.run_data_scientist(
-                session=session,
-                message=message_data.content,
-                stream=True,
-            ):
-                # Extract the actual event data
-                if isinstance(event_wrapper, dict) and 'data' in event_wrapper:
-                    event_data = json.loads(event_wrapper['data'])
-                else:
-                    event_data = event_wrapper
+    if task.session_id != session_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Task does not belong to this session",
+        )
 
-                # Collect AI message content for saving to database
-                if isinstance(event_data, dict) and event_data.get('type') == 'message':
-                    content = event_data.get('content', '')
-                    if content and not event_data.get('is_thinking'):
-                        ai_response_parts.append(content)
+    return task.to_dict()
 
-                # Yield to client
-                if isinstance(event_wrapper, dict) and 'data' in event_wrapper:
-                    yield f"data: {event_wrapper['data']}\n\n"
-                else:
-                    yield f"data: {json.dumps(event_wrapper)}\n\n"
 
-            # Mark as complete
-            yield f"data: {json.dumps({'type': 'completed', 'timestamp': 'now'})}\n\n"
+@router.post("/{session_id}/tasks/{task_id}/cancel", response_model=TaskStatusResponse)
+async def cancel_task(
+    session_id: str,
+    task_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """
+    Cancel a running task.
 
-            # Save AI response to database
-            if ai_response_parts:
-                full_response = '\n'.join(ai_response_parts)
-                logger.info(f"Saving AI response to database, length={len(full_response)}")
-                try:
-                    ai_message = await session_manager.add_message(
-                        session_id=session_id,
-                        content=full_response,
-                        role=MessageRole.ASSISTANT,
-                        db=db,
-                    )
-                    logger.info(f"AI message saved successfully, id={ai_message.id}")
-                except Exception as e:
-                    logger.error(f"Failed to save AI message: {e}")
-                    raise
-
-        except Exception as e:
-            error_event = {
-                'type': 'error',
-                'message': str(e),
-                'timestamp': 'now',
-            }
-            yield f"data: {json.dumps(error_event)}\n\n"
-        # Note: Don't close db here - let FastAPI manage the connection lifecycle
-
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream",
+    Returns:
+        task_id: Task ID
+        status: Updated task status (cancelled)
+    """
+    # Verify session ownership
+    session = await session_manager.get_session(
+        session_id=session_id,
+        user_id=current_user.id,
+        db=db,
     )
+
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
+
+    # Get task
+    task = await task_queue.get_status(task_id)
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found",
+        )
+
+    if task.session_id != session_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Task does not belong to this session",
+        )
+
+    # Cancel the task
+    cancelled = await task_queue.cancel(task_id)
+    if not cancelled:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Task cannot be cancelled (already complete or not found)",
+        )
+
+    # Get updated status
+    task = await task_queue.get_status(task_id)
+    return task.to_dict()
+

@@ -18,10 +18,16 @@ class Base(DeclarativeBase):
     pass
 
 
-# Create async engine
+# Create async engine with connection pool configuration
+# Pool settings optimized for concurrent requests with long-running tasks
 engine: AsyncEngine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DATABASE_ECHO,
+    pool_size=20,           # Number of connections to keep in pool
+    max_overflow=10,        # Additional connections when pool is exhausted
+    pool_timeout=30,        # Seconds to wait for connection before error
+    pool_recycle=1800,      # Recycle connections after 30 minutes
+    pool_pre_ping=True,     # Test connections before use
 )
 
 # Create async session factory

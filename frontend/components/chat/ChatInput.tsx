@@ -4,15 +4,101 @@ import React, { useRef, useCallback, useState, KeyboardEvent } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
 
+export type SessionMode = 'data-question' | 'scientific-experiment' | 'data-extraction' | 'paper-writing'
+
+export interface ModeConfig {
+  id: SessionMode
+  label: string
+  description: string
+  icon: React.ReactNode
+  color: string
+  bgColor: string
+  borderColor: string
+  disabled?: boolean
+  disabledReason?: string
+  autoCommand?: string  // 自动输入的命令
+}
+
+export const MODE_CONFIGS: Record<SessionMode, ModeConfig> = {
+  'data-question': {
+    id: 'data-question',
+    label: '数据问题',
+    description: '数据查询与分析',
+    color: 'text-blue-400',
+    bgColor: 'bg-blue-500/20',
+    borderColor: 'border-blue-500/50',
+    icon: (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+    ),
+  },
+  'scientific-experiment': {
+    id: 'scientific-experiment',
+    label: '科学实验',
+    description: '实验设计与分析',
+    color: 'text-purple-400',
+    bgColor: 'bg-purple-500/20',
+    borderColor: 'border-purple-500/50',
+    icon: (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 3h6v2H9z" />
+        <path d="M10 5v6l-3 8h10l-3-8V5" />
+        <circle cx="12" cy="16" r="1" />
+      </svg>
+    ),
+  },
+  'data-extraction': {
+    id: 'data-extraction',
+    label: '数据抽取',
+    description: '即将推出',
+    color: 'text-emerald-400',
+    bgColor: 'bg-emerald-500/20',
+    borderColor: 'border-emerald-500/50',
+    disabled: true,
+    disabledReason: '功能开发中，敬请期待',
+    icon: (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="7 10 12 15 17 10" />
+        <line x1="12" y1="15" x2="12" y2="3" />
+      </svg>
+    ),
+  },
+  'paper-writing': {
+    id: 'paper-writing',
+    label: '论文写作',
+    description: '学术写作助手',
+    color: 'text-amber-400',
+    bgColor: 'bg-amber-500/20',
+    borderColor: 'border-amber-500/50',
+    autoCommand: '/scientific-writer:init',
+    icon: (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="16" y1="13" x2="8" y2="13" />
+        <line x1="16" y1="17" x2="8" y2="17" />
+        <polyline points="10 9 9 9 8 9" />
+      </svg>
+    ),
+  },
+}
+
 export interface ChatInputProps {
   value: string
   onChange: (value: string) => void
   onSubmit: (value: string) => void
+  onStop?: () => void
   onFileUpload?: (files: FileList) => void
   placeholder?: string
   disabled?: boolean
   isLoading?: boolean
   className?: string
+  mode?: SessionMode
+  onModeChange?: (mode: SessionMode) => void
 }
 
 /**
@@ -23,15 +109,22 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   value,
   onChange,
   onSubmit,
+  onStop,
   onFileUpload,
   placeholder = 'Type your message...',
   disabled = false,
   isLoading = false,
   className,
+  mode = 'data-question',
+  onModeChange,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isFocused, setIsFocused] = useState(false)
+
+  // 兼容旧的 mode 值
+  const normalizedMode = mode === 'normal' ? 'data-question' : mode === 'research' ? 'scientific-experiment' : mode
+  const currentMode = MODE_CONFIGS[normalizedMode] || MODE_CONFIGS['data-question']
 
   // Auto-resize textarea
   const autoResize = useCallback(() => {
@@ -67,11 +160,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Handle cancel
   const handleCancel = useCallback(() => {
+    if (onStop) {
+      onStop()
+    }
     onChange('')
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
     }
-  }, [onChange])
+  }, [onStop, onChange])
 
   // Handle file input change
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -111,12 +207,45 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     isFocused
       ? 'border-primary-500 ring-1 ring-primary-500'
       : 'border-gray-700 hover:border-gray-600',
-    disabled && 'opacity-50 cursor-not-allowed',
-    className
+    disabled && 'opacity-50 cursor-not-allowed'
   )
 
   return (
-    <div className={containerClasses}>
+    <div className={cn('flex flex-col gap-2', className)}>
+      {/* Mode selector - inline buttons */}
+      {onModeChange && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {Object.values(MODE_CONFIGS).map((modeConfig) => (
+            <button
+              key={modeConfig.id}
+              type="button"
+              onClick={() => {
+                if (modeConfig.disabled) return
+                onModeChange(modeConfig.id)
+              }}
+              disabled={disabled || isLoading || modeConfig.disabled}
+              title={modeConfig.disabled ? modeConfig.disabledReason : modeConfig.description}
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-200',
+                'border',
+                modeConfig.disabled
+                  ? 'opacity-40 cursor-not-allowed border-gray-700 text-gray-500'
+                  : normalizedMode === modeConfig.id
+                    ? cn(modeConfig.borderColor, modeConfig.bgColor, modeConfig.color)
+                    : 'border-gray-700 text-gray-400 hover:border-gray-600 hover:text-gray-300',
+                !modeConfig.disabled && 'hover:opacity-90'
+              )}
+            >
+              {modeConfig.icon}
+              <span>{modeConfig.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Input area */}
+      <div className={containerClasses}>
+
       {/* Hidden file input */}
       <input
         ref={fileInputRef}
@@ -174,12 +303,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         variant={isLoading ? 'secondary' : 'primary'}
         size="sm"
         onClick={isLoading ? handleCancel : handleSubmit}
-        disabled={disabled || isLoading || (!value.trim() && !isLoading)}
+        disabled={disabled || (isLoading && !onStop) || (!value.trim() && !isLoading)}
         className="flex-shrink-0 min-w-[80px]"
       >
         {isLoading ? (
           <>
-            <span>Cancel</span>
+            <span>Stop</span>
           </>
         ) : (
           <>
@@ -199,6 +328,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           </>
         )}
       </Button>
+      </div>
     </div>
   )
 }
