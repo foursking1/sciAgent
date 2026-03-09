@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//mnt/c/Users/ZJ/Desktop/数据智能体/**)",
+      "Bash(dir \"C:\\\\Users\\\\ZJ\\\\Desktop\\\\数据智能体\\\\sci_agent\")",
+      "Bash(cmd.exe:*)",
+      "Bash(docker compose:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(wsl.exe:*)",
+      "Bash(npm run:*)",
+      "Bash(npm install:*)",
+      "Bash(curl:*)"
+    ]
+  }
+}
