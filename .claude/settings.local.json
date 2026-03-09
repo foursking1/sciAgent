@@ -11,7 +11,9 @@
       "Bash(npm install:*)",
       "Bash(curl:*)",
       "Bash(ssh-keygen:*)",
-      "WebFetch(domain:gitee.com)"
+      "WebFetch(domain:gitee.com)",
+      "Bash(GIT_SSH_COMMAND=\"ssh -i ~/.ssh/id_rsa_gitee\" git push:*)",
+      "Bash(git:*)"
     ]
   }
 }
