@@ -94,7 +94,7 @@ services:
     environment:
       NODE_ENV: development
       NEXT_PUBLIC_ENVIRONMENT: development
-      NEXT_PUBLIC_API_URL: http://localhost:8000
+      # NEXT_PUBLIC_API_URL removed - auto-detected from browser hostname
       WATCHPACK_POLLING: "true"
     ports:
       - "3000:3000"

@@ -1,8 +1,29 @@
 /**
  * API client for SciAgent backend
+ *
+ * Priority for API URL:
+ * 1. NEXT_PUBLIC_API_URL environment variable (for production deployment)
+ * 2. Current page origin with port 8000 (for same-origin deployment)
+ * 3. localhost:8000 (fallback for development)
  */
+function getApiBaseUrl(): string {
+  // 1. Check environment variable (set in production)
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  // 2. In browser, use current hostname with port 8000
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol; // http: or https:
+    const hostname = window.location.hostname;
+    return `${protocol}//${hostname}:8000`;
+  }
+
+  // 3. Server-side fallback (SSR)
+  return 'http://localhost:8000';
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 export interface User {
   id: number;

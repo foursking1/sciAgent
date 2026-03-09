@@ -89,7 +89,8 @@ services:
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_ENVIRONMENT: production
-      NEXT_PUBLIC_API_URL: http://backend:8000
+      # API URL - set in .env for production, or auto-detected if empty
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
     ports:
       - "3000:3000"
     depends_on:
