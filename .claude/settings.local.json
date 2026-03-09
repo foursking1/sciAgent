@@ -9,7 +9,9 @@
       "Bash(wsl.exe:*)",
       "Bash(npm run:*)",
       "Bash(npm install:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(ssh-keygen:*)",
+      "WebFetch(domain:gitee.com)"
     ]
   }
 }
