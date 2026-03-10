@@ -1,21 +1,22 @@
 """
 Session API routes.
 """
+
 import json
 import logging
-from typing import Optional
 from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-logger = logging.getLogger(__name__)
-
+from backend.api.routes.auth import get_current_user, get_current_user_for_sse
 from backend.db.database import get_db_session
-from backend.db.models.session import Session
 from backend.db.models.message import Message, MessageRole
+from backend.db.models.session import Session
+from backend.db.models.user import User
 from backend.schemas.sessions import (
     SessionCreate,
     SessionResponse,
@@ -30,11 +31,10 @@ from backend.schemas.sessions import (
     PublicSessionListResponse,
     PublicSessionDetail,
 )
-from backend.schemas.auth import TokenData
-from backend.api.routes.auth import get_current_user, get_current_user_for_sse
 from backend.services.session_manager import session_manager
-from backend.services.task_queue import task_queue, TaskStatus
-from backend.db.models.user import User
+from backend.services.task_queue import task_queue
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -52,13 +52,12 @@ async def get_current_user_optional(
 
     try:
         from backend.services.auth import verify_token
+
         token_data = verify_token(credentials.credentials)
         if token_data is None:
             return None
 
-        result = await db.execute(
-            select(User).where(User.id == token_data.user_id)
-        )
+        result = await db.execute(select(User).where(User.id == token_data.user_id))
         return result.scalar_one_or_none()
     except Exception:
         return None
@@ -66,13 +65,14 @@ async def get_current_user_optional(
 
 # ============ Helper functions ============
 
+
 async def _find_preview_image(working_dir: str) -> str | None:
     """Find the first image file in workspace for preview"""
     workspace = Path(working_dir)
     if not workspace.exists():
         return None
 
-    image_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.webp'}
+    image_extensions = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 
     # Look in common output directories
     search_paths = [workspace / "outputs", workspace / "figures", workspace]
@@ -102,6 +102,7 @@ async def _find_pdf(working_dir: str) -> str | None:
 
 # ============ Public Session Endpoints (must come before /{session_id}) ============
 
+
 @router.get("/public", response_model=PublicSessionListResponse)
 async def list_public_sessions(
     db: AsyncSession = Depends(get_db_session),
@@ -112,7 +113,7 @@ async def list_public_sessions(
     """
     result = await db.execute(
         select(Session)
-        .where(Session.is_public == True)
+        .where(Session.is_public.is_(True))
         .order_by(Session.created_at.desc())
     )
     sessions = result.scalars().all()
@@ -123,14 +124,16 @@ async def list_public_sessions(
         preview_image = await _find_preview_image(session.working_dir)
         pdf_path = await _find_pdf(session.working_dir)
 
-        public_sessions.append(PublicSessionResponse(
-            id=session.id,
-            title=session.title,
-            current_mode=session.current_mode,
-            created_at=session.created_at,
-            preview_image=preview_image,
-            pdf_path=pdf_path,
-        ))
+        public_sessions.append(
+            PublicSessionResponse(
+                id=session.id,
+                title=session.title,
+                current_mode=session.current_mode,
+                created_at=session.created_at,
+                preview_image=preview_image,
+                pdf_path=pdf_path,
+            )
+        )
 
     return {
         "sessions": public_sessions,
@@ -148,7 +151,7 @@ async def get_public_session(
     Get a public session with messages (no authentication required).
     """
     result = await db.execute(
-        select(Session).where(Session.id == session_id, Session.is_public == True)
+        select(Session).where(Session.id == session_id, Session.is_public.is_(True))
     )
     session = result.scalar_one_or_none()
 
@@ -589,7 +592,9 @@ async def toggle_session_public(
     """
     # Query session directly from database
     result = await db.execute(
-        select(Session).where(Session.id == session_id, Session.user_id == current_user.id)
+        select(Session).where(
+            Session.id == session_id, Session.user_id == current_user.id
+        )
     )
     session = result.scalar_one_or_none()
 
@@ -605,4 +610,3 @@ async def toggle_session_public(
     await db.refresh(session)
 
     return session
-

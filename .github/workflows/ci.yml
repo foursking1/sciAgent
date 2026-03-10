@@ -43,7 +43,7 @@ jobs:
         working-directory: backend
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: npm install
         working-directory: frontend
 
       - name: Lint frontend
@@ -148,7 +148,7 @@ jobs:
         working-directory: backend
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: npm install
         working-directory: frontend
 
       - name: Install Playwright browsers

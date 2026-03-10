@@ -1,6 +1,7 @@
 """
 Authentication API routes.
 """
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +21,6 @@ from backend.schemas.auth import (
     UserLogin,
     UserResponse,
     Token,
-    TokenData,
 )
 
 router = APIRouter()
@@ -77,7 +77,7 @@ async def get_current_user(
                 return user
 
     # DEV MODE: Auto-login as first active user or create a default user
-    result = await db.execute(select(User).where(User.is_active == True).limit(1))
+    result = await db.execute(select(User).where(User.is_active.is_(True)).limit(1))
     user = result.scalar_one_or_none()
 
     if user is not None:
@@ -115,7 +115,9 @@ async def get_current_user_for_sse(
     return await get_current_user(credentials, db)
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
+)
 async def register(
     user_data: UserCreate,
     db: AsyncSession = Depends(get_db_session),
@@ -179,9 +181,7 @@ async def login(
         )
 
     # Create access token
-    access_token = create_access_token(
-        data={"sub": str(user.id), "email": user.email}
-    )
+    access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
 
     return {"access_token": access_token, "token_type": "bearer"}
 

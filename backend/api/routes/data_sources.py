@@ -1,6 +1,7 @@
 """
 API routes for DataSource management.
 """
+
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -36,7 +37,7 @@ async def list_data_sources(
 
     return DataSourceListResponse(
         data_sources=[DataSourceResponse.model_validate(ds) for ds in data_sources],
-        total=len(data_sources)
+        total=len(data_sources),
     )
 
 
@@ -49,13 +50,14 @@ async def create_data_source(
     """Create a new data source"""
     # Check if name already exists for this user
     existing = await db.execute(
-        select(DataSource)
-        .where(DataSource.user_id == current_user.id, DataSource.name == data.name)
+        select(DataSource).where(
+            DataSource.user_id == current_user.id, DataSource.name == data.name
+        )
     )
     if existing.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Data source with name '{data.name}' already exists"
+            detail=f"Data source with name '{data.name}' already exists",
         )
 
     data_source = DataSource(
@@ -80,15 +82,15 @@ async def get_data_source(
 ):
     """Get a specific data source by ID"""
     result = await db.execute(
-        select(DataSource)
-        .where(DataSource.id == data_source_id, DataSource.user_id == current_user.id)
+        select(DataSource).where(
+            DataSource.id == data_source_id, DataSource.user_id == current_user.id
+        )
     )
     data_source = result.scalar_one_or_none()
 
     if not data_source:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Data source not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
         )
 
     return DataSourceResponse.model_validate(data_source)
@@ -103,32 +105,31 @@ async def update_data_source(
 ):
     """Update a data source"""
     result = await db.execute(
-        select(DataSource)
-        .where(DataSource.id == data_source_id, DataSource.user_id == current_user.id)
+        select(DataSource).where(
+            DataSource.id == data_source_id, DataSource.user_id == current_user.id
+        )
     )
     data_source = result.scalar_one_or_none()
 
     if not data_source:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Data source not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
         )
 
     # Update fields
     if data.name is not None:
         # Check if new name conflicts with existing
         existing = await db.execute(
-            select(DataSource)
-            .where(
+            select(DataSource).where(
                 DataSource.user_id == current_user.id,
                 DataSource.name == data.name,
-                DataSource.id != data_source_id
+                DataSource.id != data_source_id,
             )
         )
         if existing.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Data source with name '{data.name}' already exists"
+                detail=f"Data source with name '{data.name}' already exists",
             )
         data_source.name = data.name
 
@@ -153,15 +154,15 @@ async def delete_data_source(
 ):
     """Delete a data source"""
     result = await db.execute(
-        select(DataSource)
-        .where(DataSource.id == data_source_id, DataSource.user_id == current_user.id)
+        select(DataSource).where(
+            DataSource.id == data_source_id, DataSource.user_id == current_user.id
+        )
     )
     data_source = result.scalar_one_or_none()
 
     if not data_source:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Data source not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
         )
 
     await db.delete(data_source)
@@ -176,15 +177,15 @@ async def test_data_source(
 ):
     """Test a data source connection"""
     result = await db.execute(
-        select(DataSource)
-        .where(DataSource.id == data_source_id, DataSource.user_id == current_user.id)
+        select(DataSource).where(
+            DataSource.id == data_source_id, DataSource.user_id == current_user.id
+        )
     )
     data_source = result.scalar_one_or_none()
 
     if not data_source:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Data source not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
         )
 
     # TODO: Implement actual connection testing based on type
@@ -192,5 +193,5 @@ async def test_data_source(
     return DataSourceTestResponse(
         success=True,
         message=f"Successfully connected to {data_source.type} data source",
-        details={"type": data_source.type, "name": data_source.name}
+        details={"type": data_source.type, "name": data_source.name},
     )

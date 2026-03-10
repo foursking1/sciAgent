@@ -1,29 +1,29 @@
 """
 File API routes.
 """
-import os
-import shutil
+
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from fastapi.responses import FileResponse as FastAPIFileResponse
-
-logger = logging.getLogger(__name__)
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.routes.auth import get_current_user
 from backend.db.database import get_db_session
-from backend.db.models.session import Session
 from backend.db.models.file import File as FileModel
+from backend.db.models.session import Session
+from backend.db.models.user import User
 from backend.schemas.files import (
     FileListResponse,
-    FileUploadResponse,
     MultipleFileUploadResponse,
 )
-from backend.api.routes.auth import get_current_user
 from backend.services.session_manager import session_manager
-from backend.db.models.user import User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -36,7 +36,7 @@ def count_files_recursive(dir_path: Path) -> int:
     count = 0
     try:
         for sub_item in dir_path.iterdir():
-            if sub_item.name.startswith('.'):
+            if sub_item.name.startswith("."):
                 continue
             if sub_item.is_file():
                 count += 1
@@ -49,6 +49,7 @@ def count_files_recursive(dir_path: Path) -> int:
 
 # ============ Public File Endpoint ============
 
+
 @router.get("/public/{session_id}/{file_path:path}")
 async def download_public_file(
     session_id: str,
@@ -60,7 +61,7 @@ async def download_public_file(
     """
     # Verify session is public
     result = await db.execute(
-        select(Session).where(Session.id == session_id, Session.is_public == True)
+        select(Session).where(Session.id == session_id, Session.is_public.is_(True))
     )
     session = result.scalar_one_or_none()
 
@@ -94,6 +95,7 @@ async def download_public_file(
 
 
 # ============ Authenticated File Endpoints ============
+
 
 async def _verify_session_access(
     session_id: str,
@@ -148,13 +150,15 @@ async def upload_file(
                 file_size = len(content)
         except Exception as e:
             logger.error(f"Failed to save file {file.filename}: {e}")
-            uploaded_files.append({
-                "success": False,
-                "filename": file.filename or "unknown",
-                "file_path": file_path,
-                "file_size": 0,
-                "message": f"Failed to save file: {str(e)}",
-            })
+            uploaded_files.append(
+                {
+                    "success": False,
+                    "filename": file.filename or "unknown",
+                    "file_path": file_path,
+                    "file_size": 0,
+                    "message": f"Failed to save file: {str(e)}",
+                }
+            )
             continue
 
         # Create database record
@@ -170,13 +174,15 @@ async def upload_file(
         await db.commit()
         await db.refresh(file_record)
 
-        uploaded_files.append({
-            "success": True,
-            "filename": file.filename or "unknown",
-            "file_path": file_path,
-            "file_size": file_size,
-            "message": "File uploaded successfully",
-        })
+        uploaded_files.append(
+            {
+                "success": True,
+                "filename": file.filename or "unknown",
+                "file_path": file_path,
+                "file_size": file_size,
+                "message": "File uploaded successfully",
+            }
+        )
 
     return {
         "success": True,
@@ -233,7 +239,7 @@ async def list_files(
     try:
         for item in target_path.iterdir():
             # Skip hidden files/directories
-            if item.name.startswith('.'):
+            if item.name.startswith("."):
                 continue
 
             # Build relative path from workspace root
@@ -248,26 +254,30 @@ async def list_files(
                 except Exception:
                     item_count = 0
 
-                files.append({
-                    "id": len(files),
-                    "session_id": session_id,
-                    "filename": item.name,
-                    "file_path": relative_path,
-                    "content_type": "directory",
-                    "item_count": item_count,  # Number of items in the directory
-                    "created_at": datetime.fromtimestamp(item.stat().st_ctime),
-                })
+                files.append(
+                    {
+                        "id": len(files),
+                        "session_id": session_id,
+                        "filename": item.name,
+                        "file_path": relative_path,
+                        "content_type": "directory",
+                        "item_count": item_count,  # Number of items in the directory
+                        "created_at": datetime.fromtimestamp(item.stat().st_ctime),
+                    }
+                )
             else:
                 stat = item.stat()
-                files.append({
-                    "id": len(files),
-                    "session_id": session_id,
-                    "filename": item.name,
-                    "file_path": relative_path,
-                    "file_size": stat.st_size,
-                    "content_type": None,
-                    "created_at": datetime.fromtimestamp(stat.st_ctime),
-                })
+                files.append(
+                    {
+                        "id": len(files),
+                        "session_id": session_id,
+                        "filename": item.name,
+                        "file_path": relative_path,
+                        "file_size": stat.st_size,
+                        "content_type": None,
+                        "created_at": datetime.fromtimestamp(stat.st_ctime),
+                    }
+                )
     except Exception as e:
         logger.error(f"Error scanning directory {target_path}: {e}")
 
@@ -320,33 +330,88 @@ async def preview_file(
 
     # Get file info
     file_name = os.path.basename(file_path)
-    file_ext = file_name.split('.')[-1].lower() if '.' in file_name else ''
+    file_ext = file_name.split(".")[-1].lower() if "." in file_name else ""
     file_size = os.path.getsize(full_path)
 
     # Text file extensions
     text_extensions = {
-        'txt', 'md', 'markdown', 'json', 'yaml', 'yml', 'py', 'js', 'ts',
-        'jsx', 'tsx', 'html', 'htm', 'css', 'scss', 'sass', 'less', 'sql',
-        'csv', 'log', 'sh', 'bash', 'zsh', 'fish', 'ps1', 'bat', 'cmd',
-        'c', 'cpp', 'h', 'hpp', 'java', 'go', 'rs', 'swift', 'kt', 'kts',
-        'rb', 'php', 'pl', 'pm', 'lua', 'r', 'm', 'mm', 'scala', 'groovy',
-        'dockerfile', 'makefile', 'cmake', 'toml', 'ini', 'cfg', 'conf',
-        'properties', 'env', 'gitignore', 'gitattributes', 'editorconfig'
+        "txt",
+        "md",
+        "markdown",
+        "json",
+        "yaml",
+        "yml",
+        "py",
+        "js",
+        "ts",
+        "jsx",
+        "tsx",
+        "html",
+        "htm",
+        "css",
+        "scss",
+        "sass",
+        "less",
+        "sql",
+        "csv",
+        "log",
+        "sh",
+        "bash",
+        "zsh",
+        "fish",
+        "ps1",
+        "bat",
+        "cmd",
+        "c",
+        "cpp",
+        "h",
+        "hpp",
+        "java",
+        "go",
+        "rs",
+        "swift",
+        "kt",
+        "kts",
+        "rb",
+        "php",
+        "pl",
+        "pm",
+        "lua",
+        "r",
+        "m",
+        "mm",
+        "scala",
+        "groovy",
+        "dockerfile",
+        "makefile",
+        "cmake",
+        "toml",
+        "ini",
+        "cfg",
+        "conf",
+        "properties",
+        "env",
+        "gitignore",
+        "gitattributes",
+        "editorconfig",
     }
 
     # Image file extensions
-    image_extensions = {'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico'}
+    image_extensions = {"png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "ico"}
 
     try:
         if file_ext in text_extensions:
             # Read as text
-            with open(full_path, 'r', encoding='utf-8', errors='replace') as f:
+            with open(full_path, "r", encoding="utf-8", errors="replace") as f:
                 content = f.read()
 
             # Limit preview size (100KB max)
             max_size = 100 * 1024
             if len(content) > max_size:
-                content = content[:max_size] + '\n\n... [File truncated, too large to preview]'
+                content = (
+                    content[:max_size]
+                    + "\n\n... [File truncated, too large to preview]"
+                )
 
             return {
                 "type": "text",
@@ -460,9 +525,7 @@ async def delete_file(
         )
 
     # Delete from database
-    result = await db.execute(
-        select(FileModel).where(FileModel.file_path == full_path)
-    )
+    result = await db.execute(select(FileModel).where(FileModel.file_path == full_path))
     file_record = result.scalar_one_or_none()
 
     if file_record:
