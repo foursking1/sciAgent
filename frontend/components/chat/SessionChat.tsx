@@ -182,7 +182,7 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
 
   // Handle toggle public
   const handleTogglePublic = useCallback(async () => {
-    if (!sessionState?.session) return
+    if (!sessionState?.session || !token) return
 
     try {
       await sessionsApi.setPublic(token, sessionId, !sessionState.session.is_public)
