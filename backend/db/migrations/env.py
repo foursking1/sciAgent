@@ -1,21 +1,18 @@
 """
 Alembic migrations configuration.
 """
-from logging.config import fileHandlers
+
 import sys
 from os.path import abspath, join
 
-from sqlalchemy import pool
-from sqlalchemy.engine import Connection
-from sqlalchemy import engine_from_config
-
-import alembic
+from alembic import context
+from sqlalchemy import engine_from_config, pool
 
 # Add the project root to the path
-sys.path.insert(0, abspath(join(abspath(__file__), '..', '..', '..')))
+sys.path.insert(0, abspath(join(abspath(__file__), "..", "..", "..")))
 
-from backend.db.database import Base
 from backend.core.config import settings
+from backend.db.database import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

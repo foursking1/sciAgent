@@ -3,20 +3,20 @@ Authentication Service Tests
 
 Tests for password hashing, JWT token creation, and user authentication.
 """
-import pytest
+
 import time
 from datetime import timedelta
-from jose import jwt
 
+import pytest
+from backend.schemas.auth import TokenData
 from backend.services.auth import (
-    get_password_hash,
-    verify_password,
     create_access_token,
     decode_token,
     get_current_user,
+    get_password_hash,
+    verify_password,
 )
-from backend.schemas.auth import TokenData
-
+from jose import jwt
 
 SECRET_KEY = "test-secret-key-for-testing-only"
 ALGORITHM = "HS256"
@@ -87,8 +87,7 @@ class TestAccessTokenCreation:
     def test_token_expiration(self):
         """Test token expiration"""
         token = create_access_token(
-            {"sub": "user123"},
-            expires_delta=timedelta(seconds=1)
+            {"sub": "user123"}, expires_delta=timedelta(seconds=1)
         )
 
         time.sleep(2)
@@ -127,8 +126,7 @@ class TestDecodeToken:
     def test_decode_expired_token(self):
         """Test decoding an expired token"""
         token = create_access_token(
-            {"sub": "user123"},
-            expires_delta=timedelta(seconds=1)
+            {"sub": "user123"}, expires_delta=timedelta(seconds=1)
         )
         time.sleep(2)
 
@@ -157,8 +155,7 @@ class TestGetCurrentUser:
     def test_get_current_user_with_expired_token(self):
         """Test getting current user with expired token"""
         token = create_access_token(
-            {"sub": "expired_user"},
-            expires_delta=timedelta(seconds=1)
+            {"sub": "expired_user"}, expires_delta=timedelta(seconds=1)
         )
         time.sleep(2)
 

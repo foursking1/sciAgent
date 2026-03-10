@@ -1,13 +1,16 @@
 """
 Session model definition.
 """
+
+from __future__ import annotations
+
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import String, DateTime, Integer, ForeignKey, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.sql import func
 
 from backend.db.database import Base
+from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql import func
 
 
 class Session(Base):
@@ -27,15 +30,13 @@ class Session(Base):
         messages: Relationship to Message records
         files: Relationship to File records
     """
+
     __tablename__ = "sessions"
     __allow_unmapped__ = True  # Allow non-mapped attributes like preview
 
     id: Mapped[str] = mapped_column(String(100), primary_key=True)
     user_id: Mapped[int] = mapped_column(
-        Integer,
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     working_dir: Mapped[str] = mapped_column(String(500), nullable=False)
     title: Mapped[str | None] = mapped_column(String(200), nullable=True)
@@ -44,35 +45,25 @@ class Session(Base):
         String(50),
         nullable=False,
         default="data-question",
-        server_default="data-question"
+        server_default="data-question",
     )
     is_public: Mapped[bool] = mapped_column(
-        default=False,
-        server_default="0",
-        nullable=False
+        default=False, server_default="0", nullable=False
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        onupdate=func.now(),
-        nullable=True
+        DateTime(timezone=True), onupdate=func.now(), nullable=True
     )
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="sessions")
     messages: Mapped[list["Message"]] = relationship(
-        "Message",
-        back_populates="session",
-        cascade="all, delete-orphan"
+        "Message", back_populates="session", cascade="all, delete-orphan"
     )
     files: Mapped[list["File"]] = relationship(
-        "File",
-        back_populates="session",
-        cascade="all, delete-orphan"
+        "File", back_populates="session", cascade="all, delete-orphan"
     )
 
     # Non-persisted attribute for last message preview

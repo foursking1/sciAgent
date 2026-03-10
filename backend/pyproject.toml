@@ -46,3 +46,18 @@ dev = [
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# SQLAlchemy forward references are resolved at runtime
+"db/models/*.py" = ["F821"]
+# Alembic migration environment
+"db/migrations/env.py" = ["F821"]
+# Standalone test script
+"test_data_scientist.py" = ["E402"]

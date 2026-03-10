@@ -1,20 +1,20 @@
 """
 Database connection and session management.
 """
+
+from backend.core.config import settings
 from sqlalchemy.ext.asyncio import (
-    AsyncSession,
     AsyncEngine,
+    AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
-from sqlalchemy.pool import StaticPool
-
-from backend.core.config import settings
+from sqlalchemy.orm import DeclarativeBase
 
 
 class Base(DeclarativeBase):
     """Base class for all models"""
+
     pass
 
 
@@ -23,11 +23,11 @@ class Base(DeclarativeBase):
 engine: AsyncEngine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DATABASE_ECHO,
-    pool_size=20,           # Number of connections to keep in pool
-    max_overflow=10,        # Additional connections when pool is exhausted
-    pool_timeout=30,        # Seconds to wait for connection before error
-    pool_recycle=1800,      # Recycle connections after 30 minutes
-    pool_pre_ping=True,     # Test connections before use
+    pool_size=20,  # Number of connections to keep in pool
+    max_overflow=10,  # Additional connections when pool is exhausted
+    pool_timeout=30,  # Seconds to wait for connection before error
+    pool_recycle=1800,  # Recycle connections after 30 minutes
+    pool_pre_ping=True,  # Test connections before use
 )
 
 # Create async session factory

@@ -7,11 +7,6 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
-from fastapi.responses import FileResponse as FastAPIFileResponse
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from backend.api.routes.auth import get_current_user
 from backend.db.database import get_db_session
 from backend.db.models.file import File as FileModel
@@ -22,6 +17,10 @@ from backend.schemas.files import (
     MultipleFileUploadResponse,
 )
 from backend.services.session_manager import session_manager
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse as FastAPIFileResponse
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 

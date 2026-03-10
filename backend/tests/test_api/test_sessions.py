@@ -1,7 +1,7 @@
 """
 API tests for session endpoints.
 """
-import pytest
+
 from httpx import AsyncClient
 
 
@@ -25,15 +25,14 @@ class TestSessionsAPI:
 
     async def test_create_session(self, authenticated_client: AsyncClient):
         """Test creating a new session"""
-        response = await authenticated_client.post(
-            "/api/sessions",
-            json={}
-        )
+        response = await authenticated_client.post("/api/sessions", json={})
         assert response.status_code == 201
         data = response.json()
         assert "id" in data
 
     async def test_get_session_events_unauthenticated(self, api_client: AsyncClient):
         """Test getting session events without auth"""
-        response = await api_client.get("/api/sessions/fake-id/events?task_id=fake-task")
+        response = await api_client.get(
+            "/api/sessions/fake-id/events?task_id=fake-task"
+        )
         assert response.status_code in [401, 404]

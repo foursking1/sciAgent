@@ -6,33 +6,32 @@ import json
 import logging
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import StreamingResponse
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from backend.api.routes.auth import get_current_user, get_current_user_for_sse
 from backend.db.database import get_db_session
 from backend.db.models.message import Message, MessageRole
 from backend.db.models.session import Session
 from backend.db.models.user import User
 from backend.schemas.sessions import (
-    SessionCreate,
-    SessionResponse,
-    SessionListResponse,
-    ModeUpdate,
-    PublicUpdate,
     MessageCreate,
     MessageResponse,
+    ModeUpdate,
+    PublicSessionDetail,
+    PublicSessionListResponse,
+    PublicSessionResponse,
+    PublicUpdate,
+    SessionCreate,
+    SessionListResponse,
+    SessionResponse,
     TaskResponse,
     TaskStatusResponse,
-    PublicSessionResponse,
-    PublicSessionListResponse,
-    PublicSessionDetail,
 )
 from backend.services.session_manager import session_manager
 from backend.services.task_queue import task_queue
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 

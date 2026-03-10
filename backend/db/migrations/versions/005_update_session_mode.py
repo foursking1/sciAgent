@@ -5,15 +5,14 @@ Revises: 004_add_session_title
 Create Date: 2026-03-08
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
-import sqlalchemy as sa
-
 
 # revision identifiers, used by Alembic.
-revision: str = '005_update_session_mode'
-down_revision: Union[str, None] = '004_add_session_title'
+revision: str = "005_update_session_mode"
+down_revision: Union[str, None] = "004_add_session_title"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -30,11 +29,7 @@ def upgrade() -> None:
     )
 
     # Update server_default to new value
-    op.alter_column(
-        'sessions',
-        'current_mode',
-        server_default='data-question'
-    )
+    op.alter_column("sessions", "current_mode", server_default="data-question")
 
 
 def downgrade() -> None:
@@ -47,8 +42,4 @@ def downgrade() -> None:
     )
 
     # Revert server_default
-    op.alter_column(
-        'sessions',
-        'current_mode',
-        server_default='normal'
-    )
+    op.alter_column("sessions", "current_mode", server_default="normal")

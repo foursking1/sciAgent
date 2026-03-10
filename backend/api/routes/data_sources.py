@@ -3,21 +3,21 @@ API routes for DataSource management.
 """
 
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.routes.auth import get_current_user
 from backend.db.database import get_db_session
 from backend.db.models.data_source import DataSource
 from backend.db.models.user import User
-from backend.api.routes.auth import get_current_user
 from backend.schemas.data_sources import (
     DataSourceCreate,
-    DataSourceUpdate,
-    DataSourceResponse,
     DataSourceListResponse,
+    DataSourceResponse,
     DataSourceTestResponse,
+    DataSourceUpdate,
 )
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/data-sources", tags=["data-sources"])
 

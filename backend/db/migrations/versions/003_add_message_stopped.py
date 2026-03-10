@@ -5,20 +5,23 @@ Revises: 002_add_session_mode
 Create Date: 2026-03-08
 
 """
-from alembic import op
-import sqlalchemy as sa
 
+import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '003'
-down_revision = '002'
+revision = "003"
+down_revision = "002"
 branch_labels = None
 depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column('messages', sa.Column('is_stopped', sa.Boolean(), nullable=False, server_default='0'))
+    op.add_column(
+        "messages",
+        sa.Column("is_stopped", sa.Boolean(), nullable=False, server_default="0"),
+    )
 
 
 def downgrade() -> None:
-    op.drop_column('messages', 'is_stopped')
+    op.drop_column("messages", "is_stopped")

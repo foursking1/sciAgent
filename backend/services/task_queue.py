@@ -10,6 +10,7 @@ Features:
 - Task cancellation support
 - Automatic cleanup with TTL
 """
+
 import asyncio
 import json
 import logging
@@ -17,17 +18,17 @@ import time
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, AsyncGenerator, Optional
+from typing import AsyncGenerator, Optional
 
 import redis.asyncio as redis
-
 from backend.core.config import settings
 
-logger = logging.getLogger('TaskQueue')
+logger = logging.getLogger("TaskQueue")
 
 
 class TaskStatus(str, Enum):
     """Task status enumeration"""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -305,7 +306,11 @@ class TaskQueue:
             }
 
             # If task is already complete, yield result and return
-            if task.status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED):
+            if task.status in (
+                TaskStatus.COMPLETED,
+                TaskStatus.FAILED,
+                TaskStatus.CANCELLED,
+            ):
                 if task.result:
                     yield {
                         "type": "result",
@@ -364,18 +369,25 @@ class TaskQueue:
         if not task:
             return False
 
-        if task.status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED):
+        if task.status in (
+            TaskStatus.COMPLETED,
+            TaskStatus.FAILED,
+            TaskStatus.CANCELLED,
+        ):
             return False
 
         # Update status
         await self.update_status(task_id, TaskStatus.CANCELLED)
 
         # Publish cancellation event
-        await self.publish_event(task_id, {
-            "type": "cancelled",
-            "message": "Task cancelled by user",
-            "timestamp": datetime.now().isoformat(),
-        })
+        await self.publish_event(
+            task_id,
+            {
+                "type": "cancelled",
+                "message": "Task cancelled by user",
+                "timestamp": datetime.now().isoformat(),
+            },
+        )
 
         # Cancel asyncio task if running
         if task_id in self._running_tasks:

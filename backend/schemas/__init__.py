@@ -1,6 +1,7 @@
 """
 Schemas package for request/response validation.
 """
+
 from backend.schemas.auth import (
     Token,
     TokenData,
@@ -9,17 +10,17 @@ from backend.schemas.auth import (
     UserLogin,
     UserResponse,
 )
-from backend.schemas.sessions import (
-    SessionCreate,
-    SessionResponse,
-    SessionListResponse,
-    MessageCreate,
-    MessageResponse,
-)
 from backend.schemas.files import (
     FileInfo,
     FileListResponse,
     FileUploadResponse,
+)
+from backend.schemas.sessions import (
+    MessageCreate,
+    MessageResponse,
+    SessionCreate,
+    SessionListResponse,
+    SessionResponse,
 )
 
 __all__ = [

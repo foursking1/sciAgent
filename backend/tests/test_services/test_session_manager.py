@@ -1,23 +1,24 @@
 """
 Tests for SessionManager and DataScientist integration.
 """
-import pytest
-import pytest_asyncio
+
 import os
 import tempfile
-from unittest.mock import patch, AsyncMock, MagicMock
-from sqlalchemy.ext.asyncio import AsyncSession
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from backend.services.session_manager import SessionManager, session_manager
+import pytest
+import pytest_asyncio
+from backend.db.models.message import MessageRole
 from backend.db.models.session import Session
-from backend.db.models.message import Message, MessageRole
+from backend.services.session_manager import SessionManager
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.fixture
 def temp_workspace():
     """Create a temporary workspace directory for testing"""
     with tempfile.TemporaryDirectory() as tmpdir:
-        with patch('backend.core.config.settings.WORKSPACE_BASE', tmpdir):
+        with patch("backend.core.config.settings.WORKSPACE_BASE", tmpdir):
             yield tmpdir
 
 
@@ -42,6 +43,7 @@ class TestSessionManagerBasic:
         # Cleanup
         if os.path.exists(session.working_dir):
             import shutil
+
             shutil.rmtree(session.working_dir, ignore_errors=True)
 
     async def test_create_session(self, session_manager_instance, test_user):
@@ -59,6 +61,7 @@ class TestSessionManagerBasic:
 
         # Cleanup
         import shutil
+
         shutil.rmtree(session.working_dir, ignore_errors=True)
 
     async def test_get_session_no_db(self, session_manager_instance, test_user):
@@ -87,18 +90,23 @@ class TestDataScientistIntegration:
     @pytest.fixture
     def mock_data_scientist(self):
         """Mock DataScientist class for testing"""
+
         # Create mock async iterator
         async def mock_stream_iterator(*args, **kwargs):
             events = [
-                {'type': 'assistant_message', 'content': 'Hello from DataScientist!'},
-                {'type': 'completed', 'status': 'done'},
+                {"type": "assistant_message", "content": "Hello from DataScientist!"},
+                {"type": "completed", "status": "done"},
             ]
             for event in events:
                 yield event
 
         # Create mock DataScientist instance
         mock_ds_instance = MagicMock()
-        mock_ds_instance.run_async = AsyncMock(side_effect=lambda msg, stream=True: mock_stream_iterator() if stream else {'result': 'success'})
+        mock_ds_instance.run_async = AsyncMock(
+            side_effect=lambda msg, stream=True: (
+                mock_stream_iterator() if stream else {"result": "success"}
+            )
+        )
 
         # Create mock module structure
         mock_core = MagicMock()
@@ -107,7 +115,14 @@ class TestDataScientistIntegration:
         mock_module.core = mock_core
 
         # Patch sys.modules to mock the import
-        with patch.dict('sys.modules', {'agentic_data_scientist': mock_module, 'agentic_data_scientist.core': mock_core, 'agentic_data_scientist.core.api': mock_core.api}):
+        with patch.dict(
+            "sys.modules",
+            {
+                "agentic_data_scientist": mock_module,
+                "agentic_data_scientist.core": mock_core,
+                "agentic_data_scientist.core.api": mock_core.api,
+            },
+        ):
             yield mock_ds_instance
 
     @pytest_asyncio.fixture
@@ -122,6 +137,7 @@ class TestDataScientistIntegration:
         # Cleanup
         if os.path.exists(session.working_dir):
             import shutil
+
             shutil.rmtree(session.working_dir, ignore_errors=True)
 
     async def test_run_data_scientist_streaming(
@@ -142,10 +158,11 @@ class TestDataScientistIntegration:
         assert len(events) > 0
         # Check that events have 'data' key with JSON string
         for event in events:
-            assert 'data' in event
+            assert "data" in event
             import json
-            event_data = json.loads(event['data'])
-            assert 'type' in event_data or 'content' in event_data
+
+            event_data = json.loads(event["data"])
+            assert "type" in event_data or "content" in event_data
 
     async def test_run_data_scientist_non_streaming(
         self,
@@ -164,12 +181,15 @@ class TestDataScientistIntegration:
 
         assert len(events) == 1
         import json
-        result = json.loads(events[0]['data'])
+
+        result = json.loads(events[0]["data"])
         assert result is not None
 
-    async def test_run_data_scientist_import_error(self, session_manager_instance, ds_test_session):
+    async def test_run_data_scientist_import_error(
+        self, session_manager_instance, ds_test_session
+    ):
         """Test error handling when DataScientist is not available"""
-        with patch.dict('sys.modules', {'agentic_data_scientist.core.api': None}):
+        with patch.dict("sys.modules", {"agentic_data_scientist.core.api": None}):
             events = []
             async for event in session_manager_instance.run_data_scientist(
                 session=ds_test_session,
@@ -181,9 +201,10 @@ class TestDataScientistIntegration:
         # Should return error event
         assert len(events) > 0
         import json
-        error_event = json.loads(events[0]['data'])
-        assert error_event['type'] == 'error'
-        assert 'DataScientist' in error_event['message']
+
+        error_event = json.loads(events[0]["data"])
+        assert error_event["type"] == "error"
+        assert "DataScientist" in error_event["message"]
 
 
 class TestSessionManagerWithDatabase:
@@ -206,8 +227,9 @@ class TestSessionManagerWithDatabase:
         assert session.user_id == test_user.id
 
         # Verify in database
-        from sqlalchemy import select
         from backend.db.models.session import Session
+        from sqlalchemy import select
+
         result = await async_session.execute(
             select(Session).where(Session.id == session.id)
         )
@@ -241,12 +263,12 @@ class TestSessionManagerWithDatabase:
     ):
         """Test listing user sessions"""
         # Create multiple sessions
-        session1 = await session_manager_instance.create_session(
+        await session_manager_instance.create_session(
             user_id=test_user.id,
             agent_type="claude_code",
             db=async_session,
         )
-        session2 = await session_manager_instance.create_session(
+        await session_manager_instance.create_session(
             user_id=test_user.id,
             agent_type="adk",
             db=async_session,
@@ -272,7 +294,6 @@ class TestSessionManagerWithDatabase:
             agent_type="claude_code",
             db=async_session,
         )
-        workspace_path = session.working_dir
 
         # Delete session
         deleted = await session_manager_instance.delete_session(
@@ -285,8 +306,9 @@ class TestSessionManagerWithDatabase:
         assert deleted is True
 
         # Verify deleted from database
-        from sqlalchemy import select
         from backend.db.models.session import Session
+        from sqlalchemy import select
+
         result = await async_session.execute(
             select(Session).where(Session.id == session.id)
         )

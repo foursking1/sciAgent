@@ -8,51 +8,53 @@ Optimizations:
 - 空闲实例自动清理 (TTL)
 - 模块预加载
 """
-import os
+
 import asyncio
-import shutil
-import logging
-import time
-from pathlib import Path
-from typing import AsyncGenerator, Optional, Any, Dict
-from datetime import datetime, timedelta
-from dataclasses import dataclass, field
-import uuid
 import json
+import logging
+import os
+import shutil
+import time
+import uuid
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any, AsyncGenerator, Dict, Optional
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
-
-from backend.db.models.session import Session
-from backend.db.models.message import Message, MessageRole
-from backend.db.models.file import File
 from backend.core.config import settings
-
+from backend.db.models.message import Message, MessageRole
+from backend.db.models.session import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
-logger = logging.getLogger('SessionManager')
+logger = logging.getLogger("SessionManager")
 
 # Session mode types
-VALID_MODES = ('data-question', 'scientific-experiment', 'data-extraction', 'paper-writing')
+VALID_MODES = (
+    "data-question",
+    "scientific-experiment",
+    "data-extraction",
+    "paper-writing",
+)
 
 # Mode to agent_type mapping
 MODE_AGENT_MAP = {
-    'data-question': 'claude_code',
-    'scientific-experiment': 'adk',
-    'data-extraction': 'claude_code',  # disabled for now
-    'paper-writing': 'claude_code',  # uses claude_code with auto command
+    "data-question": "claude_code",
+    "scientific-experiment": "adk",
+    "data-extraction": "claude_code",  # disabled for now
+    "paper-writing": "claude_code",  # uses claude_code with auto command
 }
 
 
 @dataclass
 class CachedDataScientist:
     """缓存的 DataScientist 实例"""
+
     instance: Any  # DataScientist 实例
     agent_type: str
     working_dir: str
@@ -87,9 +89,9 @@ class DataScientistCache:
 
         # 统计
         self._stats = {
-            'hits': 0,
-            'misses': 0,
-            'evictions': 0,
+            "hits": 0,
+            "misses": 0,
+            "evictions": 0,
         }
 
     async def preload_module(self) -> bool:
@@ -101,7 +103,6 @@ class DataScientistCache:
             logger.info("预加载 DataScientist 模块...")
             start_time = time.time()
 
-            from agentic_data_scientist.core.api import DataScientist
             self._module_loaded = True
 
             elapsed = time.time() - start_time
@@ -134,26 +135,34 @@ class DataScientistCache:
                 cached = self._cache[session_id]
 
                 # 验证配置是否匹配（防止配置变化）
-                if (cached.agent_type == agent_type and
-                    cached.working_dir == working_dir):
+                if (
+                    cached.agent_type == agent_type
+                    and cached.working_dir == working_dir
+                ):
                     cached.last_accessed = datetime.now()
                     cached.call_count += 1
-                    self._stats['hits'] += 1
-                    logger.info(f"✅ DataScientist 缓存命中：session={session_id}, 调用次数={cached.call_count}")
+                    self._stats["hits"] += 1
+                    logger.info(
+                        f"✅ DataScientist 缓存命中：session={session_id}, 调用次数={cached.call_count}"
+                    )
                     return cached.instance
                 else:
                     # 配置变化，需要重建
-                    logger.info(f"DataScientist 配置变化，重建实例：session={session_id}")
+                    logger.info(
+                        f"DataScientist 配置变化，重建实例：session={session_id}"
+                    )
                     del self._cache[session_id]
 
             # 缓存未命中，创建新实例
-            self._stats['misses'] += 1
+            self._stats["misses"] += 1
 
             # 检查是否需要清理
             await self._cleanup_if_needed()
 
             # 创建新实例
-            logger.info(f"创建新 DataScientist 实例：session={session_id}, agent={agent_type}")
+            logger.info(
+                f"创建新 DataScientist 实例：session={session_id}, agent={agent_type}"
+            )
             start_time = time.time()
 
             from agentic_data_scientist.core.api import DataScientist
@@ -185,28 +194,26 @@ class DataScientistCache:
 
         # 1. 清理过期实例
         expired = [
-            sid for sid, cached in self._cache.items()
+            sid
+            for sid, cached in self._cache.items()
             if now - cached.last_accessed > self._ttl
         ]
 
         for sid in expired:
             del self._cache[sid]
-            self._stats['evictions'] += 1
+            self._stats["evictions"] += 1
             logger.info(f"清理过期 DataScientist 实例：session={sid}")
 
         # 2. 如果仍然超过最大数量，清理最久未访问的
         if len(self._cache) >= self._max_instances:
             # 按 last_accessed 排序，删除最旧的
-            sorted_items = sorted(
-                self._cache.items(),
-                key=lambda x: x[1].last_accessed
-            )
+            sorted_items = sorted(self._cache.items(), key=lambda x: x[1].last_accessed)
 
             # 删除最旧的一半
-            to_remove = sorted_items[:len(sorted_items) // 2]
+            to_remove = sorted_items[: len(sorted_items) // 2]
             for sid, _ in to_remove:
                 del self._cache[sid]
-                self._stats['evictions'] += 1
+                self._stats["evictions"] += 1
                 logger.info(f"清理最久未访问 DataScientist 实例：session={sid}")
 
     def invalidate(self, session_id: str):
@@ -217,14 +224,14 @@ class DataScientistCache:
 
     def get_stats(self) -> dict:
         """获取缓存统计"""
-        total = self._stats['hits'] + self._stats['misses']
-        hit_rate = self._stats['hits'] / total if total > 0 else 0
+        total = self._stats["hits"] + self._stats["misses"]
+        hit_rate = self._stats["hits"] / total if total > 0 else 0
 
         return {
             **self._stats,
-            'total_requests': total,
-            'hit_rate': f"{hit_rate:.1%}",
-            'cached_instances': len(self._cache),
+            "total_requests": total,
+            "hit_rate": f"{hit_rate:.1%}",
+            "cached_instances": len(self._cache),
         }
 
 
@@ -251,24 +258,27 @@ class SessionManager:
 
         # 统计信息
         self._stats = {
-            'total_requests': 0,
-            'successful_requests': 0,
-            'failed_requests': 0,
-            'total_duration': 0.0,
+            "total_requests": 0,
+            "successful_requests": 0,
+            "failed_requests": 0,
+            "total_duration": 0.0,
         }
 
-        logger.info(f"SessionManager 初始化完成 (max_instances={max_ds_instances}, ttl={ds_ttl_minutes}min)")
+        logger.info(
+            f"SessionManager 初始化完成 (max_instances={max_ds_instances}, ttl={ds_ttl_minutes}min)"
+        )
 
     def get_stats(self) -> dict:
         """获取统计信息"""
         avg_duration = (
-            self._stats['total_duration'] / self._stats['total_requests']
-            if self._stats['total_requests'] > 0 else 0
+            self._stats["total_duration"] / self._stats["total_requests"]
+            if self._stats["total_requests"] > 0
+            else 0
         )
         return {
             **self._stats,
-            'avg_duration': avg_duration,
-            'ds_cache': self._ds_cache.get_stats(),
+            "avg_duration": avg_duration,
+            "ds_cache": self._ds_cache.get_stats(),
         }
 
     async def preload_data_scientist(self) -> bool:
@@ -312,7 +322,9 @@ class SessionManager:
         if mode in MODE_AGENT_MAP:
             agent_type = MODE_AGENT_MAP[mode]
 
-        logger.info(f"创建新会话：user_id={user_id}, agent_type={agent_type}, mode={mode}, session_id={session_id}")
+        logger.info(
+            f"创建新会话：user_id={user_id}, agent_type={agent_type}, mode={mode}, session_id={session_id}"
+        )
 
         # Create working directory
         os.makedirs(working_dir, exist_ok=True)
@@ -331,13 +343,13 @@ class SessionManager:
             db.add(session)
             await db.commit()
             await db.refresh(session)
-            logger.info(f"会话已保存到数据库")
+            logger.info("会话已保存到数据库")
 
         # 缓存活跃会话
         self._active_sessions[session_id] = {
-            'session': session,
-            'created_at': datetime.now(),
-            'last_accessed': datetime.now(),
+            "session": session,
+            "created_at": datetime.now(),
+            "last_accessed": datetime.now(),
         }
 
         elapsed = time.time() - start_time
@@ -359,9 +371,9 @@ class SessionManager:
         # 先检查缓存
         if session_id in self._active_sessions:
             cached = self._active_sessions[session_id]
-            cached['last_accessed'] = datetime.now()
+            cached["last_accessed"] = datetime.now()
             logger.debug(f"会话 {session_id} 命中缓存")
-            return cached['session']
+            return cached["session"]
 
         if db is None:
             return None
@@ -377,9 +389,9 @@ class SessionManager:
         if session:
             # 缓存会话
             self._active_sessions[session_id] = {
-                'session': session,
-                'created_at': session.created_at,
-                'last_accessed': datetime.now(),
+                "session": session,
+                "created_at": session.created_at,
+                "last_accessed": datetime.now(),
             }
             logger.debug(f"会话 {session_id} 已从数据库加载并缓存")
 
@@ -417,7 +429,9 @@ class SessionManager:
             raise ValueError(f"Invalid mode: {new_mode}. Valid modes: {VALID_MODES}")
 
         # Fetch session directly from database (bypass cache to ensure it's attached to this db session)
-        query = select(Session).where(Session.id == session_id, Session.user_id == user_id)
+        query = select(Session).where(
+            Session.id == session_id, Session.user_id == user_id
+        )
         result = await db.execute(query)
         session = result.scalar_one_or_none()
 
@@ -434,7 +448,7 @@ class SessionManager:
 
         # Update cache
         if session_id in self._active_sessions:
-            self._active_sessions[session_id]['session'] = session
+            self._active_sessions[session_id]["session"] = session
 
         # 使 DataScientist 缓存失效（因为 agent_type 变化）
         self._ds_cache.invalidate(session_id)
@@ -473,7 +487,9 @@ class SessionManager:
                 last_msg = msg_result.scalar_one_or_none()
                 if last_msg:
                     # Truncate preview to 100 chars
-                    session.preview = last_msg.content[:100] + ('...' if len(last_msg.content) > 100 else '')
+                    session.preview = last_msg.content[:100] + (
+                        "..." if len(last_msg.content) > 100 else ""
+                    )
             except Exception as e:
                 logger.warning(f"Failed to get preview for session {session.id}: {e}")
 
@@ -505,7 +521,7 @@ class SessionManager:
         # Delete from database
         await db.delete(session)
         await db.commit()
-        logger.debug(f"会话已从数据库删除")
+        logger.debug("会话已从数据库删除")
 
         # Clean up workspace
         if cleanup_workspace and os.path.exists(workspace_path):
@@ -517,7 +533,7 @@ class SessionManager:
 
         # Remove from cache
         self._active_sessions.pop(session_id, None)
-        logger.debug(f"会话已从缓存移除")
+        logger.debug("会话已从缓存移除")
 
         # 使 DataScientist 缓存失效
         self._ds_cache.invalidate(session_id)
@@ -548,7 +564,9 @@ class SessionManager:
         await db.commit()
         await db.refresh(message)
 
-        logger.debug(f"消息已添加：session_id={session_id}, role={role}, content_length={len(content)}")
+        logger.debug(
+            f"消息已添加：session_id={session_id}, role={role}, content_length={len(content)}"
+        )
 
         return message
 
@@ -566,7 +584,11 @@ class SessionManager:
         else:
             logger.debug(f"获取会话 {session_id} 的所有消息")
 
-        query = select(Message).where(Message.session_id == session_id).order_by(Message.created_at.asc())
+        query = (
+            select(Message)
+            .where(Message.session_id == session_id)
+            .order_by(Message.created_at.asc())
+        )
         if limit:
             query = query.limit(limit)
 
@@ -594,20 +616,24 @@ class SessionManager:
             Event dictionaries
         """
         start_time = time.time()
-        self._stats['total_requests'] += 1
+        self._stats["total_requests"] += 1
 
         session_id = session.id
         agent_type = session.agent_type or "claude_code"
 
         # 禁用 CLAUDECODE 检查 (在 Claude Code 环境中运行时需要)
-        os.environ['CLAUDECODE'] = ''
+        os.environ["CLAUDECODE"] = ""
 
         logger.info("=" * 60)
-        logger.info(f"开始执行 DataScientist 请求")
+        logger.info("开始执行 DataScientist 请求")
         logger.info(f"  会话 ID: {session_id}")
         logger.info(f"  Agent 类型：{agent_type}")
         logger.info(f"  流式模式：{stream}")
-        logger.info(f"  消息内容：{message[:50]}..." if len(message) > 50 else f"  消息内容：{message}")
+        logger.info(
+            f"  消息内容：{message[:50]}..."
+            if len(message) > 50
+            else f"  消息内容：{message}"
+        )
 
         try:
             # 获取或创建 DataScientist 实例（复用缓存）
@@ -619,7 +645,7 @@ class SessionManager:
 
             # 更新最后访问时间
             if session_id in self._active_sessions:
-                self._active_sessions[session_id]['last_accessed'] = datetime.now()
+                self._active_sessions[session_id]["last_accessed"] = datetime.now()
 
             event_count = 0
             if stream:
@@ -633,18 +659,18 @@ class SessionManager:
                     # Handle event
                     if isinstance(event, dict):
                         event_dict = event
-                    elif hasattr(event, 'to_dict'):
+                    elif hasattr(event, "to_dict"):
                         event_dict = event.to_dict()
-                    elif hasattr(event, '__dict__'):
+                    elif hasattr(event, "__dict__"):
                         event_dict = event.__dict__
                     else:
-                        event_dict = {'type': 'message', 'content': str(event)}
+                        event_dict = {"type": "message", "content": str(event)}
 
                     # 日志记录事件详情
-                    event_type = event_dict.get('type', 'unknown')
-                    content = event_dict.get('content', '')
+                    event_type = event_dict.get("type", "unknown")
+                    content = event_dict.get("content", "")
                     if content and len(content) > 100:
-                        content = content[:100] + '...'
+                        content = content[:100] + "..."
 
                     # 记录完整的事件结构（调试用）
                     logger.debug(f"  事件 {event_count}: type={event_type}")
@@ -661,33 +687,37 @@ class SessionManager:
                 # Handle result
                 if isinstance(result, dict):
                     result_dict = result
-                elif hasattr(result, 'to_dict'):
+                elif hasattr(result, "to_dict"):
                     result_dict = result.to_dict()
-                elif hasattr(result, '__dict__'):
+                elif hasattr(result, "__dict__"):
                     result_dict = result.__dict__
                 else:
-                    result_dict = {'type': 'result', 'content': str(result)}
+                    result_dict = {"type": "result", "content": str(result)}
 
-                logger.debug(f"结果：{json.dumps(result_dict, ensure_ascii=False)[:200]}...")
+                logger.debug(
+                    f"结果：{json.dumps(result_dict, ensure_ascii=False)[:200]}..."
+                )
                 yield result_dict
 
             elapsed = time.time() - start_time
-            self._stats['successful_requests'] += 1
-            self._stats['total_duration'] += elapsed
+            self._stats["successful_requests"] += 1
+            self._stats["total_duration"] += elapsed
 
             logger.info("=" * 60)
-            logger.info(f"✅ DataScientist 执行完成")
+            logger.info("✅ DataScientist 执行完成")
             logger.info(f"  总耗时：{elapsed:.2f}s")
             logger.info(f"  事件数量：{event_count}")
-            logger.info(f"  成功请求：{self._stats['successful_requests']}/{self._stats['total_requests']}")
+            logger.info(
+                f"  成功请求：{self._stats['successful_requests']}/{self._stats['total_requests']}"
+            )
             logger.info(f"  缓存统计：{self._ds_cache.get_stats()}")
 
         except ImportError as e:
             elapsed = time.time() - start_time
-            self._stats['failed_requests'] += 1
+            self._stats["failed_requests"] += 1
 
             logger.error("=" * 60)
-            logger.error(f"❌ DataScientist 导入失败")
+            logger.error("❌ DataScientist 导入失败")
             logger.error(f"  错误：{e}")
             logger.error(f"  耗时：{elapsed:.2f}s")
 
@@ -700,10 +730,10 @@ class SessionManager:
 
         except Exception as e:
             elapsed = time.time() - start_time
-            self._stats['failed_requests'] += 1
+            self._stats["failed_requests"] += 1
 
             logger.error("=" * 60)
-            logger.error(f"❌ DataScientist 执行错误")
+            logger.error("❌ DataScientist 执行错误")
             logger.error(f"  错误类型：{type(e).__name__}")
             logger.error(f"  错误信息：{str(e)}")
             logger.error(f"  耗时：{elapsed:.2f}s")

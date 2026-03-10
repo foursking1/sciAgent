@@ -1,13 +1,16 @@
 """
 File schemas for request/response validation.
 """
+
 from datetime import datetime
 from typing import Optional
+
 from pydantic import BaseModel, ConfigDict
 
 
 class FileInfo(BaseModel):
     """File info schema"""
+
     id: int
     session_id: str
     filename: str
@@ -22,6 +25,7 @@ class FileInfo(BaseModel):
 
 class FileListResponse(BaseModel):
     """Response for listing files"""
+
     files: list[FileInfo]
     total: int
     current_path: str = ""
@@ -29,6 +33,7 @@ class FileListResponse(BaseModel):
 
 class FileUploadResponse(BaseModel):
     """Response for file upload"""
+
     success: bool
     filename: str
     file_path: str
@@ -38,6 +43,7 @@ class FileUploadResponse(BaseModel):
 
 class MultipleFileUploadResponse(BaseModel):
     """Response for multiple file upload"""
+
     success: bool
     files: list[FileUploadResponse]
     total: int

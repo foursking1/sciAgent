@@ -8,21 +8,21 @@ This test requires:
 Run with:
     uv run --python 3.12 pytest backend/tests/integration/test_data_scientist_real.py -v
 """
+
+import json
 import os
+import shutil
+import tempfile
+
 import pytest
 import pytest_asyncio
-import tempfile
-import shutil
-import json
-
-from backend.services.session_manager import SessionManager
 from backend.db.models.session import Session
-
+from backend.services.session_manager import SessionManager
 
 # Skip all tests in this module if API keys not available
 pytestmark = pytest.mark.skipif(
-    not os.environ.get('ANTHROPIC_API_KEY'),
-    reason="Requires ANTHROPIC_API_KEY to be set"
+    not os.environ.get("ANTHROPIC_API_KEY"),
+    reason="Requires ANTHROPIC_API_KEY to be set",
 )
 
 
@@ -39,7 +39,7 @@ def temp_workspace():
 @pytest.fixture(scope="function")
 def session_manager_instance(temp_workspace):
     """Create a fresh SessionManager instance"""
-    os.environ['WORKSPACE_BASE'] = temp_workspace
+    os.environ["WORKSPACE_BASE"] = temp_workspace
     return SessionManager()
 
 
@@ -99,8 +99,8 @@ class TestDataScientistRealCalls:
 
         # Check event structure
         for event in events:
-            assert 'data' in event
-            event_data = json.loads(event['data'])
+            assert "data" in event
+            event_data = json.loads(event["data"])
             print(f"Event data: {event_data}")
 
     @pytest.mark.asyncio

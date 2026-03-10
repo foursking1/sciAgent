@@ -10,22 +10,20 @@ Features:
 - Graceful shutdown
 - Real-time message saving (saves every message event)
 """
+
 import asyncio
-import json
 import logging
 import os
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
-
-from backend.services.task_queue import TaskQueue, TaskStatus, task_queue
-from backend.services.session_manager import session_manager
 from backend.db.database import async_session_maker
 from backend.db.models.message import Message, MessageRole
+from backend.services.session_manager import session_manager
+from backend.services.task_queue import TaskStatus, task_queue
+from sqlalchemy import select, update
 
-logger = logging.getLogger('TaskWorker')
+logger = logging.getLogger("TaskWorker")
 
 
 class TaskWorker:
@@ -141,12 +139,15 @@ class TaskWorker:
         await self._task_queue.update_status(task_id, TaskStatus.RUNNING)
 
         # Publish start event
-        await self._task_queue.publish_event(task_id, {
-            "type": "started",
-            "task_id": task_id,
-            "session_id": task.session_id,
-            "timestamp": datetime.now().isoformat(),
-        })
+        await self._task_queue.publish_event(
+            task_id,
+            {
+                "type": "started",
+                "task_id": task_id,
+                "session_id": task.session_id,
+                "timestamp": datetime.now().isoformat(),
+            },
+        )
 
         logger.info(f"Processing task {task_id} for session {task.session_id}")
 
@@ -175,7 +176,9 @@ class TaskWorker:
                 # Set session title if this is the first message
                 if not session.title:
                     # Truncate title to 100 chars
-                    title = task.message[:100] + ('...' if len(task.message) > 100 else '')
+                    title = task.message[:100] + (
+                        "..." if len(task.message) > 100 else ""
+                    )
                     session.title = title
                     await db.commit()
                     logger.info(f"Set session {task.session_id} title: {title}")
@@ -184,11 +187,14 @@ class TaskWorker:
                 await self._task_queue.update_status(
                     task_id, TaskStatus.FAILED, error=str(e)
                 )
-                await self._task_queue.publish_event(task_id, {
-                    "type": "error",
-                    "message": str(e),
-                    "timestamp": datetime.now().isoformat(),
-                })
+                await self._task_queue.publish_event(
+                    task_id,
+                    {
+                        "type": "error",
+                        "message": str(e),
+                        "timestamp": datetime.now().isoformat(),
+                    },
+                )
                 return
 
         # Track AI response content and message ID for real-time saving
@@ -201,7 +207,7 @@ class TaskWorker:
             if not ai_response_parts:
                 return
 
-            content = '\n'.join(ai_response_parts)
+            content = "\n".join(ai_response_parts)
 
             async with async_session_maker() as db:
                 try:
@@ -233,7 +239,7 @@ class TaskWorker:
 
         try:
             # Disable CLAUDECODE check
-            os.environ['CLAUDECODE'] = ''
+            os.environ["CLAUDECODE"] = ""
 
             async for event in session_manager.run_data_scientist(
                 session=session,
@@ -247,59 +253,71 @@ class TaskWorker:
                     # Save current progress with is_stopped=True before returning
                     await save_response(is_stopped=True)
                     # Publish cancelled event
-                    await self._task_queue.publish_event(task_id, {
-                        "type": "cancelled",
-                        "message": "Generation stopped by user",
-                        "timestamp": datetime.now().isoformat(),
-                    })
+                    await self._task_queue.publish_event(
+                        task_id,
+                        {
+                            "type": "cancelled",
+                            "message": "Generation stopped by user",
+                            "timestamp": datetime.now().isoformat(),
+                        },
+                    )
                     return
 
                 # Filter out initialization messages
                 should_filter = False
                 if isinstance(event, dict):
-                    event_type = event.get('type', 'unknown')
-                    if event_type == 'message':
-                        content = event.get('content', '')
+                    event_type = event.get("type", "unknown")
+                    if event_type == "message":
+                        content = event.get("content", "")
                         # Filter out agent initialization messages
                         if content and any(
                             pattern in content
                             for pattern in [
-                                'Preparing Claude Agent',
-                                'Starting Claude Agent',
-                                '(coding mode)',
+                                "Preparing Claude Agent",
+                                "Starting Claude Agent",
+                                "(coding mode)",
                             ]
                         ):
                             should_filter = True
-                            logger.debug(f"Filtered initialization message: {content[:50]}...")
+                            logger.debug(
+                                f"Filtered initialization message: {content[:50]}..."
+                            )
 
                 if should_filter:
                     continue
 
                 # Collect and save AI response content in real-time
                 if isinstance(event, dict):
-                    event_type = event.get('type', 'unknown')
-                    if event_type == 'message':
-                        content = event.get('content', '')
+                    event_type = event.get("type", "unknown")
+                    if event_type == "message":
+                        content = event.get("content", "")
                         # ADK uses 'is_thought', claude_code uses 'is_thinking'
-                        is_thinking = event.get('is_thought', False) or event.get('is_thinking', False)
+                        is_thinking = event.get("is_thought", False) or event.get(
+                            "is_thinking", False
+                        )
                         if content and not is_thinking:
                             ai_response_parts.append(content)
                             # Save every message event
                             await save_response()
 
                 # Publish event to Redis
-                logger.debug(f"Publishing event to Redis: type={event.get('type', 'unknown')}")
+                logger.debug(
+                    f"Publishing event to Redis: type={event.get('type', 'unknown')}"
+                )
                 await self._task_queue.publish_event(task_id, event)
 
             # Update status to completed
             await self._task_queue.update_status(task_id, TaskStatus.COMPLETED)
 
             # Publish completion event
-            await self._task_queue.publish_event(task_id, {
-                "type": "completed",
-                "task_id": task_id,
-                "timestamp": datetime.now().isoformat(),
-            })
+            await self._task_queue.publish_event(
+                task_id,
+                {
+                    "type": "completed",
+                    "task_id": task_id,
+                    "timestamp": datetime.now().isoformat(),
+                },
+            )
 
             logger.info(f"Task {task_id} completed successfully")
 
@@ -315,11 +333,14 @@ class TaskWorker:
             )
 
             # Publish error event
-            await self._task_queue.publish_event(task_id, {
-                "type": "error",
-                "message": str(e),
-                "timestamp": datetime.now().isoformat(),
-            })
+            await self._task_queue.publish_event(
+                task_id,
+                {
+                    "type": "error",
+                    "message": str(e),
+                    "timestamp": datetime.now().isoformat(),
+                },
+            )
 
 
 # Global worker instance

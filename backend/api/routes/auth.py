@@ -2,26 +2,26 @@
 Authentication API routes.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from typing import Optional
 
 from backend.db.database import get_db_session
 from backend.db.models.user import User
-from backend.services.auth import (
-    get_password_hash,
-    verify_password,
-    create_access_token,
-    decode_token,
-)
 from backend.schemas.auth import (
+    Token,
     UserCreate,
     UserLogin,
     UserResponse,
-    Token,
 )
+from backend.services.auth import (
+    create_access_token,
+    decode_token,
+    get_password_hash,
+    verify_password,
+)
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 security = HTTPBearer(auto_error=False)
