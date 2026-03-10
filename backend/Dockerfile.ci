@@ -18,9 +18,9 @@ RUN useradd -m -u 1000 appuser && \
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy agentic-data-scientist from local directory
-COPY agentic-data-scientist /app/agentic-data-scientist
-RUN pip install --no-cache-dir /app/agentic-data-scientist
+# Clone agentic-data-scientist from remote repository
+RUN git clone https://gitee.com/foursking1/agentic-data-scientist.git /app/agentic-data-scientist && \
+    pip install --no-cache-dir /app/agentic-data-scientist
 
 # Copy application code
 COPY backend ./backend
@@ -33,9 +33,6 @@ RUN mkdir -p /workspaces && chown -R appuser:appuser /workspaces
 
 # Switch to non-root user
 USER appuser
-
-# Set PYTHONPATH to include the app directory
-ENV PYTHONPATH=/app:$PYTHONPATH
 
 # Expose port
 EXPOSE 8000
