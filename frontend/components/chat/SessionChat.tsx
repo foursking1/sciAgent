@@ -425,13 +425,11 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
       )}
 
       {/* Data Source Modal */}
-      {isDataSourceModalOpen && (
-        <DataSourceModal
-          onClose={() => setIsDataSourceModalOpen(false)}
-          sessionId={sessionId}
-          token={token || ''}
-        />
-      )}
+      <DataSourceModal
+        isOpen={isDataSourceModalOpen}
+        onClose={() => setIsDataSourceModalOpen(false)}
+        token={token || ''}
+      />
     </div>
   )
 }
