@@ -3,12 +3,14 @@ import { test, expect } from '@playwright/test'
 test.describe('Authentication', () => {
   test('should display login page', async ({ page }) => {
     await page.goto('/login')
-    await expect(page.locator('h1, h2')).toContainText(/登录|Login/i)
+    // Page shows "Welcome Back" on login page
+    await expect(page.locator('h1')).toContainText(/Welcome Back/i)
   })
 
   test('should display register page', async ({ page }) => {
     await page.goto('/register')
-    await expect(page.locator('h1, h2')).toContainText(/注册|Register/i)
+    // Page shows "Create Account" on register page
+    await expect(page.locator('h1')).toContainText(/Create Account/i)
   })
 
   test('should show validation error on empty login', async ({ page }) => {
