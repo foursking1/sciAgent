@@ -26,6 +26,63 @@ from backend.core.config import settings
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
 
+@pytest_asyncio.fixture(scope="function")
+async def api_client(async_session: AsyncSession):
+    """Create a test client for API testing"""
+    from httpx import AsyncClient, ASGITransport
+    from backend.main import app
+    from backend.api.routes.auth import get_current_user_optional
+
+    # Override database session
+    async def override_get_db():
+        yield async_session
+
+    app.dependency_overrides[get_db_session] = override_get_db
+
+    # Override optional auth to return None (not authenticated)
+    async def override_get_current_user_optional():
+        return None
+
+    app.dependency_overrides[get_current_user_optional] = override_get_current_user_optional
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test"
+    ) as client:
+        yield client
+
+    # Cleanup overrides
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def authenticated_client(async_session: AsyncSession, test_user: User):
+    """Create an authenticated test client"""
+    from httpx import AsyncClient, ASGITransport
+    from backend.main import app
+    from backend.api.routes.auth import get_current_user
+
+    # Override database session
+    async def override_get_db():
+        yield async_session
+
+    app.dependency_overrides[get_db_session] = override_get_db
+
+    # Override auth to return test user
+    async def override_get_current_user():
+        return test_user
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test"
+    ) as client:
+        yield client
+
+    app.dependency_overrides.clear()
+
+
 @pytest.fixture(autouse=True)
 def use_test_settings():
     """Use test settings for all tests"""

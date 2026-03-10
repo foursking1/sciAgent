@@ -1,0 +1,224 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  # Test database credentials
+  TEST_DB_USER: test
+  TEST_DB_PASSWORD: test
+  TEST_DB_NAME: test_sciagent
+
+jobs:
+  # ========== Lint & Type Check (快速，~1 min) ==========
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: astral-sh/setup-uv@v4
+        with:
+          python-version: '3.12'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend dependencies
+        run: uv sync
+        working-directory: backend
+
+      - name: Lint backend
+        run: |
+          uv run ruff check .
+          uv run black --check .
+        working-directory: backend
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Lint frontend
+        run: npm run lint
+        working-directory: frontend
+
+  # ========== Backend Unit Tests (~2 min) ==========
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: astral-sh/setup-uv@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: uv sync
+        working-directory: backend
+
+      - name: Run tests
+        run: uv run pytest tests/ -v --tb=short -x
+        working-directory: backend
+        env:
+          PYTHONPATH: ..
+          JWT_SECRET: test-secret-key-for-ci
+          WORKSPACE_BASE: /tmp/test_workspaces
+
+  # ========== Frontend Unit Tests (~1 min) ==========
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Run unit tests
+        run: npm test -- --run
+        working-directory: frontend
+
+  # ========== E2E Tests (~5 min) ==========
+  e2e-tests:
+    name: E2E Tests
+    needs: [lint, backend-tests, frontend-tests]
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: ${{ env.TEST_DB_NAME }}
+          MYSQL_USER: ${{ env.TEST_DB_USER }}
+          MYSQL_PASSWORD: ${{ env.TEST_DB_PASSWORD }}
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: astral-sh/setup-uv@v4
+        with:
+          python-version: '3.12'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend dependencies
+        run: uv sync
+        working-directory: backend
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+        working-directory: frontend
+
+      - name: Start backend
+        run: |
+          uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000 &
+          sleep 5
+        working-directory: backend
+        env:
+          DATABASE_URL: mysql+aiomysql://${{ env.TEST_DB_USER }}:${{ env.TEST_DB_PASSWORD }}@localhost:3306/${{ env.TEST_DB_NAME }}
+          REDIS_URL: redis://localhost:6379/0
+          JWT_SECRET: test-secret-key-for-ci
+          WORKSPACE_BASE: /tmp/test_workspaces
+          PYTHONPATH: ..
+
+      - name: Start frontend
+        run: |
+          npm run dev &
+          sleep 15
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+
+      - name: Verify services
+        run: |
+          curl -f http://localhost:8000/health || echo "Backend health check failed (non-critical)"
+          curl -f http://localhost:3000 || echo "Frontend not ready yet"
+
+      - name: Run E2E tests
+        run: npx playwright test --reporter=html
+        working-directory: frontend
+        env:
+          E2E_BASE_URL: http://localhost:3000
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+
+  # ========== Build Verification (merge to main only) ==========
+  build:
+    name: Build & Deploy Check
+    needs: [e2e-tests]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker images
+        run: docker compose build
+
+      - name: Start services
+        run: docker compose up -d --wait
+        env:
+          MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD || 'rootpassword' }}
+          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD || 'changeme' }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'changeme' }}
+
+      - name: Health check
+        run: |
+          sleep 10
+          curl -f http://localhost:8000/health || exit 1
+          curl -f http://localhost:3000 || exit 1
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
