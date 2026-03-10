@@ -1,0 +1,60 @@
+version: "3.9"
+
+services:
+  # MySQL 8.0 Database
+  mysql:
+    image: mysql:8.0
+    container_name: sciagent-mysql-ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: sciagent
+      MYSQL_USER: sciagent
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-changeme}
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: sciagent-redis-ci
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 3s
+      retries: 5
+
+  # FastAPI Backend - uses pre-built image
+  backend:
+    image: sciagent-backend:ci
+    container_name: sciagent-backend-ci
+    environment:
+      ENVIRONMENT: production
+      DEBUG: "false"
+      DATABASE_URL: mysql+aiomysql://sciagent:${MYSQL_PASSWORD:-changeme}@mysql:3306/sciagent?charset=utf8mb4
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-changeme}
+      WORKSPACE_BASE: /workspaces
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  # Next.js Frontend - uses pre-built image
+  frontend:
+    image: sciagent-frontend:ci
+    container_name: sciagent-frontend-ci
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_ENVIRONMENT: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend

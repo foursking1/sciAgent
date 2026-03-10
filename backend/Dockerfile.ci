@@ -1,0 +1,44 @@
+# CI Dockerfile - uses official images without China mirrors
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    sudo \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -m -u 1000 appuser && \
+    echo "appuser ALL=(ALL) NOPASSWD: /bin/chown" >> /etc/sudoers
+
+# Install Python dependencies
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy agentic-data-scientist from local directory
+COPY agentic-data-scientist /app/agentic-data-scientist
+RUN pip install --no-cache-dir /app/agentic-data-scientist
+
+# Copy application code
+COPY backend ./backend
+
+# Copy scientific skills
+COPY scientific-skills /app/scientific-skills
+
+# Create workspace directory with proper permissions
+RUN mkdir -p /workspaces && chown -R appuser:appuser /workspaces
+
+# Switch to non-root user
+USER appuser
+
+# Set PYTHONPATH to include the app directory
+ENV PYTHONPATH=/app:$PYTHONPATH
+
+# Expose port
+EXPOSE 8000
+
+# Run with start.sh script
+CMD ["bash", "./backend/start.sh"]

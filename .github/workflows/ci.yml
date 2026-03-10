@@ -203,11 +203,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Docker images
-        run: docker compose build
+      - name: Build Docker images (CI mode)
+        run: |
+          docker build -f backend/Dockerfile.ci -t sciagent-backend:ci .
+          docker build -f frontend/Dockerfile.ci -t sciagent-frontend:ci frontend
 
       - name: Start services
-        run: docker compose up -d --wait
+        run: docker compose -f docker-compose.ci.yml up -d --wait
         env:
           MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD || 'rootpassword' }}
           MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD || 'changeme' }}
@@ -221,4 +223,4 @@ jobs:
 
       - name: Cleanup
         if: always()
-        run: docker compose down -v
+        run: docker compose -f docker-compose.ci.yml down -v
