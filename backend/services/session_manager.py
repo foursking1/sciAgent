@@ -556,19 +556,21 @@ class SessionManager:
         self,
         session_id: str,
         db: AsyncSession,
-        limit: int = 50,
+        limit: int | None = None,
     ) -> list[Message]:
         """
         Get messages for a session.
         """
-        logger.debug(f"获取会话 {session_id} 的消息，限制 {limit} 条")
+        if limit:
+            logger.debug(f"获取会话 {session_id} 的消息，限制 {limit} 条")
+        else:
+            logger.debug(f"获取会话 {session_id} 的所有消息")
 
-        result = await db.execute(
-            select(Message)
-            .where(Message.session_id == session_id)
-            .order_by(Message.created_at.asc())
-            .limit(limit)
-        )
+        query = select(Message).where(Message.session_id == session_id).order_by(Message.created_at.asc())
+        if limit:
+            query = query.limit(limit)
+
+        result = await db.execute(query)
         messages = list(result.scalars().all())
 
         logger.debug(f"找到 {len(messages)} 条消息")

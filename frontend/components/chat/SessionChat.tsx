@@ -146,37 +146,23 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
     console.log('[SessionChat] Uploading files:', uploadedFiles.length)
 
     try {
-      const formData = new FormData()
-      Array.from(uploadedFiles).forEach(file => {
-        formData.append('file', file)  // Use 'file' not 'files'
-        console.log('[SessionChat] Adding file to upload:', file.name)
-      })
-
-      const response = await fetch(`${apiBaseUrl}/api/files/upload?session_id=${sessionId}`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        console.error('[SessionChat] Upload failed:', error)
-        throw new Error(error.detail || 'Upload failed')
-      }
-
-      const result = await response.json()
+      const result = await filesApi.upload(token, sessionId, uploadedFiles)
       console.log('[SessionChat] Upload successful:', result)
 
-      // Refresh file list after upload
+      // Check if any files failed to upload
+      const failedFiles = result.files.filter(f => !f.success)
+      if (failedFiles.length > 0) {
+        console.error('[SessionChat] Some files failed to upload:', failedFiles)
+      }
+
+      // Refresh file list after upload to show new files
       console.log('[SessionChat] Refreshing file list...')
       await refreshFiles(sessionId, sessionState?.currentPath || '')
       console.log('[SessionChat] File list refreshed')
     } catch (err) {
       console.error('Failed to upload files:', err)
     }
-  }, [token, sessionId, apiBaseUrl, refreshFiles, sessionState?.currentPath])
+  }, [token, sessionId, refreshFiles, sessionState?.currentPath])
 
   // Handle send message
   const handleSubmit = useCallback(async (content: string) => {

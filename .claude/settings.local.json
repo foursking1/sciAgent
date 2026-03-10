@@ -13,7 +13,11 @@
       "Bash(ssh-keygen:*)",
       "WebFetch(domain:gitee.com)",
       "Bash(GIT_SSH_COMMAND=\"ssh -i ~/.ssh/id_rsa_gitee\" git push:*)",
-      "Bash(git:*)"
+      "Bash(git:*)",
+      "Bash(ssh:*)",
+      "Bash(ssh-add:*)",
+      "Read(//c/Users/ZJ/Desktop/数据智能体/**)",
+      "Bash(powershell Compress-Archive -Path 'sci_agent' -DestinationPath 'sci_agent.zip' -Force)"
     ]
   }
 }

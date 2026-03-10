@@ -302,10 +302,10 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
         const newMap = new Map(prev)
         const existing = newMap.get(sessionId)
         if (existing) {
-          console.log('[sessionStore] Updating existing session state')
-          // Only replace events if they're empty (to avoid overwriting new messages)
-          const events = existing.events.length > 0 ? existing.events : historicalEvents
-          newMap.set(sessionId, { ...existing, session: sessionData, events })
+          console.log('[sessionStore] Updating existing session state with historical events')
+          // Always use historical events from database when refreshing session
+          // This ensures we show all messages when re-opening a session
+          newMap.set(sessionId, { ...existing, session: sessionData, events: historicalEvents })
         } else {
           console.log('[sessionStore] Creating new session state with historical events')
           // Create new session state with historical messages
@@ -366,7 +366,11 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
         itemCount: record.item_count,
       }))
 
-      console.log('[sessionStore] Processed file items:', fileItems.map(f => ({ name: f.name, type: f.type })))
+      console.log('[sessionStore] Processed file items:', fileItems.map(f => ({
+        name: f.name,
+        type: f.type,
+        itemCount: f.itemCount
+      })))
 
       // Update session state with new files
       setSessions(prev => {

@@ -19,6 +19,7 @@ from backend.db.models.file import File as FileModel
 from backend.schemas.files import (
     FileListResponse,
     FileUploadResponse,
+    MultipleFileUploadResponse,
 )
 from backend.api.routes.auth import get_current_user
 from backend.services.session_manager import session_manager
@@ -113,60 +114,75 @@ async def _verify_session_access(
     return session
 
 
-@router.post("/upload", response_model=FileUploadResponse)
+@router.post("/upload", response_model=MultipleFileUploadResponse)
 async def upload_file(
     session_id: str,
-    file: UploadFile = File(...),
+    files: list[UploadFile] = File(...),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
 ) -> dict:
     """
-    Upload a file to a session.
+    Upload one or more files to a session.
 
     - **session_id**: Target session ID
-    - **file**: The file to upload (multipart/form-data)
+    - **files**: The files to upload (multipart/form-data)
     """
     # Verify session access
     session = await _verify_session_access(session_id, current_user.id, db)
 
-    # Create file path in workspace
-    file_path = os.path.join(session.working_dir, file.filename or "unknown")
+    uploaded_files = []
 
-    # Ensure directory exists
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    for file in files:
+        # Create file path in workspace
+        file_path = os.path.join(session.working_dir, file.filename or "unknown")
 
-    # Save file
-    file_size = 0
-    try:
-        with open(file_path, "wb") as f:
-            content = await file.read()
-            f.write(content)
-            file_size = len(content)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to save file: {str(e)}",
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+        # Save file
+        file_size = 0
+        try:
+            with open(file_path, "wb") as f:
+                content = await file.read()
+                f.write(content)
+                file_size = len(content)
+        except Exception as e:
+            logger.error(f"Failed to save file {file.filename}: {e}")
+            uploaded_files.append({
+                "success": False,
+                "filename": file.filename or "unknown",
+                "file_path": file_path,
+                "file_size": 0,
+                "message": f"Failed to save file: {str(e)}",
+            })
+            continue
+
+        # Create database record
+        file_record = FileModel(
+            session_id=session_id,
+            filename=file.filename or "unknown",
+            file_path=file_path,
+            file_size=file_size,
+            content_type=file.content_type,
         )
 
-    # Create database record
-    file_record = FileModel(
-        session_id=session_id,
-        filename=file.filename or "unknown",
-        file_path=file_path,
-        file_size=file_size,
-        content_type=file.content_type,
-    )
+        db.add(file_record)
+        await db.commit()
+        await db.refresh(file_record)
 
-    db.add(file_record)
-    await db.commit()
-    await db.refresh(file_record)
+        uploaded_files.append({
+            "success": True,
+            "filename": file.filename or "unknown",
+            "file_path": file_path,
+            "file_size": file_size,
+            "message": "File uploaded successfully",
+        })
 
     return {
         "success": True,
-        "filename": file.filename or "unknown",
-        "file_path": file_path,
-        "file_size": file_size,
-        "message": "File uploaded successfully",
+        "files": uploaded_files,
+        "total": len(uploaded_files),
+        "message": f"Uploaded {len(uploaded_files)} file(s)",
     }
 
 
@@ -237,7 +253,6 @@ async def list_files(
                     "session_id": session_id,
                     "filename": item.name,
                     "file_path": relative_path,
-                    "file_size": 0,
                     "content_type": "directory",
                     "item_count": item_count,  # Number of items in the directory
                     "created_at": datetime.fromtimestamp(item.stat().st_ctime),

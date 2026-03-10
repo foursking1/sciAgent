@@ -372,7 +372,7 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-200 truncate">
                       {file.name}
-                      {file.type === 'directory' && file.itemCount !== undefined && (
+                      {file.type === 'directory' && file.itemCount !== undefined && file.itemCount > 0 && (
                         <span className="ml-2 text-xs text-gray-500">
                           ({file.itemCount})
                         </span>
