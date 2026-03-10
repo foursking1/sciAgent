@@ -70,7 +70,7 @@ export default function LandingPage() {
             accelerate your research workflow.
           </p>
           <div className="flex justify-center gap-4">
-            <Link href="/register" className="btn-primary text-lg px-8 py-3">
+            <Link href={isAuthenticated ? "/dashboard" : "/register"} className="btn-primary text-lg px-8 py-3">
               Get Started Free
             </Link>
             <Link href="#examples" className="btn-secondary text-lg px-8 py-3">

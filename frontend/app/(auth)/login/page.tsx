@@ -51,7 +51,7 @@ export default function LoginPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold gradient-text mb-2">Welcome Back</h1>
-          <p className="text-gray-400">Sign in to continue to K-Dense</p>
+          <p className="text-gray-400">Sign in to continue to GeoGPT</p>
         </div>
 
         {/* Login Card */}

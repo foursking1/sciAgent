@@ -1,5 +1,5 @@
 """
-Database module for K-Dense Web Clone.
+Database module for GeoGPT Web Clone.
 """
 from backend.db.database import (
     Base,

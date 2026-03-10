@@ -92,6 +92,7 @@ export interface FileItem {
   type?: 'file' | 'directory'
   createdAt?: string
   modifiedAt?: string
+  itemCount?: number  // Number of items in a directory
 }
 
 export interface UseSSEReturn {

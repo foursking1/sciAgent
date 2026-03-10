@@ -12,11 +12,11 @@ interface ThinkingIndicatorProps {
   className?: string
 }
 
-const STATE_MESSAGES: Record<ThinkingState, { text: string; subtext?: string }> = {
+const STATE_MESSAGES: Record<ThinkingState, { text: string; icon?: string }> = {
   idle: { text: 'Ready' },
-  analyzing: { text: 'Analyzing request', subtext: 'understanding your needs...' },
-  calling_tools: { text: 'Calling tools', subtext: 'processing data...' },
-  generating: { text: 'Generating response', subtext: 'crafting the answer...' },
+  analyzing: { text: '正在思考' },
+  calling_tools: { text: '正在使用工具' },
+  generating: { text: '正在输出' },
 }
 
 /**
@@ -31,28 +31,7 @@ export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
   toolName,
   className,
 }) => {
-  const [dots, setDots] = useState('')
   const [fadeIn, setFadeIn] = useState(false)
-
-  // Debug log
-  console.log('[ThinkingIndicator] Render:', { isActive, state, toolName })
-
-  // Animate dots
-  useEffect(() => {
-    if (!isActive) {
-      setDots('')
-      return
-    }
-
-    const interval = setInterval(() => {
-      setDots(prev => {
-        if (prev === '...') return ''
-        return prev + '.'
-      })
-    }, 400)
-
-    return () => clearInterval(interval)
-  }, [isActive])
 
   // Fade in animation
   useEffect(() => {
@@ -73,29 +52,53 @@ export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
   return (
     <div
       className={cn(
-        'flex items-center gap-3 py-3 px-4',
+        'flex gap-3 animate-fade-in',
         'transition-all duration-300',
         fadeIn ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
         className
       )}
     >
-      {/* Pulsing indicator */}
-      <div className="flex-shrink-0 relative">
-        <div className="w-2 h-2 bg-primary-400 rounded-full animate-pulse" />
-        <div className="absolute inset-0 w-2 h-2 bg-primary-400 rounded-full animate-ping opacity-75" />
+      {/* Bot Avatar */}
+      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-accent-500/20 flex items-center justify-center border border-accent-500/30">
+        <svg
+          className="w-5 h-5 text-accent-400"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="3" y="11" width="18" height="10" rx="2" />
+          <circle cx="12" cy="5" r="2" />
+          <path d="M12 7v4" />
+          <line x1="8" y1="16" x2="8" y2="16" />
+          <line x1="16" y1="16" x2="16" y2="16" />
+        </svg>
       </div>
 
-      {/* Status text */}
-      <div className="flex flex-col">
-        <span className="text-sm font-medium text-gray-200">
-          {stateInfo.text}
-          <span className="text-gray-500">{dots}</span>
-        </span>
-        {stateInfo.subtext && (
-          <span className="text-xs text-gray-500 mt-0.5">
-            {state === 'calling_tools' && toolName ? `using ${toolName}` : stateInfo.subtext}
+      {/* Message bubble with typing indicator */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-sm font-medium text-gray-200">Assistant</span>
+        </div>
+
+        <div className="inline-flex items-center gap-3 px-4 py-3 bg-surface-200 rounded-2xl rounded-tl-none">
+          {/* Animated dots */}
+          <div className="flex gap-1.5">
+            <div className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+            <div className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+            <div className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+          </div>
+
+          {/* Status text */}
+          <span className="text-sm text-gray-300">
+            {stateInfo.text}
+            {toolName && state === 'calling_tools' && (
+              <span className="text-gray-400 ml-1">({toolName})</span>
+            )}
           </span>
-        )}
+        </div>
       </div>
     </div>
   )
@@ -109,35 +112,26 @@ export function useThinkingState() {
   const [activeToolName, setActiveToolName] = useState<string | undefined>()
 
   const updateFromEvent = useCallback((event: { type: string; name?: string; content?: string }) => {
-    console.log('[ThinkingState] Event:', event.type, event)
     switch (event.type) {
       case 'started':
       case 'status':
-        // Initial status or task started
         setThinkingState('analyzing')
-        console.log('[ThinkingState] → analyzing')
         break
       case 'function_call':
         setThinkingState('calling_tools')
         if (event.name) {
           setActiveToolName(event.name)
         }
-        console.log('[ThinkingState] → calling_tools:', event.name)
         break
       case 'function_response':
-        // After tool response, agent is generating
         setThinkingState('generating')
         setActiveToolName(undefined)
-        console.log('[ThinkingState] → generating')
         break
       case 'message':
-        // When receiving message content, agent is generating
         const content = event.content || ''
-        // Check if it's a real message (not initialization or empty)
         const isInitMessage = content.includes('Preparing') || content.includes('Starting') || content.includes('(coding mode)')
         if (content.length > 0 && !isInitMessage) {
           setThinkingState('generating')
-          console.log('[ThinkingState] → generating (from message)')
         }
         break
       case 'completed':
@@ -145,11 +139,8 @@ export function useThinkingState() {
       case 'cancelled':
         setThinkingState('idle')
         setActiveToolName(undefined)
-        console.log('[ThinkingState] → idle')
         break
       default:
-        // For any other event while processing, assume generating
-        console.log('[ThinkingState] Unknown event type:', event.type)
         break
     }
   }, [])

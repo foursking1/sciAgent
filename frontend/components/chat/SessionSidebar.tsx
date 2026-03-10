@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Clock, MessageSquare, Trash2, ChevronLeft, ChevronDown, ChevronRight, Database } from 'lucide-react'
+import { Plus, Clock, MessageSquare, Trash2, ChevronLeft, ChevronDown, ChevronRight, Database, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { sessionsApi, type Session } from '@/lib/api'
 
@@ -137,6 +137,31 @@ export function SessionSidebar({
         className
       )}
     >
+      {/* SciAgent Logo + Collapse Button */}
+      <div className="flex-shrink-0 p-4 border-b border-gray-800">
+        <div className="flex items-center justify-between gap-2">
+          <button
+            onClick={() => router.push('/')}
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity flex-1 min-w-0"
+          >
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shadow-lg shadow-primary-500/30 flex-shrink-0">
+              <Zap className="w-6 h-6 text-white" />
+            </div>
+            <span className="text-lg font-bold text-white truncate">SciAgent</span>
+          </button>
+          {onToggle && (
+            <button
+              onClick={onToggle}
+              className="p-2 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-700 transition-colors flex-shrink-0"
+              aria-label="折叠侧边栏"
+              title="折叠侧边栏"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Header - 新建会话 */}
       <div className="flex-shrink-0 p-4 border-b border-gray-800">
         <button
@@ -268,21 +293,6 @@ export function SessionSidebar({
             </div>
           )}
         </div>
-      </div>
-
-      {/* Footer - 折叠按钮 */}
-      <div className="flex-shrink-0 p-3 border-t border-gray-800">
-        {onToggle && (
-          <button
-            onClick={onToggle}
-            className="w-full flex items-center justify-center gap-2 p-2 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-700 transition-colors text-sm"
-            aria-label="折叠侧边栏"
-            title="折叠侧边栏"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            <span>收起侧边栏</span>
-          </button>
-        )}
       </div>
     </div>
   )

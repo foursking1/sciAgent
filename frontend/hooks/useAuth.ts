@@ -77,28 +77,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (err) {
           console.error('Token verification failed:', err)
+          // Clear invalid stored data
+          localStorage.removeItem(TOKEN_KEY)
+          localStorage.removeItem(USER_KEY)
         }
       }
 
-      // Auto-login as demo user (auth bypass)
-      try {
-        const demoToken = 'demo_token_bypass_auth'
-        const demoUser: User = {
-          id: 1,
-          email: 'demo@example.com',
-          full_name: 'Demo User',
-          is_active: true
-        }
-        localStorage.setItem(TOKEN_KEY, demoToken)
-        localStorage.setItem(USER_KEY, JSON.stringify(demoUser))
-        setUser(demoUser)
-        setToken(demoToken)
-        setIsAuthenticated(true)
-        setIsLoading(false)
-      } catch (err) {
-        console.error('Auto-login failed:', err)
-        setIsLoading(false)
-      }
+      // No valid authentication - remain unauthenticated
+      setIsLoading(false)
     }
 
     initAuth()

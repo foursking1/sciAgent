@@ -38,7 +38,6 @@ htmlcov/
 # IDE
 .idea/
 .vscode/
-.claude/
 *.swp
 *.swo
 *~
@@ -74,8 +73,6 @@ playwright/.cache/
 # Workspaces (user data)
 workspaces/*
 !workspaces/.gitkeep
-backend/workspaces/*
-!backend/workspaces/.gitkeep
 
 # Scripts temp
 scripts/*

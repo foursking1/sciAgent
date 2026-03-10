@@ -11,6 +11,7 @@ export interface FileItem {
   type?: 'file' | 'directory'
   createdAt?: string
   modifiedAt?: string
+  itemCount?: number  // Number of items in a directory
 }
 
 export interface FileBrowserProps {
@@ -369,14 +370,21 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
 
                   {/* File info */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-200 truncate">{file.name}</p>
+                    <p className="text-sm font-medium text-gray-200 truncate">
+                      {file.name}
+                      {file.type === 'directory' && file.itemCount !== undefined && file.itemCount > 0 && (
+                        <span className="ml-2 text-xs text-gray-500">
+                          ({file.itemCount})
+                        </span>
+                      )}
+                    </p>
                     {file.path && file.path !== file.name && (
                       <p className="text-xs text-gray-500 truncate font-mono">{file.path}</p>
                     )}
                   </div>
 
                   {/* File size */}
-                  {file.size && (
+                  {file.size && file.type !== 'directory' && (
                     <span className="text-xs text-gray-500 flex-shrink-0">
                       {formatFileSize(file.size)}
                     </span>

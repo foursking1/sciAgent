@@ -457,6 +457,7 @@ const Cancelled: React.FC<CancelledProps> = ({ event }) => {
 interface EventStreamProps {
   events: StreamEvent[]
   className?: string
+  children?: React.ReactNode
 }
 
 export interface EventStreamRef {
@@ -467,7 +468,7 @@ export interface EventStreamRef {
  * EventStream component - renders different event types from the agent
  * Auto-scrolls to latest message and supports all stream event types
  */
-export const EventStream = forwardRef<EventStreamRef, EventStreamProps>(({ events, className }, ref) => {
+export const EventStream = forwardRef<EventStreamRef, EventStreamProps>(({ events, className, children }, ref) => {
   const scrollRef = React.useRef<HTMLDivElement>(null)
   const [autoScroll, setAutoScroll] = React.useState(true)
 
@@ -556,7 +557,10 @@ export const EventStream = forwardRef<EventStreamRef, EventStreamProps>(({ event
             </div>
           </div>
         ) : (
-          events.map(renderEvent)
+          <>
+            {events.map(renderEvent)}
+            {children}
+          </>
         )}
       </div>
 

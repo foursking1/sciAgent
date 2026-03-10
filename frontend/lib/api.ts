@@ -80,6 +80,7 @@ export interface FileRecord {
   file_size: number;
   content_type: string | null;
   created_at: string;
+  item_count?: number;  // Number of items in a directory
 }
 
 export interface FilePreview {
@@ -312,13 +313,13 @@ export const sessionsApi = {
 
 // Files API
 export const filesApi = {
-  async upload(token: string, sessionId: string, files: FileList): Promise<{ success: boolean; filename: string; file_path: string; file_size: number; message: string }> {
+  async upload(token: string, sessionId: string, files: FileList): Promise<{ success: boolean; files: Array<{ success: boolean; filename: string; file_path: string; file_size: number; message: string }>; total: number; message: string }> {
     const formData = new FormData();
     Array.from(files).forEach((file) => {
-      formData.append('file', file);
+      formData.append('files', file);
     });
 
-    return apiCall<{ success: boolean; filename: string; file_path: string; file_size: number; message: string }>(
+    return apiCall<{ success: boolean; files: Array<{ success: boolean; filename: string; file_path: string; file_size: number; message: string }>; total: number; message: string }>(
       `/api/files/upload?session_id=${sessionId}`,
       {
         method: 'POST',

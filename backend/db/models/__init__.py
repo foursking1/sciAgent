@@ -1,5 +1,5 @@
 """
-Database models for K-Dense Web Clone.
+Database models for GeoGPT Web Clone.
 """
 from backend.db.models.user import User
 from backend.db.models.session import Session

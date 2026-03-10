@@ -12,9 +12,10 @@ class FileInfo(BaseModel):
     session_id: str
     filename: str
     file_path: str
-    file_size: int
+    file_size: Optional[int] = None  # Not set for directories
     content_type: Optional[str] = None
     created_at: datetime
+    item_count: Optional[int] = None  # Number of items in a directory
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -32,4 +33,12 @@ class FileUploadResponse(BaseModel):
     filename: str
     file_path: str
     file_size: int
+    message: str
+
+
+class MultipleFileUploadResponse(BaseModel):
+    """Response for multiple file upload"""
+    success: bool
+    files: list[FileUploadResponse]
+    total: int
     message: str

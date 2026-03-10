@@ -1,6 +1,6 @@
 /**
  * Layout Components Export
- * K-Dense Web Clone Component Library
+ * GeoGPT Web Clone Component Library
  */
 
 export { Header } from './Header'

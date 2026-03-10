@@ -81,7 +81,7 @@ export default function RegisterPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold gradient-text mb-2">Create Account</h1>
-          <p className="text-gray-400">Start your journey with K-Dense</p>
+          <p className="text-gray-400">Start your journey with GeoGPT</p>
         </div>
 
         {/* Register Card */}

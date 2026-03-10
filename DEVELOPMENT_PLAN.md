@@ -2,7 +2,7 @@
 
 ## 项目概述
 
-**目标**: 构建类似 K-Dense Web 的 AI 研究自动化平台
+**目标**: 构建类似 GeoGPT 的 AI 研究自动化平台
 **核心集成**: agentic-data-scientist
 **部署模式**: 单机 Docker 部署
 **开发方法**: TDD（测试驱动开发）
@@ -430,7 +430,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md p-8 space-y-8 bg-surface/50 backdrop-blur-xl rounded-2xl border border-gray-800 shadow-2xl">
         <div className="text-center">
           <Logo className="w-16 h-16 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-white">Welcome to K-Dense</h1>
+          <h1 className="text-2xl font-bold text-white">Welcome to GeoGPT</h1>
           <p className="mt-2 text-gray-400">Research. Analyze. Synthesize.</p>
         </div>
 

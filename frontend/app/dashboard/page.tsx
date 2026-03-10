@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import { Plus, LogOut, Clock, MessageSquare, Activity, Trash2, Globe, Lock, Copy, Check } from 'lucide-react';
+import { Plus, LogOut, Clock, MessageSquare, Activity, Trash2, Globe, Lock, Copy, Check, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { sessionsApi, type Session } from '@/lib/api';
 
@@ -88,22 +88,36 @@ export default function DashboardPage() {
       {/* Header */}
       <header className="glass border-b border-gray-800 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold">
-              {user.full_name?.charAt(0).toUpperCase() || user.email.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold text-white">{user.full_name || 'User'}</h1>
-              <p className="text-sm text-gray-400">{user.email}</p>
-            </div>
-          </div>
+          {/* Left: Logo */}
           <button
-            onClick={logout}
-            className="btn-ghost flex items-center gap-2"
+            onClick={() => router.push('/')}
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
           >
-            <LogOut className="w-5 h-5" />
-            <span>Logout</span>
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shadow-lg shadow-primary-500/30">
+              <Zap className="w-6 h-6 text-white" />
+            </div>
+            <span className="text-xl font-bold text-white">SciAgent</span>
           </button>
+
+          {/* Right: User info + Logout */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold text-sm">
+                {user.full_name?.charAt(0).toUpperCase() || user.email.charAt(0).toUpperCase()}
+              </div>
+              <div className="hidden sm:block">
+                <h1 className="text-sm font-semibold text-white">{user.full_name || 'User'}</h1>
+                <p className="text-xs text-gray-400">{user.email}</p>
+              </div>
+            </div>
+            <button
+              onClick={logout}
+              className="btn-ghost flex items-center gap-2"
+            >
+              <LogOut className="w-5 h-5" />
+              <span className="hidden sm:inline">Logout</span>
+            </button>
+          </div>
         </div>
       </header>
 

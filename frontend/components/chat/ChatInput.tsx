@@ -303,16 +303,27 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         variant={isLoading ? 'secondary' : 'primary'}
         size="sm"
         onClick={isLoading ? handleCancel : handleSubmit}
-        disabled={disabled || (isLoading && !onStop) || (!value.trim() && !isLoading)}
+        disabled={(!isLoading && disabled) || (isLoading && !onStop) || (!value.trim() && !isLoading)}
         className="flex-shrink-0 min-w-[80px]"
       >
         {isLoading ? (
           <>
-            <span>Stop</span>
+            <svg
+              className="w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="6" y="6" width="12" height="12" rx="2" />
+            </svg>
+            <span>暂停</span>
           </>
         ) : (
           <>
-            <span>Send</span>
+            <span>发送</span>
             <svg
               className="w-4 h-4"
               viewBox="0 0 24 24"

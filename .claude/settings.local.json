@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//mnt/c/Users/ZJ/Desktop/数据智能体/**)",
+      "Bash(dir \"C:\\\\Users\\\\ZJ\\\\Desktop\\\\数据智能体\\\\sci_agent\")",
+      "Bash(cmd.exe:*)",
+      "Bash(docker compose:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(wsl.exe:*)",
+      "Bash(npm run:*)",
+      "Bash(npm install:*)",
+      "Bash(curl:*)",
+      "Bash(ssh-keygen:*)",
+      "WebFetch(domain:gitee.com)",
+      "Bash(GIT_SSH_COMMAND=\"ssh -i ~/.ssh/id_rsa_gitee\" git push:*)",
+      "Bash(git:*)",
+      "Bash(ssh:*)",
+      "Bash(ssh-add:*)",
+      "Read(//c/Users/ZJ/Desktop/数据智能体/**)",
+      "Bash(powershell Compress-Archive -Path 'sci_agent' -DestinationPath 'sci_agent.zip' -Force)"
+    ]
+  }
+}

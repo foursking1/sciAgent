@@ -13,7 +13,6 @@ import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { useSessionStore } from '@/stores/sessionStore'
 import { sessionsApi, filesApi, type Session } from '@/lib/api'
-import type { FileItem } from '@/components/chat/FileBrowser'
 import { PanelRightClose, PanelRightOpen, PanelLeftOpen, Globe, Lock, Copy, Check } from 'lucide-react'
 
 export interface SessionPageProps {
@@ -22,7 +21,8 @@ export interface SessionPageProps {
 }
 
 /**
- * Session page component - using global session store
+ * Session page component - now using global session store
+ * All session states are persisted across navigation
  */
 export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageProps) {
   const { token } = useAuth()
@@ -30,13 +30,11 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
 
   // Use global session store
   const {
-    sessions,  // Important: Must destructure sessions to trigger re-renders
     activeSessionId,
     setActiveSession,
     sendMessage,
     stopGeneration,
     refreshSession,
-    refreshFiles,
     getCurrentState
   } = useSessionStore()
 
@@ -46,8 +44,7 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [isDataSourceModalOpen, setIsDataSourceModalOpen] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [previewFile, setPreviewFile] = useState<FileItem | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [previewFile, setPreviewFile] = useState<any>(null)
 
   const eventStreamRef = useRef<EventStreamRef>(null)
 
@@ -58,75 +55,36 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
   useEffect(() => {
     setActiveSession(sessionId)
 
-    // Load session data
-    const loadSession = async () => {
-      try {
-        await refreshSession(sessionId)
-        // Also load file list
-        await refreshFiles(sessionId, '')
-      } catch (err) {
-        console.error('Failed to load session:', err)
-      } finally {
-        // Only set loading to false after refreshSession completes
-        setIsLoading(false)
-      }
-    }
-
-    loadSession()
-  }, [sessionId, refreshSession, refreshFiles])
-
-  // Watch for session state to be actually created
-  useEffect(() => {
-    // If we're no longer loading but sessionState is still undefined,
-    // it means refreshSession failed silently
-    if (!isLoading && !sessionState && activeSessionId === sessionId) {
-      console.error('[SessionChat] Session state not found after loading:', sessionId)
-    }
-  }, [isLoading, sessionState, activeSessionId, sessionId])
+    // Load session data (ignore promise, no need to await)
+    refreshSession(sessionId).catch(err => {
+      console.error('Failed to load session:', err)
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId])
 
   // Auto-scroll when new events arrive
   useEffect(() => {
-    if (sessionState && sessionState.events.length > 0 && activeSessionId === sessionId) {
-      setTimeout(() => {
-        eventStreamRef.current?.scrollToBottom()
-      }, 100)
+    if (sessionState && sessionState.events.length > 0) {
+      // Only auto-scroll if this is the active session
+      if (activeSessionId === sessionId) {
+        setTimeout(() => {
+          eventStreamRef.current?.scrollToBottom()
+        }, 100)
+      }
     }
   }, [sessionState?.events, activeSessionId, sessionId])
 
   // Handle file download
   const handleDownload = useCallback(async (file: any) => {
-    if (!token) return
-
-    try {
-      const downloadUrl = filesApi.getDownloadUrl(sessionId, file.path)
-      const response = await fetch(downloadUrl, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to download file')
-      }
-
-      const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = file.name
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-    } catch (err) {
-      console.error('Failed to download file:', err)
-    }
-  }, [token, sessionId])
+    // Implementation
+    console.log('Download file:', file)
+  }, [])
 
   // Handle file refresh
   const handleRefresh = useCallback(async () => {
-    await refreshFiles(sessionId, sessionState?.currentPath || '')
-  }, [refreshFiles, sessionId, sessionState?.currentPath])
+    // Implementation
+    console.log('Refresh files')
+  }, [])
 
   // Handle file select
   const handleSelect = useCallback((file: any) => {
@@ -134,35 +92,34 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
   }, [])
 
   // Handle file navigate
-  const handleNavigate = useCallback(async (path: string) => {
-    console.log('[SessionChat] Navigating to:', path)
-    await refreshFiles(sessionId, path)
-  }, [refreshFiles, sessionId])
+  const handleNavigate = useCallback((path: string) => {
+    console.log('Navigate to:', path)
+  }, [])
 
   // Handle file upload
   const handleFileUpload = useCallback(async (uploadedFiles: FileList) => {
     if (!token) return
 
-    console.log('[SessionChat] Uploading files:', uploadedFiles.length)
-
     try {
-      const result = await filesApi.upload(token, sessionId, uploadedFiles)
-      console.log('[SessionChat] Upload successful:', result)
+      const formData = new FormData()
+      Array.from(uploadedFiles).forEach(file => {
+        formData.append('files', file)
+      })
 
-      // Check if any files failed to upload
-      const failedFiles = result.files.filter(f => !f.success)
-      if (failedFiles.length > 0) {
-        console.error('[SessionChat] Some files failed to upload:', failedFiles)
-      }
+      await fetch(`${apiBaseUrl}/api/sessions/${sessionId}/files`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      })
 
-      // Refresh file list after upload to show new files
-      console.log('[SessionChat] Refreshing file list...')
-      await refreshFiles(sessionId, sessionState?.currentPath || '')
-      console.log('[SessionChat] File list refreshed')
+      // Refresh session to get updated file list
+      await refreshSession(sessionId)
     } catch (err) {
       console.error('Failed to upload files:', err)
     }
-  }, [token, sessionId, refreshFiles, sessionState?.currentPath])
+  }, [token, sessionId, apiBaseUrl, refreshSession])
 
   // Handle send message
   const handleSubmit = useCallback(async (content: string) => {
@@ -177,6 +134,7 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
 
   // Handle mode change
   const handleModeChange = useCallback(async (mode: SessionMode) => {
+    // Implementation
     console.log('Mode change:', mode)
   }, [])
 
@@ -185,7 +143,11 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
     if (!sessionState?.session) return
 
     try {
-      await sessionsApi.setPublic(token, sessionId, !sessionState.session.is_public)
+      const updated = await sessionsApi.setPublic(
+        token,
+        sessionId,
+        !sessionState.session.is_public
+      )
       await refreshSession(sessionId)
     } catch (err) {
       console.error('Failed to toggle public:', err)
@@ -201,25 +163,12 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
   }, [sessionId])
 
   // Loading state
-  if (isLoading) {
+  if (!sessionState) {
     return (
       <div className="h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-400">Loading...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Check for valid session state (state must exist AND session must not be null)
-  if (!sessionState || !sessionState.session) {
-    return (
-      <div className="h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-400">Session not found</p>
-          {!sessionState && <p className="text-xs text-gray-600 mt-2">State: undefined</p>}
-          {sessionState && !sessionState.session && <p className="text-xs text-gray-600 mt-2">State exists but session is null</p>}
         </div>
       </div>
     )
@@ -291,29 +240,36 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
                   连接错误
                 </span>
               )}
+              {/* Public status indicator */}
+              {sessionState.session?.is_public && (
+                <span className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-primary-500/20 text-primary-400 border border-primary-500/30">
+                  <Globe className="w-3 h-3" />
+                  Public
+                </span>
+              )}
               {/* Toggle public button */}
               <button
                 onClick={handleTogglePublic}
                 className={cn(
-                  'p-2 transition-colors',
+                  'p-2 rounded-lg transition-colors',
                   sessionState.session?.is_public
-                    ? 'text-primary-400 hover:text-primary-300'
-                    : 'text-gray-500 hover:text-white'
+                    ? 'bg-primary-500/20 text-primary-400'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
                 )}
-                aria-label={sessionState.session?.is_public ? '设为私有' : '设为公开'}
-                title={sessionState.session?.is_public ? '设为私有' : '设为公开'}
+                aria-label={sessionState.session?.is_public ? 'Make private' : 'Make public'}
+                title={sessionState.session?.is_public ? 'Make private' : 'Share'}
               >
-                {sessionState.session?.is_public ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                {sessionState.session?.is_public ? <Globe className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
               </button>
               {/* Copy public link button */}
               {sessionState.session?.is_public && (
                 <button
                   onClick={handleCopyLink}
-                  className="p-2 text-gray-500 hover:text-white transition-colors"
-                  aria-label="复制公开链接"
-                  title="复制公开链接"
+                  className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+                  aria-label="Copy public link"
+                  title="Copy public link"
                 >
-                  {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                  {copied ? <Check className="w-5 h-5 text-green-400" /> : <Copy className="w-5 h-5" />}
                 </button>
               )}
               {/* Toggle file panel button */}
@@ -417,9 +373,7 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
       {/* File Preview Panel */}
       {previewFile && (
         <FilePreview
-          sessionId={sessionId}
-          filePath={previewFile.path}
-          fileName={previewFile.name}
+          file={previewFile}
           onClose={() => setPreviewFile(null)}
         />
       )}

@@ -307,7 +307,7 @@ export const Header: React.FC<HeaderProps> = ({
               'focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-lg',
               'transition-colors duration-200'
             )}
-            aria-label="K-Dense Home"
+            aria-label="GeoGPT Home"
           >
             <div
               className={cn(
@@ -334,7 +334,7 @@ export const Header: React.FC<HeaderProps> = ({
               </svg>
             </div>
             <span className="text-lg font-semibold text-white hidden sm:block">
-              K-Dense
+              GeoGPT
             </span>
           </button>
           <EnvironmentBadge />
