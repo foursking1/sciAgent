@@ -32,6 +32,7 @@ interface SessionStoreContextValue {
   stopGeneration: (sessionId: string) => Promise<void>
   refreshSession: (sessionId: string) => Promise<void>
   refreshFiles: (sessionId: string, path?: string) => Promise<void>
+  loadHistoricalMessages: (sessionId: string) => Promise<StreamEvent[]>
   getCurrentState: (sessionId: string) => SessionState | undefined
 }
 
@@ -254,6 +255,37 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
     }
   }, [token, sessions, updateSessionState])
 
+  // Convert database Message to StreamEvent
+  const convertMessageToEvent = useCallback((message: any): StreamEvent => {
+    if (message.role === 'user') {
+      return {
+        type: 'user_message',
+        content: message.content,
+        timestamp: message.created_at,
+      }
+    } else {
+      return {
+        type: 'message',
+        content: message.content,
+        timestamp: message.created_at,
+        is_stopped: message.is_stopped,
+      }
+    }
+  }, [])
+
+  // Load historical messages for a session
+  const loadHistoricalMessages = useCallback(async (sessionId: string): Promise<StreamEvent[]> => {
+    try {
+      console.log('[sessionStore] Loading historical messages for:', sessionId)
+      const messages = await sessionsApi.getMessages(token, sessionId)
+      console.log('[sessionStore] Historical messages loaded:', messages.length)
+      return messages.map(convertMessageToEvent)
+    } catch (err) {
+      console.error('[sessionStore] Failed to load historical messages:', err)
+      return []
+    }
+  }, [token, convertMessageToEvent])
+
   // Refresh session info
   const refreshSession = useCallback(async (sessionId: string) => {
     console.log('[sessionStore] refreshSession called for:', sessionId)
@@ -261,23 +293,29 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
       const sessionData = await sessionsApi.get(token, sessionId)
       console.log('[sessionStore] Session data loaded:', sessionData)
 
+      // Load historical messages
+      const historicalEvents = await loadHistoricalMessages(sessionId)
+      console.log('[sessionStore] Historical events converted:', historicalEvents.length)
+
       // Update or create session state
       setSessions(prev => {
         const newMap = new Map(prev)
         const existing = newMap.get(sessionId)
         if (existing) {
           console.log('[sessionStore] Updating existing session state')
-          newMap.set(sessionId, { ...existing, session: sessionData })
+          // Only replace events if they're empty (to avoid overwriting new messages)
+          const events = existing.events.length > 0 ? existing.events : historicalEvents
+          newMap.set(sessionId, { ...existing, session: sessionData, events })
         } else {
-          console.log('[sessionStore] Creating new session state')
-          // Create new session state
+          console.log('[sessionStore] Creating new session state with historical events')
+          // Create new session state with historical messages
           newMap.set(sessionId, {
-            events: [],
+            events: historicalEvents,
             isConnected: false,
             isSending: false,
             connectionError: null,
             currentTaskId: null,
-            currentMode: 'data-question',
+            currentMode: (sessionData.current_mode as any) || 'data-question',
             thinkingState: 'idle',
             files: [],
             currentPath: '',
@@ -310,7 +348,7 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
         return newMap
       })
     }
-  }, [token])
+  }, [token, loadHistoricalMessages])
 
   // Refresh files for a session
   const refreshFiles = useCallback(async (sessionId: string, path: string = '') => {
@@ -414,6 +452,7 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
     stopGeneration,
     refreshSession,
     refreshFiles,
+    loadHistoricalMessages,
     getCurrentState,
   }
 

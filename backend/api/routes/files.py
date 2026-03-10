@@ -27,6 +27,25 @@ from backend.db.models.user import User
 router = APIRouter()
 
 
+def count_files_recursive(dir_path: Path) -> int:
+    """
+    Count ALL files in a directory recursively.
+    Skips hidden files/directories.
+    """
+    count = 0
+    try:
+        for sub_item in dir_path.iterdir():
+            if sub_item.name.startswith('.'):
+                continue
+            if sub_item.is_file():
+                count += 1
+            elif sub_item.is_dir():
+                count += count_files_recursive(sub_item)
+    except Exception:
+        pass
+    return count
+
+
 # ============ Public File Endpoint ============
 
 @router.get("/public/{session_id}/{file_path:path}")
@@ -207,9 +226,9 @@ async def list_files(
             logger.debug(f"Found item: {relative_path}, is_dir: {item.is_dir()}")
 
             if item.is_dir():
-                # Count items in this directory (non-recursive)
+                # Count ALL files in this directory recursively
                 try:
-                    item_count = sum(1 for sub_item in item.iterdir() if not sub_item.name.startswith('.'))
+                    item_count = count_files_recursive(item)
                 except Exception:
                     item_count = 0
 
