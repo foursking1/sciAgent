@@ -10,7 +10,6 @@ import requests
 import time
 from datetime import datetime
 from typing import Dict, List, Optional, Any
-from urllib.parse import quote
 
 
 class ResearchLookup:
@@ -24,21 +23,49 @@ class ResearchLookup:
 
     # Keywords that indicate complex queries requiring reasoning model
     REASONING_KEYWORDS = [
-        "compare", "contrast", "analyze", "analysis", "evaluate", "critique",
-        "versus", "vs", "vs.", "compared to", "differences between", "similarities",
-        "meta-analysis", "systematic review", "synthesis", "integrate",
-        "mechanism", "why", "how does", "how do", "explain", "relationship",
-        "theoretical framework", "implications", "interpret", "reasoning",
-        "controversy", "conflicting", "paradox", "debate", "reconcile",
-        "pros and cons", "advantages and disadvantages", "trade-off", "tradeoff",
+        "compare",
+        "contrast",
+        "analyze",
+        "analysis",
+        "evaluate",
+        "critique",
+        "versus",
+        "vs",
+        "vs.",
+        "compared to",
+        "differences between",
+        "similarities",
+        "meta-analysis",
+        "systematic review",
+        "synthesis",
+        "integrate",
+        "mechanism",
+        "why",
+        "how does",
+        "how do",
+        "explain",
+        "relationship",
+        "theoretical framework",
+        "implications",
+        "interpret",
+        "reasoning",
+        "controversy",
+        "conflicting",
+        "paradox",
+        "debate",
+        "reconcile",
+        "pros and cons",
+        "advantages and disadvantages",
+        "trade-off",
+        "tradeoff",
     ]
 
     def __init__(self, force_model: Optional[str] = None):
         """
         Initialize the research lookup tool.
-        
+
         Args:
-            force_model: Optional model override ('pro' or 'reasoning'). 
+            force_model: Optional model override ('pro' or 'reasoning').
                         If None, model is auto-selected based on query complexity.
         """
         self.api_key = os.getenv("OPENROUTER_API_KEY")
@@ -51,41 +78,43 @@ class ResearchLookup:
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": "https://scientific-writer.local",
-            "X-Title": "Scientific Writer Research Tool"
+            "X-Title": "Scientific Writer Research Tool",
         }
 
     def _select_model(self, query: str) -> str:
         """
         Select the appropriate model based on query complexity.
-        
+
         Args:
             query: The research query
-            
+
         Returns:
             Model identifier string
         """
         if self.force_model:
             return self.MODELS.get(self.force_model, self.MODELS["reasoning"])
-        
+
         # Check for reasoning keywords (case-insensitive)
         query_lower = query.lower()
         for keyword in self.REASONING_KEYWORDS:
             if keyword in query_lower:
                 return self.MODELS["reasoning"]
-        
+
         # Check for multiple questions or complex structure
         question_count = query.count("?")
         if question_count >= 2:
             return self.MODELS["reasoning"]
-        
+
         # Check for very long queries (likely complex)
         if len(query) > 200:
             return self.MODELS["reasoning"]
-        
+
         # Default to pro for simple lookups
         return self.MODELS["pro"]
 
-    def _make_request(self, messages: List[Dict[str, str]], model: str, **kwargs) -> Dict[str, Any]:
+    def _make_request(
+        self, messages: List[Dict[str, str]], model: str, **kwargs
+    ) -> Dict[str, Any]:
         """Make a request to the OpenRouter API with academic search mode."""
         data = {
             "model": model,
@@ -95,7 +124,7 @@ class ResearchLookup:
             # Perplexity-specific parameters for academic search
             "search_mode": "academic",  # Prioritize scholarly sources (peer-reviewed papers, journals)
             "search_context_size": "high",  # Always use high context for deeper research
-            **kwargs
+            **kwargs,
         }
 
         try:
@@ -103,7 +132,7 @@ class ResearchLookup:
                 f"{self.base_url}/chat/completions",
                 headers=self.headers,
                 json=data,
-                timeout=90  # Increased timeout for academic search
+                timeout=90,  # Increased timeout for academic search
             )
             response.raise_for_status()
             return response.json()
@@ -155,7 +184,7 @@ Remember: Quality over quantity. Prioritize influential, highly-cited papers fro
     def lookup(self, query: str) -> Dict[str, Any]:
         """Perform a research lookup for the given query."""
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
+
         # Select model based on query complexity
         model = self._select_model(query)
 
@@ -165,7 +194,7 @@ Remember: Quality over quantity. Prioritize influential, highly-cited papers fro
         # Prepare messages for the API with system message for academic mode
         messages = [
             {
-                "role": "system", 
+                "role": "system",
                 "content": """You are an academic research assistant specializing in finding HIGH-IMPACT, INFLUENTIAL research.
 
 QUALITY PRIORITIZATION (CRITICAL):
@@ -181,9 +210,9 @@ VENUE HIERARCHY:
 3. Respected field-specific journals (IF 5-10)
 4. Other peer-reviewed sources (only if no better option exists)
 
-Focus exclusively on scholarly sources: peer-reviewed journals, academic papers, research institutions. Prioritize recent academic literature (2020-2026) and provide complete citations with DOIs. Always indicate paper impact through citation counts and venue prestige."""
+Focus exclusively on scholarly sources: peer-reviewed journals, academic papers, research institutions. Prioritize recent academic literature (2020-2026) and provide complete citations with DOIs. Always indicate paper impact through citation counts and venue prestige.""",
             },
-            {"role": "user", "content": research_prompt}
+            {"role": "user", "content": research_prompt},
         ]
 
         try:
@@ -198,10 +227,10 @@ Focus exclusively on scholarly sources: peer-reviewed journals, academic papers,
 
                     # Extract citations from API response (Perplexity provides these)
                     api_citations = self._extract_api_citations(response, choice)
-                    
+
                     # Also extract citations from text as fallback
                     text_citations = self._extract_citations_from_text(content)
-                    
+
                     # Combine: prioritize API citations, add text citations if no duplicates
                     citations = api_citations + text_citations
 
@@ -213,7 +242,7 @@ Focus exclusively on scholarly sources: peer-reviewed journals, academic papers,
                         "sources": api_citations,  # Separate field for API-provided sources
                         "timestamp": timestamp,
                         "model": model,
-                        "usage": response.get("usage", {})
+                        "usage": response.get("usage", {}),
                     }
                 else:
                     raise Exception("Invalid response format from API")
@@ -226,22 +255,24 @@ Focus exclusively on scholarly sources: peer-reviewed journals, academic papers,
                 "query": query,
                 "error": str(e),
                 "timestamp": timestamp,
-                "model": model
+                "model": model,
             }
 
-    def _extract_api_citations(self, response: Dict[str, Any], choice: Dict[str, Any]) -> List[Dict[str, str]]:
+    def _extract_api_citations(
+        self, response: Dict[str, Any], choice: Dict[str, Any]
+    ) -> List[Dict[str, str]]:
         """Extract citations from Perplexity API response fields."""
         citations = []
-        
+
         # Perplexity returns citations in search_results field (new format)
         # Check multiple possible locations where OpenRouter might place them
         search_results = (
-            response.get("search_results") or 
-            choice.get("search_results") or
-            choice.get("message", {}).get("search_results") or
-            []
+            response.get("search_results")
+            or choice.get("search_results")
+            or choice.get("message", {}).get("search_results")
+            or []
         )
-        
+
         for result in search_results:
             citation = {
                 "type": "source",
@@ -253,73 +284,74 @@ Focus exclusively on scholarly sources: peer-reviewed journals, academic papers,
             if result.get("snippet"):
                 citation["snippet"] = result.get("snippet")
             citations.append(citation)
-        
+
         # Also check for legacy citations field (backward compatibility)
         legacy_citations = (
-            response.get("citations") or
-            choice.get("citations") or
-            choice.get("message", {}).get("citations") or
-            []
+            response.get("citations")
+            or choice.get("citations")
+            or choice.get("message", {}).get("citations")
+            or []
         )
-        
+
         for url in legacy_citations:
             if isinstance(url, str):
                 # Legacy format was just URLs
-                citations.append({
-                    "type": "source",
-                    "url": url,
-                    "title": "",
-                    "date": ""
-                })
+                citations.append(
+                    {"type": "source", "url": url, "title": "", "date": ""}
+                )
             elif isinstance(url, dict):
-                citations.append({
-                    "type": "source",
-                    "url": url.get("url", ""),
-                    "title": url.get("title", ""),
-                    "date": url.get("date", "")
-                })
-        
+                citations.append(
+                    {
+                        "type": "source",
+                        "url": url.get("url", ""),
+                        "title": url.get("title", ""),
+                        "date": url.get("date", ""),
+                    }
+                )
+
         return citations
 
     def _extract_citations_from_text(self, text: str) -> List[Dict[str, str]]:
         """Extract potential citations from the response text as fallback."""
         import re
+
         citations = []
 
         # Look for DOI patterns first (most reliable)
         # Matches: doi:10.xxx, DOI: 10.xxx, https://doi.org/10.xxx
-        doi_pattern = r'(?:doi[:\s]*|https?://(?:dx\.)?doi\.org/)(10\.[0-9]{4,}/[^\s\)\]\,\[\<\>]+)'
+        doi_pattern = r"(?:doi[:\s]*|https?://(?:dx\.)?doi\.org/)(10\.[0-9]{4,}/[^\s\)\]\,\[\<\>]+)"
         doi_matches = re.findall(doi_pattern, text, re.IGNORECASE)
         seen_dois = set()
 
         for doi in doi_matches:
             # Clean up DOI - remove trailing punctuation and brackets
-            doi_clean = doi.strip().rstrip('.,;:)]')
+            doi_clean = doi.strip().rstrip(".,;:)]")
             if doi_clean and doi_clean not in seen_dois:
                 seen_dois.add(doi_clean)
-                citations.append({
-                    "type": "doi",
-                    "doi": doi_clean,
-                    "url": f"https://doi.org/{doi_clean}"
-                })
+                citations.append(
+                    {
+                        "type": "doi",
+                        "doi": doi_clean,
+                        "url": f"https://doi.org/{doi_clean}",
+                    }
+                )
 
         # Look for URLs that might be sources
-        url_pattern = r'https?://[^\s\)\]\,\<\>\"\']+(?:arxiv\.org|pubmed|ncbi\.nlm\.nih\.gov|nature\.com|science\.org|wiley\.com|springer\.com|ieee\.org|acm\.org)[^\s\)\]\,\<\>\"\']*'
+        url_pattern = r"https?://[^\s\)\]\,\<\>\"\']+(?:arxiv\.org|pubmed|ncbi\.nlm\.nih\.gov|nature\.com|science\.org|wiley\.com|springer\.com|ieee\.org|acm\.org)[^\s\)\]\,\<\>\"\']*"
         url_matches = re.findall(url_pattern, text, re.IGNORECASE)
         seen_urls = set()
-        
+
         for url in url_matches:
-            url_clean = url.rstrip('.')
+            url_clean = url.rstrip(".")
             if url_clean not in seen_urls:
                 seen_urls.add(url_clean)
-                citations.append({
-                    "type": "url",
-                    "url": url_clean
-                })
+                citations.append({"type": "url", "url": url_clean})
 
         return citations
 
-    def batch_lookup(self, queries: List[str], delay: float = 1.0) -> List[Dict[str, Any]]:
+    def batch_lookup(
+        self, queries: List[str], delay: float = 1.0
+    ) -> List[Dict[str, Any]]:
         """Perform multiple research lookups with optional delay between requests."""
         results = []
 
@@ -339,9 +371,7 @@ Focus exclusively on scholarly sources: peer-reviewed journals, academic papers,
         """Get information about available models from OpenRouter."""
         try:
             response = requests.get(
-                f"{self.base_url}/models",
-                headers=self.headers,
-                timeout=30
+                f"{self.base_url}/models", headers=self.headers, timeout=30
             )
             response.raise_for_status()
             return response.json()
@@ -356,24 +386,29 @@ def main():
 
     parser = argparse.ArgumentParser(description="Research Information Lookup Tool")
     parser.add_argument("query", nargs="?", help="Research query to look up")
-    parser.add_argument("--model-info", action="store_true", help="Show available models")
+    parser.add_argument(
+        "--model-info", action="store_true", help="Show available models"
+    )
     parser.add_argument("--batch", nargs="+", help="Run multiple queries")
-    parser.add_argument("--force-model", choices=["pro", "reasoning"], 
-                        help="Force specific model: 'pro' for fast lookup, 'reasoning' for deep analysis")
+    parser.add_argument(
+        "--force-model",
+        choices=["pro", "reasoning"],
+        help="Force specific model: 'pro' for fast lookup, 'reasoning' for deep analysis",
+    )
     parser.add_argument("-o", "--output", help="Write output to file instead of stdout")
     parser.add_argument("--json", action="store_true", help="Output results as JSON")
 
     args = parser.parse_args()
-    
+
     # Set up output destination
     output_file = None
     if args.output:
-        output_file = open(args.output, 'w', encoding='utf-8')
-    
+        output_file = open(args.output, "w", encoding="utf-8")
+
     def write_output(text):
         """Write to file or stdout."""
         if output_file:
-            output_file.write(text + '\n')
+            output_file.write(text + "\n")
         else:
             print(text)
 
@@ -401,13 +436,19 @@ def main():
             return 0
 
         if not args.query and not args.batch:
-            print("Error: No query provided. Use --model-info to see available models.", file=sys.stderr)
+            print(
+                "Error: No query provided. Use --model-info to see available models.",
+                file=sys.stderr,
+            )
             if output_file:
                 output_file.close()
             return 1
 
         if args.batch:
-            print(f"Running batch research for {len(args.batch)} queries...", file=sys.stderr)
+            print(
+                f"Running batch research for {len(args.batch)} queries...",
+                file=sys.stderr,
+            )
             results = research.batch_lookup(args.batch)
         else:
             print(f"Researching: {args.query}", file=sys.stderr)
@@ -445,12 +486,16 @@ def main():
 
                 # Display additional text-extracted citations
                 citations = result.get("citations", [])
-                text_citations = [c for c in citations if c.get("type") in ("doi", "url")]
+                text_citations = [
+                    c for c in citations if c.get("type") in ("doi", "url")
+                ]
                 if text_citations:
                     write_output(f"\n🔗 Additional References ({len(text_citations)}):")
                     for j, citation in enumerate(text_citations):
                         if citation.get("type") == "doi":
-                            write_output(f"  [{j+1}] DOI: {citation.get('doi', '')} - {citation.get('url', '')}")
+                            write_output(
+                                f"  [{j+1}] DOI: {citation.get('doi', '')} - {citation.get('url', '')}"
+                            )
                         elif citation.get("type") == "url":
                             write_output(f"  [{j+1}] {citation.get('url', '')}")
 

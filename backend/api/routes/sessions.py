@@ -111,9 +111,7 @@ async def list_public_sessions(
     Returns sessions with preview image and PDF paths.
     """
     result = await db.execute(
-        select(Session)
-        .where(Session.is_public.is_(True))
-        .order_by(Session.created_at.desc())
+        select(Session).where(Session.is_public.is_(True)).order_by(Session.created_at.desc())
     )
     sessions = result.scalars().all()
 
@@ -591,9 +589,7 @@ async def toggle_session_public(
     """
     # Query session directly from database
     result = await db.execute(
-        select(Session).where(
-            Session.id == session_id, Session.user_id == current_user.id
-        )
+        select(Session).where(Session.id == session_id, Session.user_id == current_user.id)
     )
     session = result.scalar_one_or_none()
 

@@ -11,10 +11,9 @@ import requests
 import json
 import argparse
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional
 import time
 import sys
-from urllib.parse import quote
 
 
 class BioRxivSearcher:
@@ -24,23 +23,40 @@ class BioRxivSearcher:
 
     # Valid bioRxiv categories
     CATEGORIES = [
-        "animal-behavior-and-cognition", "biochemistry", "bioengineering",
-        "bioinformatics", "biophysics", "cancer-biology", "cell-biology",
-        "clinical-trials", "developmental-biology", "ecology", "epidemiology",
-        "evolutionary-biology", "genetics", "genomics", "immunology",
-        "microbiology", "molecular-biology", "neuroscience", "paleontology",
-        "pathology", "pharmacology-and-toxicology", "physiology",
-        "plant-biology", "scientific-communication-and-education",
-        "synthetic-biology", "systems-biology", "zoology"
+        "animal-behavior-and-cognition",
+        "biochemistry",
+        "bioengineering",
+        "bioinformatics",
+        "biophysics",
+        "cancer-biology",
+        "cell-biology",
+        "clinical-trials",
+        "developmental-biology",
+        "ecology",
+        "epidemiology",
+        "evolutionary-biology",
+        "genetics",
+        "genomics",
+        "immunology",
+        "microbiology",
+        "molecular-biology",
+        "neuroscience",
+        "paleontology",
+        "pathology",
+        "pharmacology-and-toxicology",
+        "physiology",
+        "plant-biology",
+        "scientific-communication-and-education",
+        "synthetic-biology",
+        "systems-biology",
+        "zoology",
     ]
 
     def __init__(self, verbose: bool = False):
         """Initialize the searcher."""
         self.verbose = verbose
         self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'BioRxiv-Search-Tool/1.0'
-        })
+        self.session.headers.update({"User-Agent": "BioRxiv-Search-Tool/1.0"})
 
     def _log(self, message: str):
         """Print verbose logging messages."""
@@ -62,13 +78,13 @@ class BioRxivSearcher:
             return response.json()
         except requests.exceptions.RequestException as e:
             self._log(f"Error making request: {e}")
-            return {"messages": [{"status": "error", "message": str(e)}], "collection": []}
+            return {
+                "messages": [{"status": "error", "message": str(e)}],
+                "collection": [],
+            }
 
     def search_by_date_range(
-        self,
-        start_date: str,
-        end_date: str,
-        category: Optional[str] = None
+        self, start_date: str, end_date: str, category: Optional[str] = None
     ) -> List[Dict]:
         """
         Search for preprints within a date range.
@@ -97,10 +113,7 @@ class BioRxivSearcher:
         return []
 
     def search_by_interval(
-        self,
-        interval: str = "1",
-        cursor: int = 0,
-        format: str = "json"
+        self, interval: str = "1", cursor: int = 0, format: str = "json"
     ) -> Dict:
         """
         Retrieve preprints from a specific time interval.
@@ -127,8 +140,8 @@ class BioRxivSearcher:
             Dictionary with paper details
         """
         # Clean DOI if full URL was provided
-        if 'doi.org' in doi:
-            doi = doi.split('doi.org/')[-1]
+        if "doi.org" in doi:
+            doi = doi.split("doi.org/")[-1]
 
         self._log(f"Fetching details for DOI: {doi}")
         endpoint = f"details/biorxiv/{doi}"
@@ -144,7 +157,7 @@ class BioRxivSearcher:
         self,
         author_name: str,
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
     ) -> List[Dict]:
         """
         Search for papers by author name.
@@ -185,7 +198,7 @@ class BioRxivSearcher:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         category: Optional[str] = None,
-        search_fields: List[str] = ["title", "abstract"]
+        search_fields: List[str] = ["title", "abstract"],
     ) -> List[Dict]:
         """
         Search for papers containing specific keywords.
@@ -240,8 +253,8 @@ class BioRxivSearcher:
             True if download successful, False otherwise
         """
         # Clean DOI
-        if 'doi.org' in doi:
-            doi = doi.split('doi.org/')[-1]
+        if "doi.org" in doi:
+            doi = doi.split("doi.org/")[-1]
 
         # Construct PDF URL
         pdf_url = f"https://www.biorxiv.org/content/{doi}v1.full.pdf"
@@ -252,7 +265,7 @@ class BioRxivSearcher:
             response = self.session.get(pdf_url, timeout=60)
             response.raise_for_status()
 
-            with open(output_path, 'wb') as f:
+            with open(output_path, "wb") as f:
                 f.write(response.content)
 
             self._log(f"PDF saved to: {output_path}")
@@ -277,14 +290,16 @@ class BioRxivSearcher:
             "title": paper.get("title", ""),
             "authors": paper.get("authors", ""),
             "author_corresponding": paper.get("author_corresponding", ""),
-            "author_corresponding_institution": paper.get("author_corresponding_institution", ""),
+            "author_corresponding_institution": paper.get(
+                "author_corresponding_institution", ""
+            ),
             "date": paper.get("date", ""),
             "version": paper.get("version", ""),
             "type": paper.get("type", ""),
             "license": paper.get("license", ""),
             "category": paper.get("category", ""),
             "jatsxml": paper.get("jatsxml", ""),
-            "published": paper.get("published", "")
+            "published": paper.get("published", ""),
         }
 
         if include_abstract:
@@ -292,8 +307,12 @@ class BioRxivSearcher:
 
         # Add PDF and HTML URLs
         if result["doi"]:
-            result["pdf_url"] = f"https://www.biorxiv.org/content/{result['doi']}v{result['version']}.full.pdf"
-            result["html_url"] = f"https://www.biorxiv.org/content/{result['doi']}v{result['version']}"
+            result["pdf_url"] = (
+                f"https://www.biorxiv.org/content/{result['doi']}v{result['version']}.full.pdf"
+            )
+            result["html_url"] = (
+                f"https://www.biorxiv.org/content/{result['doi']}v{result['version']}"
+            )
 
         return result
 
@@ -302,50 +321,58 @@ def main():
     """Command-line interface for bioRxiv search."""
     parser = argparse.ArgumentParser(
         description="Search bioRxiv preprints efficiently",
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
-    parser.add_argument("--verbose", "-v", action="store_true",
-                       help="Enable verbose logging")
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", help="Enable verbose logging"
+    )
 
     # Search type arguments
     search_group = parser.add_argument_group("Search options")
-    search_group.add_argument("--keywords", "-k", nargs="+",
-                            help="Keywords to search for")
-    search_group.add_argument("--author", "-a",
-                            help="Author name to search for")
-    search_group.add_argument("--doi",
-                            help="Get details for specific DOI")
+    search_group.add_argument(
+        "--keywords", "-k", nargs="+", help="Keywords to search for"
+    )
+    search_group.add_argument("--author", "-a", help="Author name to search for")
+    search_group.add_argument("--doi", help="Get details for specific DOI")
 
     # Date range arguments
     date_group = parser.add_argument_group("Date range options")
-    date_group.add_argument("--start-date",
-                          help="Start date (YYYY-MM-DD)")
-    date_group.add_argument("--end-date",
-                          help="End date (YYYY-MM-DD)")
-    date_group.add_argument("--days-back", type=int,
-                          help="Search N days back from today")
+    date_group.add_argument("--start-date", help="Start date (YYYY-MM-DD)")
+    date_group.add_argument("--end-date", help="End date (YYYY-MM-DD)")
+    date_group.add_argument(
+        "--days-back", type=int, help="Search N days back from today"
+    )
 
     # Filter arguments
     filter_group = parser.add_argument_group("Filter options")
-    filter_group.add_argument("--category", "-c",
-                            choices=BioRxivSearcher.CATEGORIES,
-                            help="Filter by category")
-    filter_group.add_argument("--search-fields", nargs="+",
-                            default=["title", "abstract"],
-                            choices=["title", "abstract", "authors"],
-                            help="Fields to search in for keywords")
+    filter_group.add_argument(
+        "--category",
+        "-c",
+        choices=BioRxivSearcher.CATEGORIES,
+        help="Filter by category",
+    )
+    filter_group.add_argument(
+        "--search-fields",
+        nargs="+",
+        default=["title", "abstract"],
+        choices=["title", "abstract", "authors"],
+        help="Fields to search in for keywords",
+    )
 
     # Output arguments
     output_group = parser.add_argument_group("Output options")
-    output_group.add_argument("--output", "-o",
-                            help="Output file (default: stdout)")
-    output_group.add_argument("--include-abstract", action="store_true",
-                            default=True, help="Include abstracts in output")
-    output_group.add_argument("--download-pdf",
-                            help="Download PDF to specified path (requires --doi)")
-    output_group.add_argument("--limit", type=int,
-                            help="Limit number of results")
+    output_group.add_argument("--output", "-o", help="Output file (default: stdout)")
+    output_group.add_argument(
+        "--include-abstract",
+        action="store_true",
+        default=True,
+        help="Include abstracts in output",
+    )
+    output_group.add_argument(
+        "--download-pdf", help="Download PDF to specified path (requires --doi)"
+    )
+    output_group.add_argument("--limit", type=int, help="Limit number of results")
 
     args = parser.parse_args()
 
@@ -355,7 +382,9 @@ def main():
     # Handle date range
     end_date = args.end_date or datetime.now().strftime("%Y-%m-%d")
     if args.days_back:
-        start_date = (datetime.now() - timedelta(days=args.days_back)).strftime("%Y-%m-%d")
+        start_date = (datetime.now() - timedelta(days=args.days_back)).strftime(
+            "%Y-%m-%d"
+        )
     else:
         start_date = args.start_date
 
@@ -378,41 +407,39 @@ def main():
 
     elif args.author:
         # Search by author
-        results = searcher.search_by_author(
-            args.author, start_date, end_date
-        )
+        results = searcher.search_by_author(args.author, start_date, end_date)
 
     elif args.keywords:
         # Search by keywords
         if not start_date:
-            print("Error: --start-date or --days-back required for keyword search",
-                  file=sys.stderr)
+            print(
+                "Error: --start-date or --days-back required for keyword search",
+                file=sys.stderr,
+            )
             return 1
 
         results = searcher.search_by_keywords(
-            args.keywords, start_date, end_date,
-            args.category, args.search_fields
+            args.keywords, start_date, end_date, args.category, args.search_fields
         )
 
     else:
         # Date range search
         if not start_date:
-            print("Error: Must specify search criteria (--keywords, --author, or --doi)",
-                  file=sys.stderr)
+            print(
+                "Error: Must specify search criteria (--keywords, --author, or --doi)",
+                file=sys.stderr,
+            )
             return 1
 
-        results = searcher.search_by_date_range(
-            start_date, end_date, args.category
-        )
+        results = searcher.search_by_date_range(start_date, end_date, args.category)
 
     # Apply limit
     if args.limit:
-        results = results[:args.limit]
+        results = results[: args.limit]
 
     # Format results
     formatted_results = [
-        searcher.format_result(paper, args.include_abstract)
-        for paper in results
+        searcher.format_result(paper, args.include_abstract) for paper in results
     ]
 
     # Output results
@@ -423,16 +450,16 @@ def main():
             "doi": args.doi,
             "start_date": start_date,
             "end_date": end_date,
-            "category": args.category
+            "category": args.category,
         },
         "result_count": len(formatted_results),
-        "results": formatted_results
+        "results": formatted_results,
     }
 
     output_json = json.dumps(output_data, indent=2)
 
     if args.output:
-        with open(args.output, 'w') as f:
+        with open(args.output, "w") as f:
             f.write(output_json)
         print(f"Results written to {args.output}", file=sys.stderr)
     else:

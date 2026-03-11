@@ -6,7 +6,6 @@ Run with: uv run python scripts/fred_examples.py
 """
 
 import os
-import json
 from datetime import datetime, timedelta
 
 # Import the FREDQuery class
@@ -53,7 +52,7 @@ def example_transformations():
         "GDP",
         units="pc1",  # Percent change from year ago
         limit=4,
-        sort_order="desc"
+        sort_order="desc",
     )
     if "observations" in gdp_pch:
         for obs in gdp_pch["observations"]:
@@ -65,7 +64,7 @@ def example_transformations():
         "CPIAUCSL",
         units="chg",  # Change
         limit=6,
-        sort_order="desc"
+        sort_order="desc",
     )
     if "observations" in cpi_chg:
         for obs in cpi_chg["observations"]:
@@ -84,10 +83,7 @@ def example_search():
     # Search for inflation-related series
     print("\n3a. Search for 'inflation' series (monthly, USA):")
     results = fred.search_series(
-        "inflation",
-        limit=5,
-        filter_variable="frequency",
-        filter_value="Monthly"
+        "inflation", limit=5, filter_variable="frequency", filter_value="Monthly"
     )
     if "seriess" in results:
         for s in results["seriess"]:
@@ -95,10 +91,7 @@ def example_search():
 
     # Search using tags
     print("\n3b. Search using tags (gdp, quarterly, usa):")
-    tagged = fred.get_series_by_tags(
-        ["gdp", "quarterly", "usa"],
-        limit=5
-    )
+    tagged = fred.get_series_by_tags(["gdp", "quarterly", "usa"], limit=5)
     if "seriess" in tagged:
         for s in tagged["seriess"]:
             print(f"  {s['id']}: {s['title'][:60]}...")
@@ -122,10 +115,7 @@ def example_categories():
     # Get series from a specific category
     print("\n4b. Popular Series in GDP Category (53):")
     series = fred.get_category_series(
-        53,
-        limit=5,
-        order_by="popularity",
-        sort_order="desc"
+        53, limit=5, order_by="popularity", sort_order="desc"
     )
     if "seriess" in series:
         for s in series["seriess"]:
@@ -144,13 +134,13 @@ def example_releases():
     today = datetime.now().strftime("%Y-%m-%d")
     next_week = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
 
-    print(f"\n5a. Upcoming Releases (next 7 days):")
+    print("\n5a. Upcoming Releases (next 7 days):")
     dates = fred.get_release_dates(
         realtime_start=today,
         realtime_end=next_week,
         limit=10,
         sort_order="asc",
-        include_release_dates_with_no_data="true"
+        include_release_dates_with_no_data="true",
     )
     if "release_dates" in dates:
         for r in dates["release_dates"][:10]:
@@ -161,10 +151,7 @@ def example_releases():
     # Get series from GDP release
     print("\n5b. Top Series in GDP Release (53):")
     release_series = fred.get_release_series(
-        53,
-        limit=5,
-        order_by="popularity",
-        sort_order="desc"
+        53, limit=5, order_by="popularity", sort_order="desc"
     )
     if "seriess" in release_series:
         for s in release_series["seriess"]:
@@ -185,7 +172,7 @@ def example_economic_indicators():
         ("CPIAUCSL", "Consumer Price Index"),
         ("FEDFUNDS", "Federal Funds Rate"),
         ("DGS10", "10-Year Treasury Rate"),
-        ("HOUST", "Housing Starts")
+        ("HOUST", "Housing Starts"),
     ]
 
     print("\nLatest Economic Indicators:")
@@ -213,9 +200,7 @@ def example_time_series_analysis():
 
     print(f"\nUnemployment Rate Trend (since {start_date}):")
     data = fred.get_observations(
-        "UNRATE",
-        observation_start=start_date,
-        sort_order="asc"
+        "UNRATE", observation_start=start_date, sort_order="asc"
     )
 
     if "observations" in data:
@@ -301,7 +286,7 @@ def example_regional_data():
         date="2023-01-01",
         units="Percent",
         frequency="a",
-        season="NSA"
+        season="NSA",
     )
 
     if "data" in regional:

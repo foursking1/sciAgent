@@ -20,10 +20,13 @@ BASE_URL = os.getenv("OPEN_NOTEBOOK_URL", "http://localhost:5055") + "/api"
 
 def create_notebook(name, description=""):
     """Create a new notebook."""
-    response = requests.post(f"{BASE_URL}/notebooks", json={
-        "name": name,
-        "description": description,
-    })
+    response = requests.post(
+        f"{BASE_URL}/notebooks",
+        json={
+            "name": name,
+            "description": description,
+        },
+    )
     response.raise_for_status()
     notebook = response.json()
     print(f"Created notebook: {notebook['id']} - {notebook['name']}")
@@ -32,16 +35,21 @@ def create_notebook(name, description=""):
 
 def list_notebooks(archived=False):
     """List all notebooks, optionally filtering by archived status."""
-    response = requests.get(f"{BASE_URL}/notebooks", params={
-        "archived": archived,
-    })
+    response = requests.get(
+        f"{BASE_URL}/notebooks",
+        params={
+            "archived": archived,
+        },
+    )
     response.raise_for_status()
     notebooks = response.json()
     print(f"Found {len(notebooks)} notebook(s):")
     for nb in notebooks:
-        print(f"  - {nb['id']}: {nb['name']} "
-              f"(sources: {nb.get('source_count', 0)}, "
-              f"notes: {nb.get('note_count', 0)})")
+        print(
+            f"  - {nb['id']}: {nb['name']} "
+            f"(sources: {nb.get('source_count', 0)}, "
+            f"notes: {nb.get('note_count', 0)})"
+        )
     return notebooks
 
 
@@ -61,9 +69,7 @@ def update_notebook(notebook_id, name=None, description=None, archived=None):
         payload["description"] = description
     if archived is not None:
         payload["archived"] = archived
-    response = requests.put(
-        f"{BASE_URL}/notebooks/{notebook_id}", json=payload
-    )
+    response = requests.put(f"{BASE_URL}/notebooks/{notebook_id}", json=payload)
     response.raise_for_status()
     updated = response.json()
     print(f"Updated notebook: {updated['id']} - {updated['name']}")
@@ -73,11 +79,11 @@ def update_notebook(notebook_id, name=None, description=None, archived=None):
 def delete_notebook(notebook_id, delete_sources=False):
     """Delete a notebook and optionally its exclusive sources."""
     # Preview what will be deleted
-    preview = requests.get(
-        f"{BASE_URL}/notebooks/{notebook_id}/delete-preview"
-    ).json()
-    print(f"Deletion will affect {preview.get('note_count', 0)} notes "
-          f"and {preview.get('source_count', 0)} sources")
+    preview = requests.get(f"{BASE_URL}/notebooks/{notebook_id}/delete-preview").json()
+    print(
+        f"Deletion will affect {preview.get('note_count', 0)} notes "
+        f"and {preview.get('source_count', 0)} sources"
+    )
 
     response = requests.delete(
         f"{BASE_URL}/notebooks/{notebook_id}",
@@ -89,9 +95,7 @@ def delete_notebook(notebook_id, delete_sources=False):
 
 def link_source_to_notebook(notebook_id, source_id):
     """Associate an existing source with a notebook."""
-    response = requests.post(
-        f"{BASE_URL}/notebooks/{notebook_id}/sources/{source_id}"
-    )
+    response = requests.post(f"{BASE_URL}/notebooks/{notebook_id}/sources/{source_id}")
     response.raise_for_status()
     print(f"Linked source {source_id} to notebook {notebook_id}")
 
@@ -111,12 +115,10 @@ if __name__ == "__main__":
 
     # Create notebooks
     nb1 = create_notebook(
-        "Protein Folding Research",
-        "Literature review on AlphaFold and related methods"
+        "Protein Folding Research", "Literature review on AlphaFold and related methods"
     )
     nb2 = create_notebook(
-        "CRISPR Gene Editing",
-        "Survey of CRISPR-Cas9 applications in therapeutics"
+        "CRISPR Gene Editing", "Survey of CRISPR-Cas9 applications in therapeutics"
     )
 
     # List all notebooks

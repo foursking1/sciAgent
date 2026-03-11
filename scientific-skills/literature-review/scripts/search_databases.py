@@ -9,7 +9,8 @@ import sys
 from typing import Dict, List
 from datetime import datetime
 
-def format_search_results(results: List[Dict], output_format: str = 'json') -> str:
+
+def format_search_results(results: List[Dict], output_format: str = "json") -> str:
     """
     Format search results for output.
 
@@ -20,11 +21,11 @@ def format_search_results(results: List[Dict], output_format: str = 'json') -> s
     Returns:
         Formatted string
     """
-    if output_format == 'json':
+    if output_format == "json":
         return json.dumps(results, indent=2)
 
-    elif output_format == 'markdown':
-        md = f"# Literature Search Results\n\n"
+    elif output_format == "markdown":
+        md = "# Literature Search Results\n\n"
         md += f"**Search Date**: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n"
         md += f"**Total Results**: {len(results)}\n\n"
 
@@ -34,43 +35,45 @@ def format_search_results(results: List[Dict], output_format: str = 'json') -> s
             md += f"**Year**: {result.get('year', 'N/A')}\n\n"
             md += f"**Source**: {result.get('source', 'Unknown')}\n\n"
 
-            if result.get('abstract'):
+            if result.get("abstract"):
                 md += f"**Abstract**: {result['abstract']}\n\n"
 
-            if result.get('doi'):
+            if result.get("doi"):
                 md += f"**DOI**: [{result['doi']}](https://doi.org/{result['doi']})\n\n"
 
-            if result.get('url'):
+            if result.get("url"):
                 md += f"**URL**: {result['url']}\n\n"
 
-            if result.get('citations'):
+            if result.get("citations"):
                 md += f"**Citations**: {result['citations']}\n\n"
 
             md += "---\n\n"
 
         return md
 
-    elif output_format == 'bibtex':
+    elif output_format == "bibtex":
         bibtex = ""
         for i, result in enumerate(results, 1):
-            entry_type = result.get('type', 'article')
-            cite_key = f"{result.get('first_author', 'unknown')}{result.get('year', '0000')}"
+            entry_type = result.get("type", "article")
+            cite_key = (
+                f"{result.get('first_author', 'unknown')}{result.get('year', '0000')}"
+            )
 
             bibtex += f"@{entry_type}{{{cite_key},\n"
             bibtex += f"  title = {{{result.get('title', '')}}},\n"
             bibtex += f"  author = {{{result.get('authors', '')}}},\n"
             bibtex += f"  year = {{{result.get('year', '')}}},\n"
 
-            if result.get('journal'):
+            if result.get("journal"):
                 bibtex += f"  journal = {{{result['journal']}}},\n"
 
-            if result.get('volume'):
+            if result.get("volume"):
                 bibtex += f"  volume = {{{result['volume']}}},\n"
 
-            if result.get('pages'):
+            if result.get("pages"):
                 bibtex += f"  pages = {{{result['pages']}}},\n"
 
-            if result.get('doi'):
+            if result.get("doi"):
                 bibtex += f"  doi = {{{result['doi']}}},\n"
 
             bibtex += "}\n\n"
@@ -79,6 +82,7 @@ def format_search_results(results: List[Dict], output_format: str = 'json') -> s
 
     else:
         raise ValueError(f"Unknown format: {output_format}")
+
 
 def deduplicate_results(results: List[Dict]) -> List[Dict]:
     """
@@ -95,8 +99,8 @@ def deduplicate_results(results: List[Dict]) -> List[Dict]:
     unique_results = []
 
     for result in results:
-        doi = result.get('doi', '').lower().strip()
-        title = result.get('title', '').lower().strip()
+        doi = result.get("doi", "").lower().strip()
+        title = result.get("title", "").lower().strip()
 
         # Check DOI first (more reliable)
         if doi and doi in seen_dois:
@@ -116,7 +120,8 @@ def deduplicate_results(results: List[Dict]) -> List[Dict]:
 
     return unique_results
 
-def rank_results(results: List[Dict], criteria: str = 'citations') -> List[Dict]:
+
+def rank_results(results: List[Dict], criteria: str = "citations") -> List[Dict]:
     """
     Rank results by specified criteria.
 
@@ -127,16 +132,19 @@ def rank_results(results: List[Dict], criteria: str = 'citations') -> List[Dict]
     Returns:
         Ranked list
     """
-    if criteria == 'citations':
-        return sorted(results, key=lambda x: x.get('citations', 0), reverse=True)
-    elif criteria == 'year':
-        return sorted(results, key=lambda x: x.get('year', '0'), reverse=True)
-    elif criteria == 'relevance':
-        return sorted(results, key=lambda x: x.get('relevance_score', 0), reverse=True)
+    if criteria == "citations":
+        return sorted(results, key=lambda x: x.get("citations", 0), reverse=True)
+    elif criteria == "year":
+        return sorted(results, key=lambda x: x.get("year", "0"), reverse=True)
+    elif criteria == "relevance":
+        return sorted(results, key=lambda x: x.get("relevance_score", 0), reverse=True)
     else:
         return results
 
-def filter_by_year(results: List[Dict], start_year: int = None, end_year: int = None) -> List[Dict]:
+
+def filter_by_year(
+    results: List[Dict], start_year: int = None, end_year: int = None
+) -> List[Dict]:
     """
     Filter results by publication year range.
 
@@ -152,7 +160,7 @@ def filter_by_year(results: List[Dict], start_year: int = None, end_year: int = 
 
     for result in results:
         try:
-            year = int(result.get('year', 0))
+            year = int(result.get("year", 0))
             if start_year and year < start_year:
                 continue
             if end_year and year > end_year:
@@ -163,6 +171,7 @@ def filter_by_year(results: List[Dict], start_year: int = None, end_year: int = 
             filtered.append(result)
 
     return filtered
+
 
 def generate_search_summary(results: List[Dict]) -> Dict:
     """
@@ -175,36 +184,39 @@ def generate_search_summary(results: List[Dict]) -> Dict:
         Summary dictionary
     """
     summary = {
-        'total_results': len(results),
-        'sources': {},
-        'year_distribution': {},
-        'avg_citations': 0,
-        'total_citations': 0
+        "total_results": len(results),
+        "sources": {},
+        "year_distribution": {},
+        "avg_citations": 0,
+        "total_citations": 0,
     }
 
     citations = []
 
     for result in results:
         # Count by source
-        source = result.get('source', 'Unknown')
-        summary['sources'][source] = summary['sources'].get(source, 0) + 1
+        source = result.get("source", "Unknown")
+        summary["sources"][source] = summary["sources"].get(source, 0) + 1
 
         # Count by year
-        year = result.get('year', 'Unknown')
-        summary['year_distribution'][year] = summary['year_distribution'].get(year, 0) + 1
+        year = result.get("year", "Unknown")
+        summary["year_distribution"][year] = (
+            summary["year_distribution"].get(year, 0) + 1
+        )
 
         # Collect citations
-        if result.get('citations'):
+        if result.get("citations"):
             try:
-                citations.append(int(result['citations']))
+                citations.append(int(result["citations"]))
             except (ValueError, TypeError):
                 pass
 
     if citations:
-        summary['avg_citations'] = sum(citations) / len(citations)
-        summary['total_citations'] = sum(citations)
+        summary["avg_citations"] = sum(citations) / len(citations)
+        summary["total_citations"] = sum(citations)
 
     return summary
+
 
 def main():
     """Command-line interface for search result processing."""
@@ -223,14 +235,14 @@ def main():
     # Load results
     results_file = sys.argv[1]
     try:
-        with open(results_file, 'r', encoding='utf-8') as f:
+        with open(results_file, "r", encoding="utf-8") as f:
             results = json.load(f)
     except Exception as e:
         print(f"Error loading results: {e}")
         sys.exit(1)
 
     # Parse options
-    output_format = 'markdown'
+    output_format = "markdown"
     output_file = None
     rank_criteria = None
     year_start = None
@@ -242,25 +254,25 @@ def main():
     while i < len(sys.argv):
         arg = sys.argv[i]
 
-        if arg == '--format' and i + 1 < len(sys.argv):
+        if arg == "--format" and i + 1 < len(sys.argv):
             output_format = sys.argv[i + 1]
             i += 2
-        elif arg == '--output' and i + 1 < len(sys.argv):
+        elif arg == "--output" and i + 1 < len(sys.argv):
             output_file = sys.argv[i + 1]
             i += 2
-        elif arg == '--rank' and i + 1 < len(sys.argv):
+        elif arg == "--rank" and i + 1 < len(sys.argv):
             rank_criteria = sys.argv[i + 1]
             i += 2
-        elif arg == '--year-start' and i + 1 < len(sys.argv):
+        elif arg == "--year-start" and i + 1 < len(sys.argv):
             year_start = int(sys.argv[i + 1])
             i += 2
-        elif arg == '--year-end' and i + 1 < len(sys.argv):
+        elif arg == "--year-end" and i + 1 < len(sys.argv):
             year_end = int(sys.argv[i + 1])
             i += 2
-        elif arg == '--deduplicate':
+        elif arg == "--deduplicate":
             do_dedup = True
             i += 1
-        elif arg == '--summary':
+        elif arg == "--summary":
             show_summary = True
             i += 1
         else:
@@ -282,9 +294,9 @@ def main():
     # Show summary
     if show_summary:
         summary = generate_search_summary(results)
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("SEARCH SUMMARY")
-        print("="*60)
+        print("=" * 60)
         print(json.dumps(summary, indent=2))
         print()
 
@@ -293,11 +305,12 @@ def main():
 
     # Write output
     if output_file:
-        with open(output_file, 'w', encoding='utf-8') as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             f.write(output)
         print(f"✓ Results saved to: {output_file}")
     else:
         print(output)
+
 
 if __name__ == "__main__":
     main()

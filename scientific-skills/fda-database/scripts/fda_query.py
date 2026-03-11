@@ -18,8 +18,8 @@ import json
 import hashlib
 from pathlib import Path
 from datetime import datetime, timedelta
-from collections import deque, Counter
-from typing import Dict, List, Optional, Any
+from collections import deque
+from typing import Dict, List, Optional
 
 
 class RateLimiter:
@@ -69,7 +69,7 @@ class FDACache:
         if cache_file.exists():
             age = time.time() - cache_file.stat().st_mtime
             if age < self.ttl:
-                with open(cache_file, 'r') as f:
+                with open(cache_file, "r") as f:
                     return json.load(f)
         return None
 
@@ -77,7 +77,7 @@ class FDACache:
         """Cache response data."""
         key = self._get_cache_key(url, params)
         cache_file = self.cache_dir / f"{key}.json"
-        with open(cache_file, 'w') as f:
+        with open(cache_file, "w") as f:
             json.dump(data, f)
 
 
@@ -86,8 +86,13 @@ class FDAQuery:
 
     BASE_URL = "https://api.fda.gov"
 
-    def __init__(self, api_key: Optional[str] = None, use_cache: bool = True,
-                 cache_ttl: int = 3600, rate_limit: int = 240):
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        use_cache: bool = True,
+        cache_ttl: int = 3600,
+        rate_limit: int = 240,
+    ):
         """
         Initialize FDA query client.
 
@@ -157,9 +162,16 @@ class FDAQuery:
         except requests.exceptions.RequestException as e:
             return {"error": f"Request error: {e}"}
 
-    def query(self, category: str, endpoint: str, search: Optional[str] = None,
-              limit: int = 100, skip: int = 0, count: Optional[str] = None,
-              sort: Optional[str] = None) -> Dict:
+    def query(
+        self,
+        category: str,
+        endpoint: str,
+        search: Optional[str] = None,
+        limit: int = 100,
+        skip: int = 0,
+        count: Optional[str] = None,
+        sort: Optional[str] = None,
+    ) -> Dict:
         """
         Generic query method for any FDA endpoint.
 
@@ -191,8 +203,14 @@ class FDAQuery:
 
         return self._make_request(url, params)
 
-    def query_all(self, category: str, endpoint: str, search: str,
-                  max_results: int = 5000, batch_size: int = 100) -> List[Dict]:
+    def query_all(
+        self,
+        category: str,
+        endpoint: str,
+        search: str,
+        max_results: int = 5000,
+        batch_size: int = 100,
+    ) -> List[Dict]:
         """
         Query and retrieve all results with automatic pagination.
 
@@ -215,7 +233,7 @@ class FDAQuery:
                 endpoint=endpoint,
                 search=search,
                 limit=batch_size,
-                skip=skip
+                skip=skip,
             )
 
             if "error" in data or "results" not in data:
@@ -247,8 +265,9 @@ class FDAQuery:
         search = f"{field}:{drug_name}"
         return self.query("drug", "label", search=search, limit=1)
 
-    def query_drug_ndc(self, ndc: Optional[str] = None,
-                       manufacturer: Optional[str] = None) -> Dict:
+    def query_drug_ndc(
+        self, ndc: Optional[str] = None, manufacturer: Optional[str] = None
+    ) -> Dict:
         """Query National Drug Code directory."""
         if ndc:
             search = f"product_ndc:{ndc}"
@@ -259,8 +278,9 @@ class FDAQuery:
 
         return self.query("drug", "ndc", search=search, limit=100)
 
-    def query_drug_recalls(self, drug_name: Optional[str] = None,
-                          classification: Optional[str] = None) -> Dict:
+    def query_drug_recalls(
+        self, drug_name: Optional[str] = None, classification: Optional[str] = None
+    ) -> Dict:
         """Query drug recalls."""
         search_parts = []
         if drug_name:
@@ -269,8 +289,9 @@ class FDAQuery:
             search_parts.append(f"classification:Class+{classification}")
 
         search = "+AND+".join(search_parts) if search_parts else None
-        return self.query("drug", "enforcement", search=search, limit=100,
-                         sort="report_date:desc")
+        return self.query(
+            "drug", "enforcement", search=search, limit=100, sort="report_date:desc"
+        )
 
     # Device-specific methods
 
@@ -279,8 +300,9 @@ class FDAQuery:
         search = f"device.brand_name:*{device_name}*"
         return self.query("device", "event", search=search, limit=limit)
 
-    def query_device_510k(self, applicant: Optional[str] = None,
-                          device_name: Optional[str] = None) -> Dict:
+    def query_device_510k(
+        self, applicant: Optional[str] = None, device_name: Optional[str] = None
+    ) -> Dict:
         """Query 510(k) clearances."""
         if applicant:
             search = f"applicant:*{applicant}*"
@@ -298,8 +320,9 @@ class FDAQuery:
 
     # Food-specific methods
 
-    def query_food_events(self, product_name: Optional[str] = None,
-                         industry: Optional[str] = None) -> Dict:
+    def query_food_events(
+        self, product_name: Optional[str] = None, industry: Optional[str] = None
+    ) -> Dict:
         """Query food adverse events."""
         if product_name:
             search = f"products.name_brand:*{product_name}*"
@@ -310,9 +333,12 @@ class FDAQuery:
 
         return self.query("food", "event", search=search, limit=100)
 
-    def query_food_recalls(self, product: Optional[str] = None,
-                          reason: Optional[str] = None,
-                          classification: Optional[str] = None) -> Dict:
+    def query_food_recalls(
+        self,
+        product: Optional[str] = None,
+        reason: Optional[str] = None,
+        classification: Optional[str] = None,
+    ) -> Dict:
         """Query food recalls."""
         search_parts = []
         if product:
@@ -322,14 +348,18 @@ class FDAQuery:
         if classification:
             search_parts.append(f"classification:Class+{classification}")
 
-        search = "+AND+".join(search_parts) if search_parts else "_exists_:recall_number"
-        return self.query("food", "enforcement", search=search, limit=100,
-                         sort="report_date:desc")
+        search = (
+            "+AND+".join(search_parts) if search_parts else "_exists_:recall_number"
+        )
+        return self.query(
+            "food", "enforcement", search=search, limit=100, sort="report_date:desc"
+        )
 
     # Animal & Veterinary methods
 
-    def query_animal_events(self, species: Optional[str] = None,
-                           drug_name: Optional[str] = None) -> Dict:
+    def query_animal_events(
+        self, species: Optional[str] = None, drug_name: Optional[str] = None
+    ) -> Dict:
         """Query animal drug adverse events."""
         search_parts = []
         if species:
@@ -337,7 +367,11 @@ class FDAQuery:
         if drug_name:
             search_parts.append(f"drug.brand_name:*{drug_name}*")
 
-        search = "+AND+".join(search_parts) if search_parts else "_exists_:unique_aer_id_number"
+        search = (
+            "+AND+".join(search_parts)
+            if search_parts
+            else "_exists_:unique_aer_id_number"
+        )
         return self.query("animalandveterinary", "event", search=search, limit=100)
 
     # Substance methods
@@ -354,8 +388,9 @@ class FDAQuery:
 
     # Analysis methods
 
-    def count_by_field(self, category: str, endpoint: str,
-                      search: str, field: str, exact: bool = True) -> Dict:
+    def count_by_field(
+        self, category: str, endpoint: str, search: str, field: str, exact: bool = True
+    ) -> Dict:
         """
         Count and aggregate results by a specific field.
 
@@ -369,12 +404,19 @@ class FDAQuery:
         Returns:
             Count results
         """
-        count_field = f"{field}.exact" if exact and not field.endswith(".exact") else field
+        count_field = (
+            f"{field}.exact" if exact and not field.endswith(".exact") else field
+        )
         return self.query(category, endpoint, search=search, count=count_field)
 
-    def get_date_range_data(self, category: str, endpoint: str,
-                           date_field: str, days_back: int = 30,
-                           additional_search: Optional[str] = None) -> List[Dict]:
+    def get_date_range_data(
+        self,
+        category: str,
+        endpoint: str,
+        date_field: str,
+        days_back: int = 30,
+        additional_search: Optional[str] = None,
+    ) -> List[Dict]:
         """
         Get data for a specific date range.
 
@@ -391,7 +433,9 @@ class FDAQuery:
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days_back)
 
-        date_range = f"[{start_date.strftime('%Y%m%d')}+TO+{end_date.strftime('%Y%m%d')}]"
+        date_range = (
+            f"[{start_date.strftime('%Y%m%d')}+TO+{end_date.strftime('%Y%m%d')}]"
+        )
         search = f"{date_field}:{date_range}"
 
         if additional_search:
@@ -419,9 +463,10 @@ def main():
     # Example 2: Count reactions
     print("\nCounting reactions...")
     counts = fda.count_by_field(
-        "drug", "event",
+        "drug",
+        "event",
         search="patient.drug.medicinalproduct:aspirin",
-        field="patient.reaction.reactionmeddrapt"
+        field="patient.reaction.reactionmeddrapt",
     )
     if "results" in counts:
         for item in counts["results"][:5]:

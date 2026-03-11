@@ -18,7 +18,9 @@ try:
     from rdkit import Chem
     from rdkit.Chem import Descriptors, Lipinski
 except ImportError:
-    print("Error: RDKit not installed. Install with: conda install -c conda-forge rdkit")
+    print(
+        "Error: RDKit not installed. Install with: conda install -c conda-forge rdkit"
+    )
     sys.exit(1)
 
 
@@ -29,61 +31,52 @@ def calculate_properties(mol):
 
     properties = {
         # Basic properties
-        'SMILES': Chem.MolToSmiles(mol),
-        'Molecular_Formula': Chem.rdMolDescriptors.CalcMolFormula(mol),
-
+        "SMILES": Chem.MolToSmiles(mol),
+        "Molecular_Formula": Chem.rdMolDescriptors.CalcMolFormula(mol),
         # Molecular weight
-        'MW': Descriptors.MolWt(mol),
-        'ExactMW': Descriptors.ExactMolWt(mol),
-
+        "MW": Descriptors.MolWt(mol),
+        "ExactMW": Descriptors.ExactMolWt(mol),
         # Lipophilicity
-        'LogP': Descriptors.MolLogP(mol),
-        'MR': Descriptors.MolMR(mol),
-
+        "LogP": Descriptors.MolLogP(mol),
+        "MR": Descriptors.MolMR(mol),
         # Polar surface area
-        'TPSA': Descriptors.TPSA(mol),
-        'LabuteASA': Descriptors.LabuteASA(mol),
-
+        "TPSA": Descriptors.TPSA(mol),
+        "LabuteASA": Descriptors.LabuteASA(mol),
         # Hydrogen bonding
-        'HBD': Descriptors.NumHDonors(mol),
-        'HBA': Descriptors.NumHAcceptors(mol),
-
+        "HBD": Descriptors.NumHDonors(mol),
+        "HBA": Descriptors.NumHAcceptors(mol),
         # Atom counts
-        'Heavy_Atoms': Descriptors.HeavyAtomCount(mol),
-        'Heteroatoms': Descriptors.NumHeteroatoms(mol),
-        'Valence_Electrons': Descriptors.NumValenceElectrons(mol),
-
+        "Heavy_Atoms": Descriptors.HeavyAtomCount(mol),
+        "Heteroatoms": Descriptors.NumHeteroatoms(mol),
+        "Valence_Electrons": Descriptors.NumValenceElectrons(mol),
         # Ring information
-        'Rings': Descriptors.RingCount(mol),
-        'Aromatic_Rings': Descriptors.NumAromaticRings(mol),
-        'Saturated_Rings': Descriptors.NumSaturatedRings(mol),
-        'Aliphatic_Rings': Descriptors.NumAliphaticRings(mol),
-        'Aromatic_Heterocycles': Descriptors.NumAromaticHeterocycles(mol),
-
+        "Rings": Descriptors.RingCount(mol),
+        "Aromatic_Rings": Descriptors.NumAromaticRings(mol),
+        "Saturated_Rings": Descriptors.NumSaturatedRings(mol),
+        "Aliphatic_Rings": Descriptors.NumAliphaticRings(mol),
+        "Aromatic_Heterocycles": Descriptors.NumAromaticHeterocycles(mol),
         # Flexibility
-        'Rotatable_Bonds': Descriptors.NumRotatableBonds(mol),
-        'Fraction_Csp3': Descriptors.FractionCsp3(mol),
-
+        "Rotatable_Bonds": Descriptors.NumRotatableBonds(mol),
+        "Fraction_Csp3": Descriptors.FractionCsp3(mol),
         # Complexity
-        'BertzCT': Descriptors.BertzCT(mol),
-
+        "BertzCT": Descriptors.BertzCT(mol),
         # Drug-likeness
-        'QED': Descriptors.qed(mol),
+        "QED": Descriptors.qed(mol),
     }
 
     # Lipinski's Rule of Five
-    properties['Lipinski_Pass'] = (
-        properties['MW'] <= 500 and
-        properties['LogP'] <= 5 and
-        properties['HBD'] <= 5 and
-        properties['HBA'] <= 10
+    properties["Lipinski_Pass"] = (
+        properties["MW"] <= 500
+        and properties["LogP"] <= 5
+        and properties["HBD"] <= 5
+        and properties["HBA"] <= 10
     )
 
     # Lead-likeness
-    properties['Lead-like'] = (
-        250 <= properties['MW'] <= 350 and
-        properties['LogP'] <= 3.5 and
-        properties['Rotatable_Bonds'] <= 7
+    properties["Lead-like"] = (
+        250 <= properties["MW"] <= 350
+        and properties["LogP"] <= 3.5
+        and properties["Rotatable_Bonds"] <= 7
     )
 
     return properties
@@ -109,9 +102,9 @@ def process_file(input_file, output_file=None):
         return
 
     # Determine file type
-    if input_path.suffix.lower() in ['.sdf', '.mol']:
+    if input_path.suffix.lower() in [".sdf", ".mol"]:
         suppl = Chem.SDMolSupplier(str(input_path))
-    elif input_path.suffix.lower() in ['.smi', '.smiles', '.txt']:
+    elif input_path.suffix.lower() in [".smi", ".smiles", ".txt"]:
         suppl = Chem.SmilesMolSupplier(str(input_path), titleLine=False)
     else:
         print(f"Error: Unsupported file format: {input_path.suffix}")
@@ -125,7 +118,7 @@ def process_file(input_file, output_file=None):
 
         props = calculate_properties(mol)
         if props:
-            props['Index'] = idx + 1
+            props["Index"] = idx + 1
             results.append(props)
 
     # Output results
@@ -135,7 +128,7 @@ def process_file(input_file, output_file=None):
     else:
         # Print to console
         for props in results:
-            print("\n" + "="*60)
+            print("\n" + "=" * 60)
             for key, value in props.items():
                 print(f"{key:25s}: {value}")
 
@@ -150,7 +143,7 @@ def write_csv(results, output_file):
         print("No results to write")
         return
 
-    with open(output_file, 'w', newline='') as f:
+    with open(output_file, "w", newline="") as f:
         fieldnames = results[0].keys()
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
@@ -160,7 +153,7 @@ def write_csv(results, output_file):
 def print_properties(props):
     """Print properties in formatted output."""
     print("\nMolecular Properties:")
-    print("="*60)
+    print("=" * 60)
 
     # Group related properties
     print("\n[Basic Information]")
@@ -199,12 +192,12 @@ def print_properties(props):
     print(f"  QED Score:           {props['QED']:.3f}")
     print(f"  Lipinski Pass:       {'Yes' if props['Lipinski_Pass'] else 'No'}")
     print(f"  Lead-like:           {'Yes' if props['Lead-like'] else 'No'}")
-    print("="*60)
+    print("=" * 60)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Calculate molecular properties for molecules',
+        description="Calculate molecular properties for molecules",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -216,12 +209,12 @@ Examples:
 
   # Save to CSV
   python molecular_properties.py --file molecules.sdf --output properties.csv
-        """
+        """,
     )
 
-    parser.add_argument('smiles', nargs='?', help='SMILES string to analyze')
-    parser.add_argument('--file', '-f', help='Input file (SDF or SMILES)')
-    parser.add_argument('--output', '-o', help='Output CSV file')
+    parser.add_argument("smiles", nargs="?", help="SMILES string to analyze")
+    parser.add_argument("--file", "-f", help="Input file (SDF or SMILES)")
+    parser.add_argument("--output", "-o", help="Output CSV file")
 
     args = parser.parse_args()
 
@@ -239,5 +232,5 @@ Examples:
         process_file(args.file, args.output)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

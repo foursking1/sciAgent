@@ -31,13 +31,15 @@ def export_phy(
     output_path = Path(output_dir)
 
     # Compute required extensions if missing
-    if compute_amplitudes and analyzer.get_extension('spike_amplitudes') is None:
+    if compute_amplitudes and analyzer.get_extension("spike_amplitudes") is None:
         print("Computing spike amplitudes...")
-        analyzer.compute('spike_amplitudes')
+        analyzer.compute("spike_amplitudes")
 
-    if compute_pc_features and analyzer.get_extension('principal_components') is None:
+    if compute_pc_features and analyzer.get_extension("principal_components") is None:
         print("Computing principal components...")
-        analyzer.compute('principal_components', n_components=5, mode='by_channel_local')
+        analyzer.compute(
+            "principal_components", n_components=5, mode="by_channel_local"
+        )
 
     print(f"Exporting to Phy: {output_path}")
     export_to_phy(
@@ -50,18 +52,28 @@ def export_phy(
     )
 
     print("\nExport complete!")
-    print(f"To open in Phy, run:")
+    print("To open in Phy, run:")
     print(f"  phy template-gui {output_path / 'params.py'}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Export to Phy')
-    parser.add_argument('analyzer', help='Path to sorting analyzer')
-    parser.add_argument('--output', '-o', default='phy_export/', help='Output directory')
-    parser.add_argument('--no-binary', action='store_true', help='Skip copying binary file')
-    parser.add_argument('--no-amplitudes', action='store_true', help='Skip amplitude computation')
-    parser.add_argument('--no-pc', action='store_true', help='Skip PC feature computation')
-    parser.add_argument('--n-jobs', type=int, default=-1, help='Number of parallel jobs')
+    parser = argparse.ArgumentParser(description="Export to Phy")
+    parser.add_argument("analyzer", help="Path to sorting analyzer")
+    parser.add_argument(
+        "--output", "-o", default="phy_export/", help="Output directory"
+    )
+    parser.add_argument(
+        "--no-binary", action="store_true", help="Skip copying binary file"
+    )
+    parser.add_argument(
+        "--no-amplitudes", action="store_true", help="Skip amplitude computation"
+    )
+    parser.add_argument(
+        "--no-pc", action="store_true", help="Skip PC feature computation"
+    )
+    parser.add_argument(
+        "--n-jobs", type=int, default=-1, help="Number of parallel jobs"
+    )
 
     args = parser.parse_args()
 
@@ -75,5 +87,5 @@ def main():
     )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

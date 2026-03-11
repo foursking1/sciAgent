@@ -224,7 +224,10 @@ class RedliningValidator:
         for parent in root.iter():
             to_remove = []
             for child in parent:
-                if child.tag == ins_tag and child.get(author_attr) == "Scientific-Writer":
+                if (
+                    child.tag == ins_tag
+                    and child.get(author_attr) == "Scientific-Writer"
+                ):
                     to_remove.append(child)
             for elem in to_remove:
                 parent.remove(elem)
@@ -236,7 +239,10 @@ class RedliningValidator:
         for parent in root.iter():
             to_process = []
             for child in parent:
-                if child.tag == del_tag and child.get(author_attr) == "Scientific-Writer":
+                if (
+                    child.tag == del_tag
+                    and child.get(author_attr) == "Scientific-Writer"
+                ):
                     to_process.append((child, list(parent).index(child)))
 
             # Process in reverse order to maintain indices

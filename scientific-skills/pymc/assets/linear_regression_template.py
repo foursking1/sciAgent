@@ -10,7 +10,6 @@ Customize the sections marked with # TODO
 import pymc as pm
 import arviz as az
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 
 # =============================================================================
@@ -43,25 +42,22 @@ X_scaled = (X - X_mean) / X_std
 # =============================================================================
 
 # TODO: Customize predictor names
-predictor_names = ['predictor1', 'predictor2', 'predictor3']
+predictor_names = ["predictor1", "predictor2", "predictor3"]
 
-coords = {
-    'predictors': predictor_names,
-    'obs_id': np.arange(len(y))
-}
+coords = {"predictors": predictor_names, "obs_id": np.arange(len(y))}
 
 with pm.Model(coords=coords) as linear_model:
     # Priors
     # TODO: Adjust prior parameters based on your domain knowledge
-    alpha = pm.Normal('alpha', mu=0, sigma=1)
-    beta = pm.Normal('beta', mu=0, sigma=1, dims='predictors')
-    sigma = pm.HalfNormal('sigma', sigma=1)
+    alpha = pm.Normal("alpha", mu=0, sigma=1)
+    beta = pm.Normal("beta", mu=0, sigma=1, dims="predictors")
+    sigma = pm.HalfNormal("sigma", sigma=1)
 
     # Linear predictor
     mu = alpha + pm.math.dot(X_scaled, beta)
 
     # Likelihood
-    y_obs = pm.Normal('y_obs', mu=mu, sigma=sigma, observed=y, dims='obs_id')
+    y_obs = pm.Normal("y_obs", mu=mu, sigma=sigma, observed=y, dims="obs_id")
 
 # =============================================================================
 # 3. PRIOR PREDICTIVE CHECK
@@ -73,10 +69,10 @@ with linear_model:
 
 # Visualize prior predictions
 fig, ax = plt.subplots(figsize=(10, 6))
-az.plot_ppc(prior_pred, group='prior', num_pp_samples=100, ax=ax)
-ax.set_title('Prior Predictive Check')
+az.plot_ppc(prior_pred, group="prior", num_pp_samples=100, ax=ax)
+ax.set_title("Prior Predictive Check")
 plt.tight_layout()
-plt.savefig('prior_predictive_check.png', dpi=300, bbox_inches='tight')
+plt.savefig("prior_predictive_check.png", dpi=300, bbox_inches="tight")
 print("Prior predictive check saved to 'prior_predictive_check.png'")
 
 # =============================================================================
@@ -95,7 +91,7 @@ with linear_model:
         chains=4,
         target_accept=0.9,
         random_seed=42,
-        idata_kwargs={'log_likelihood': True}
+        idata_kwargs={"log_likelihood": True},
     )
 
 print("Sampling complete!")
@@ -104,28 +100,28 @@ print("Sampling complete!")
 # 5. CHECK DIAGNOSTICS
 # =============================================================================
 
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("DIAGNOSTICS")
-print("="*60)
+print("=" * 60)
 
 # Summary statistics
-summary = az.summary(idata, var_names=['alpha', 'beta', 'sigma'])
+summary = az.summary(idata, var_names=["alpha", "beta", "sigma"])
 print("\nParameter Summary:")
 print(summary)
 
 # Check convergence
-bad_rhat = summary[summary['r_hat'] > 1.01]
+bad_rhat = summary[summary["r_hat"] > 1.01]
 if len(bad_rhat) > 0:
     print(f"\n⚠️  WARNING: {len(bad_rhat)} parameters with R-hat > 1.01")
-    print(bad_rhat[['r_hat']])
+    print(bad_rhat[["r_hat"]])
 else:
     print("\n✓ All R-hat values < 1.01 (good convergence)")
 
 # Check effective sample size
-low_ess = summary[summary['ess_bulk'] < 400]
+low_ess = summary[summary["ess_bulk"] < 400]
 if len(low_ess) > 0:
     print(f"\n⚠️  WARNING: {len(low_ess)} parameters with ESS < 400")
-    print(low_ess[['ess_bulk', 'ess_tail']])
+    print(low_ess[["ess_bulk", "ess_tail"]])
 else:
     print("\n✓ All ESS values > 400 (sufficient samples)")
 
@@ -138,10 +134,10 @@ else:
     print("\n✓ No divergences")
 
 # Trace plots
-fig, axes = plt.subplots(len(['alpha', 'beta', 'sigma']), 2, figsize=(12, 8))
-az.plot_trace(idata, var_names=['alpha', 'beta', 'sigma'], axes=axes)
+fig, axes = plt.subplots(len(["alpha", "beta", "sigma"]), 2, figsize=(12, 8))
+az.plot_trace(idata, var_names=["alpha", "beta", "sigma"], axes=axes)
 plt.tight_layout()
-plt.savefig('trace_plots.png', dpi=300, bbox_inches='tight')
+plt.savefig("trace_plots.png", dpi=300, bbox_inches="tight")
 print("\nTrace plots saved to 'trace_plots.png'")
 
 # =============================================================================
@@ -155,9 +151,9 @@ with linear_model:
 # Visualize fit
 fig, ax = plt.subplots(figsize=(10, 6))
 az.plot_ppc(idata, num_pp_samples=100, ax=ax)
-ax.set_title('Posterior Predictive Check')
+ax.set_title("Posterior Predictive Check")
 plt.tight_layout()
-plt.savefig('posterior_predictive_check.png', dpi=300, bbox_inches='tight')
+plt.savefig("posterior_predictive_check.png", dpi=300, bbox_inches="tight")
 print("Posterior predictive check saved to 'posterior_predictive_check.png'")
 
 # =============================================================================
@@ -166,29 +162,31 @@ print("Posterior predictive check saved to 'posterior_predictive_check.png'")
 
 # Posterior distributions
 fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-az.plot_posterior(idata, var_names=['alpha', 'beta', 'sigma'], ax=axes)
+az.plot_posterior(idata, var_names=["alpha", "beta", "sigma"], ax=axes)
 plt.tight_layout()
-plt.savefig('posterior_distributions.png', dpi=300, bbox_inches='tight')
+plt.savefig("posterior_distributions.png", dpi=300, bbox_inches="tight")
 print("Posterior distributions saved to 'posterior_distributions.png'")
 
 # Forest plot for coefficients
 fig, ax = plt.subplots(figsize=(8, 6))
-az.plot_forest(idata, var_names=['beta'], combined=True, ax=ax)
-ax.set_title('Coefficient Estimates (95% HDI)')
+az.plot_forest(idata, var_names=["beta"], combined=True, ax=ax)
+ax.set_title("Coefficient Estimates (95% HDI)")
 ax.set_yticklabels(predictor_names)
 plt.tight_layout()
-plt.savefig('coefficient_forest_plot.png', dpi=300, bbox_inches='tight')
+plt.savefig("coefficient_forest_plot.png", dpi=300, bbox_inches="tight")
 print("Forest plot saved to 'coefficient_forest_plot.png'")
 
 # Print coefficient estimates
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("COEFFICIENT ESTIMATES")
-print("="*60)
-beta_samples = idata.posterior['beta']
+print("=" * 60)
+beta_samples = idata.posterior["beta"]
 for i, name in enumerate(predictor_names):
     mean = beta_samples.sel(predictors=name).mean().item()
     hdi = az.hdi(beta_samples.sel(predictors=name), hdi_prob=0.95)
-    print(f"{name:20s}: {mean:7.3f}  [95% HDI: {hdi.values[0]:7.3f}, {hdi.values[1]:7.3f}]")
+    print(
+        f"{name:20s}: {mean:7.3f}  [95% HDI: {hdi.values[0]:7.3f}, {hdi.values[1]:7.3f}]"
+    )
 
 # =============================================================================
 # 8. PREDICTIONS FOR NEW DATA
@@ -203,39 +201,39 @@ X_new_scaled = (X_new - X_mean) / X_std
 
 # Update model data and predict
 with linear_model:
-    pm.set_data({'X_scaled': X_new_scaled, 'obs_id': np.arange(len(X_new))})
+    pm.set_data({"X_scaled": X_new_scaled, "obs_id": np.arange(len(X_new))})
 
     post_pred = pm.sample_posterior_predictive(
-        idata.posterior,
-        var_names=['y_obs'],
-        random_seed=42
+        idata.posterior, var_names=["y_obs"], random_seed=42
     )
 
 # Extract predictions
-y_pred_samples = post_pred.posterior_predictive['y_obs']
-y_pred_mean = y_pred_samples.mean(dim=['chain', 'draw']).values
+y_pred_samples = post_pred.posterior_predictive["y_obs"]
+y_pred_mean = y_pred_samples.mean(dim=["chain", "draw"]).values
 y_pred_hdi = az.hdi(y_pred_samples, hdi_prob=0.95).values
 
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("PREDICTIONS FOR NEW DATA")
-print("="*60)
+print("=" * 60)
 print(f"{'Index':<10} {'Mean':<15} {'95% HDI Lower':<15} {'95% HDI Upper':<15}")
-print("-"*60)
+print("-" * 60)
 for i in range(len(X_new)):
-    print(f"{i:<10} {y_pred_mean[i]:<15.3f} {y_pred_hdi[i, 0]:<15.3f} {y_pred_hdi[i, 1]:<15.3f}")
+    print(
+        f"{i:<10} {y_pred_mean[i]:<15.3f} {y_pred_hdi[i, 0]:<15.3f} {y_pred_hdi[i, 1]:<15.3f}"
+    )
 
 # =============================================================================
 # 9. SAVE RESULTS
 # =============================================================================
 
 # Save InferenceData
-idata.to_netcdf('linear_regression_results.nc')
+idata.to_netcdf("linear_regression_results.nc")
 print("\nResults saved to 'linear_regression_results.nc'")
 
 # Save summary to CSV
-summary.to_csv('model_summary.csv')
+summary.to_csv("model_summary.csv")
 print("Summary saved to 'model_summary.csv'")
 
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("ANALYSIS COMPLETE")
-print("="*60)
+print("=" * 60)

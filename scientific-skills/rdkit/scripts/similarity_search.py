@@ -19,38 +19,40 @@ try:
     from rdkit.Chem import AllChem, MACCSkeys, rdFingerprintGenerator
     from rdkit import DataStructs
 except ImportError:
-    print("Error: RDKit not installed. Install with: conda install -c conda-forge rdkit")
+    print(
+        "Error: RDKit not installed. Install with: conda install -c conda-forge rdkit"
+    )
     sys.exit(1)
 
 
 FINGERPRINT_METHODS = {
-    'morgan': 'Morgan fingerprint (ECFP-like)',
-    'rdkit': 'RDKit topological fingerprint',
-    'maccs': 'MACCS structural keys',
-    'atompair': 'Atom pair fingerprint',
-    'torsion': 'Topological torsion fingerprint'
+    "morgan": "Morgan fingerprint (ECFP-like)",
+    "rdkit": "RDKit topological fingerprint",
+    "maccs": "MACCS structural keys",
+    "atompair": "Atom pair fingerprint",
+    "torsion": "Topological torsion fingerprint",
 }
 
 
-def generate_fingerprint(mol, method='morgan', radius=2, n_bits=2048):
+def generate_fingerprint(mol, method="morgan", radius=2, n_bits=2048):
     """Generate molecular fingerprint based on specified method."""
     if mol is None:
         return None
 
     method = method.lower()
 
-    if method == 'morgan':
+    if method == "morgan":
         gen = rdFingerprintGenerator.GetMorganGenerator(radius=radius, fpSize=n_bits)
         return gen.GetFingerprint(mol)
-    elif method == 'rdkit':
+    elif method == "rdkit":
         gen = rdFingerprintGenerator.GetRDKitFPGenerator(maxPath=7, fpSize=n_bits)
         return gen.GetFingerprint(mol)
-    elif method == 'maccs':
+    elif method == "maccs":
         return MACCSkeys.GenMACCSKeys(mol)
-    elif method == 'atompair':
+    elif method == "atompair":
         gen = rdFingerprintGenerator.GetAtomPairGenerator(fpSize=n_bits)
         return gen.GetFingerprint(mol)
-    elif method == 'torsion':
+    elif method == "torsion":
         gen = rdFingerprintGenerator.GetTopologicalTorsionGenerator(fpSize=n_bits)
         return gen.GetFingerprint(mol)
     else:
@@ -67,9 +69,9 @@ def load_molecules(file_path):
 
     molecules = []
 
-    if path.suffix.lower() in ['.sdf', '.mol']:
+    if path.suffix.lower() in [".sdf", ".mol"]:
         suppl = Chem.SDMolSupplier(str(path))
-    elif path.suffix.lower() in ['.smi', '.smiles', '.txt']:
+    elif path.suffix.lower() in [".smi", ".smiles", ".txt"]:
         suppl = Chem.SmilesMolSupplier(str(path), titleLine=False)
     else:
         print(f"Error: Unsupported file format: {path.suffix}")
@@ -81,21 +83,23 @@ def load_molecules(file_path):
             continue
 
         # Try to get molecule name
-        name = mol.GetProp('_Name') if mol.HasProp('_Name') else f"Mol_{idx+1}"
+        name = mol.GetProp("_Name") if mol.HasProp("_Name") else f"Mol_{idx+1}"
         smiles = Chem.MolToSmiles(mol)
 
-        molecules.append({
-            'index': idx + 1,
-            'name': name,
-            'smiles': smiles,
-            'mol': mol
-        })
+        molecules.append({"index": idx + 1, "name": name, "smiles": smiles, "mol": mol})
 
     return molecules
 
 
-def similarity_search(query_mol, database, method='morgan', threshold=0.7,
-                     radius=2, n_bits=2048, metric='tanimoto'):
+def similarity_search(
+    query_mol,
+    database,
+    method="morgan",
+    threshold=0.7,
+    radius=2,
+    n_bits=2048,
+    metric="tanimoto",
+):
     """
     Perform similarity search.
 
@@ -122,11 +126,11 @@ def similarity_search(query_mol, database, method='morgan', threshold=0.7,
         return []
 
     # Choose similarity function
-    if metric.lower() == 'tanimoto':
+    if metric.lower() == "tanimoto":
         sim_func = DataStructs.TanimotoSimilarity
-    elif metric.lower() == 'dice':
+    elif metric.lower() == "dice":
         sim_func = DataStructs.DiceSimilarity
-    elif metric.lower() == 'cosine':
+    elif metric.lower() == "cosine":
         sim_func = DataStructs.CosineSimilarity
     else:
         raise ValueError(f"Unknown similarity metric: {metric}")
@@ -134,22 +138,24 @@ def similarity_search(query_mol, database, method='morgan', threshold=0.7,
     # Search database
     hits = []
     for db_entry in database:
-        db_fp = generate_fingerprint(db_entry['mol'], method, radius, n_bits)
+        db_fp = generate_fingerprint(db_entry["mol"], method, radius, n_bits)
         if db_fp is None:
             continue
 
         similarity = sim_func(query_fp, db_fp)
 
         if similarity >= threshold:
-            hits.append({
-                'index': db_entry['index'],
-                'name': db_entry['name'],
-                'smiles': db_entry['smiles'],
-                'similarity': similarity
-            })
+            hits.append(
+                {
+                    "index": db_entry["index"],
+                    "name": db_entry["name"],
+                    "smiles": db_entry["smiles"],
+                    "similarity": similarity,
+                }
+            )
 
     # Sort by similarity (descending)
-    hits.sort(key=lambda x: x['similarity'], reverse=True)
+    hits.sort(key=lambda x: x["similarity"], reverse=True)
 
     return hits
 
@@ -158,19 +164,21 @@ def write_results(hits, output_file):
     """Write results to CSV file."""
     import csv
 
-    with open(output_file, 'w', newline='') as f:
-        fieldnames = ['Rank', 'Index', 'Name', 'SMILES', 'Similarity']
+    with open(output_file, "w", newline="") as f:
+        fieldnames = ["Rank", "Index", "Name", "SMILES", "Similarity"]
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
 
         for rank, hit in enumerate(hits, 1):
-            writer.writerow({
-                'Rank': rank,
-                'Index': hit['index'],
-                'Name': hit['name'],
-                'SMILES': hit['smiles'],
-                'Similarity': f"{hit['similarity']:.4f}"
-            })
+            writer.writerow(
+                {
+                    "Rank": rank,
+                    "Index": hit["index"],
+                    "Name": hit["name"],
+                    "SMILES": hit["smiles"],
+                    "Similarity": f"{hit['similarity']:.4f}",
+                }
+            )
 
 
 def print_results(hits, max_display=20):
@@ -180,24 +188,28 @@ def print_results(hits, max_display=20):
         return
 
     print(f"\nFound {len(hits)} similar molecules:")
-    print("="*80)
+    print("=" * 80)
     print(f"{'Rank':<6} {'Index':<8} {'Similarity':<12} {'Name':<20} {'SMILES'}")
-    print("-"*80)
+    print("-" * 80)
 
     for rank, hit in enumerate(hits[:max_display], 1):
-        name = hit['name'][:18] + '..' if len(hit['name']) > 20 else hit['name']
-        smiles = hit['smiles'][:40] + '...' if len(hit['smiles']) > 43 else hit['smiles']
-        print(f"{rank:<6} {hit['index']:<8} {hit['similarity']:<12.4f} {name:<20} {smiles}")
+        name = hit["name"][:18] + ".." if len(hit["name"]) > 20 else hit["name"]
+        smiles = (
+            hit["smiles"][:40] + "..." if len(hit["smiles"]) > 43 else hit["smiles"]
+        )
+        print(
+            f"{rank:<6} {hit['index']:<8} {hit['similarity']:<12.4f} {name:<20} {smiles}"
+        )
 
     if len(hits) > max_display:
         print(f"\n... and {len(hits) - max_display} more")
 
-    print("="*80)
+    print("=" * 80)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Molecular similarity search using fingerprints',
+        description="Molecular similarity search using fingerprints",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""
 Available fingerprint methods:
@@ -220,26 +232,48 @@ Examples:
 
   # Adjust Morgan radius
   python similarity_search.py "CCO" database.smi --method morgan --radius 3
-        """
+        """,
     )
 
-    parser.add_argument('query', help='Query SMILES or file')
-    parser.add_argument('database', help='Database file (SDF or SMILES)')
-    parser.add_argument('--method', '-m', default='morgan',
-                       choices=FINGERPRINT_METHODS.keys(),
-                       help='Fingerprint method (default: morgan)')
-    parser.add_argument('--threshold', '-t', type=float, default=0.7,
-                       help='Similarity threshold (default: 0.7)')
-    parser.add_argument('--radius', '-r', type=int, default=2,
-                       help='Morgan fingerprint radius (default: 2)')
-    parser.add_argument('--bits', '-b', type=int, default=2048,
-                       help='Fingerprint size (default: 2048)')
-    parser.add_argument('--metric', default='tanimoto',
-                       choices=['tanimoto', 'dice', 'cosine'],
-                       help='Similarity metric (default: tanimoto)')
-    parser.add_argument('--output', '-o', help='Output CSV file')
-    parser.add_argument('--max-display', type=int, default=20,
-                       help='Maximum hits to display (default: 20)')
+    parser.add_argument("query", help="Query SMILES or file")
+    parser.add_argument("database", help="Database file (SDF or SMILES)")
+    parser.add_argument(
+        "--method",
+        "-m",
+        default="morgan",
+        choices=FINGERPRINT_METHODS.keys(),
+        help="Fingerprint method (default: morgan)",
+    )
+    parser.add_argument(
+        "--threshold",
+        "-t",
+        type=float,
+        default=0.7,
+        help="Similarity threshold (default: 0.7)",
+    )
+    parser.add_argument(
+        "--radius",
+        "-r",
+        type=int,
+        default=2,
+        help="Morgan fingerprint radius (default: 2)",
+    )
+    parser.add_argument(
+        "--bits", "-b", type=int, default=2048, help="Fingerprint size (default: 2048)"
+    )
+    parser.add_argument(
+        "--metric",
+        default="tanimoto",
+        choices=["tanimoto", "dice", "cosine"],
+        help="Similarity metric (default: tanimoto)",
+    )
+    parser.add_argument("--output", "-o", help="Output CSV file")
+    parser.add_argument(
+        "--max-display",
+        type=int,
+        default=20,
+        help="Maximum hits to display (default: 20)",
+    )
 
     args = parser.parse_args()
 
@@ -251,8 +285,8 @@ Examples:
         if not query_mols:
             print("Error: No valid molecules in query file")
             sys.exit(1)
-        query_mol = query_mols[0]['mol']
-        query_smiles = query_mols[0]['smiles']
+        query_mol = query_mols[0]["mol"]
+        query_smiles = query_mols[0]["smiles"]
     else:
         # Query is SMILES string
         query_mol = Chem.MolFromSmiles(args.query)
@@ -277,12 +311,13 @@ Examples:
 
     # Perform search
     hits = similarity_search(
-        query_mol, database,
+        query_mol,
+        database,
         method=args.method,
         threshold=args.threshold,
         radius=args.radius,
         n_bits=args.bits,
-        metric=args.metric
+        metric=args.metric,
     )
 
     # Output results
@@ -293,5 +328,5 @@ Examples:
     print_results(hits, args.max_display)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

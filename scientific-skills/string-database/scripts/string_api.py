@@ -14,18 +14,19 @@ STRING provides protein-protein interaction data from over 40 sources covering
 import urllib.request
 import urllib.parse
 import urllib.error
-import json
-from typing import Optional, List, Union, Dict
+from typing import List, Union
 
 
 STRING_BASE_URL = "https://string-db.org/api"
 
 
-def string_map_ids(identifiers: Union[str, List[str]],
-                   species: int = 9606,
-                   limit: int = 1,
-                   echo_query: int = 1,
-                   caller_identity: str = "claude_scientific_skills") -> str:
+def string_map_ids(
+    identifiers: Union[str, List[str]],
+    species: int = 9606,
+    limit: int = 1,
+    echo_query: int = 1,
+    caller_identity: str = "claude_scientific_skills",
+) -> str:
     """
     Map protein names, synonyms, and identifiers to STRING IDs.
 
@@ -47,34 +48,36 @@ def string_map_ids(identifiers: Union[str, List[str]],
         result = string_map_ids(['TP53', 'BRCA1', 'EGFR'], species=9606)
     """
     if isinstance(identifiers, list):
-        identifiers_str = '\n'.join(identifiers)
+        identifiers_str = "\n".join(identifiers)
     else:
         identifiers_str = identifiers
 
     params = {
-        'identifiers': identifiers_str,
-        'species': species,
-        'limit': limit,
-        'echo_query': echo_query,
-        'caller_identity': caller_identity
+        "identifiers": identifiers_str,
+        "species": species,
+        "limit": limit,
+        "echo_query": echo_query,
+        "caller_identity": caller_identity,
     }
 
     url = f"{STRING_BASE_URL}/tsv/get_string_ids"
-    data = urllib.parse.urlencode(params).encode('utf-8')
+    data = urllib.parse.urlencode(params).encode("utf-8")
 
     try:
         with urllib.request.urlopen(url, data=data) as response:
-            return response.read().decode('utf-8')
+            return response.read().decode("utf-8")
     except urllib.error.HTTPError as e:
         return f"Error: {e.code} - {e.reason}"
 
 
-def string_network(identifiers: Union[str, List[str]],
-                   species: int = 9606,
-                   required_score: int = 400,
-                   network_type: str = "functional",
-                   add_nodes: int = 0,
-                   caller_identity: str = "claude_scientific_skills") -> str:
+def string_network(
+    identifiers: Union[str, List[str]],
+    species: int = 9606,
+    required_score: int = 400,
+    network_type: str = "functional",
+    add_nodes: int = 0,
+    caller_identity: str = "claude_scientific_skills",
+) -> str:
     """
     Get protein-protein interaction network data.
 
@@ -100,34 +103,36 @@ def string_network(identifiers: Union[str, List[str]],
         network = string_network('TP53', add_nodes=5, required_score=700)
     """
     if isinstance(identifiers, list):
-        identifiers_str = '%0d'.join(identifiers)
+        identifiers_str = "%0d".join(identifiers)
     else:
         identifiers_str = identifiers
 
     params = {
-        'identifiers': identifiers_str,
-        'species': species,
-        'required_score': required_score,
-        'network_type': network_type,
-        'add_nodes': add_nodes,
-        'caller_identity': caller_identity
+        "identifiers": identifiers_str,
+        "species": species,
+        "required_score": required_score,
+        "network_type": network_type,
+        "add_nodes": add_nodes,
+        "caller_identity": caller_identity,
     }
 
     url = f"{STRING_BASE_URL}/tsv/network?" + urllib.parse.urlencode(params)
 
     try:
         with urllib.request.urlopen(url) as response:
-            return response.read().decode('utf-8')
+            return response.read().decode("utf-8")
     except urllib.error.HTTPError as e:
         return f"Error: {e.code} - {e.reason}"
 
 
-def string_network_image(identifiers: Union[str, List[str]],
-                        species: int = 9606,
-                        required_score: int = 400,
-                        network_flavor: str = "evidence",
-                        add_nodes: int = 0,
-                        caller_identity: str = "claude_scientific_skills") -> bytes:
+def string_network_image(
+    identifiers: Union[str, List[str]],
+    species: int = 9606,
+    required_score: int = 400,
+    network_flavor: str = "evidence",
+    add_nodes: int = 0,
+    caller_identity: str = "claude_scientific_skills",
+) -> bytes:
     """
     Get network visualization as PNG image.
 
@@ -149,17 +154,17 @@ def string_network_image(identifiers: Union[str, List[str]],
             f.write(img_data)
     """
     if isinstance(identifiers, list):
-        identifiers_str = '%0d'.join(identifiers)
+        identifiers_str = "%0d".join(identifiers)
     else:
         identifiers_str = identifiers
 
     params = {
-        'identifiers': identifiers_str,
-        'species': species,
-        'required_score': required_score,
-        'network_flavor': network_flavor,
-        'add_nodes': add_nodes,
-        'caller_identity': caller_identity
+        "identifiers": identifiers_str,
+        "species": species,
+        "required_score": required_score,
+        "network_flavor": network_flavor,
+        "add_nodes": add_nodes,
+        "caller_identity": caller_identity,
     }
 
     url = f"{STRING_BASE_URL}/image/network?" + urllib.parse.urlencode(params)
@@ -171,11 +176,13 @@ def string_network_image(identifiers: Union[str, List[str]],
         return f"Error: {e.code} - {e.reason}".encode()
 
 
-def string_interaction_partners(identifiers: Union[str, List[str]],
-                                species: int = 9606,
-                                required_score: int = 400,
-                                limit: int = 10,
-                                caller_identity: str = "claude_scientific_skills") -> str:
+def string_interaction_partners(
+    identifiers: Union[str, List[str]],
+    species: int = 9606,
+    required_score: int = 400,
+    limit: int = 10,
+    caller_identity: str = "claude_scientific_skills",
+) -> str:
     """
     Get all interaction partners for protein(s).
 
@@ -194,30 +201,34 @@ def string_interaction_partners(identifiers: Union[str, List[str]],
         partners = string_interaction_partners('TP53', limit=20, required_score=700)
     """
     if isinstance(identifiers, list):
-        identifiers_str = '%0d'.join(identifiers)
+        identifiers_str = "%0d".join(identifiers)
     else:
         identifiers_str = identifiers
 
     params = {
-        'identifiers': identifiers_str,
-        'species': species,
-        'required_score': required_score,
-        'limit': limit,
-        'caller_identity': caller_identity
+        "identifiers": identifiers_str,
+        "species": species,
+        "required_score": required_score,
+        "limit": limit,
+        "caller_identity": caller_identity,
     }
 
-    url = f"{STRING_BASE_URL}/tsv/interaction_partners?" + urllib.parse.urlencode(params)
+    url = f"{STRING_BASE_URL}/tsv/interaction_partners?" + urllib.parse.urlencode(
+        params
+    )
 
     try:
         with urllib.request.urlopen(url) as response:
-            return response.read().decode('utf-8')
+            return response.read().decode("utf-8")
     except urllib.error.HTTPError as e:
         return f"Error: {e.code} - {e.reason}"
 
 
-def string_enrichment(identifiers: Union[str, List[str]],
-                     species: int = 9606,
-                     caller_identity: str = "claude_scientific_skills") -> str:
+def string_enrichment(
+    identifiers: Union[str, List[str]],
+    species: int = 9606,
+    caller_identity: str = "claude_scientific_skills",
+) -> str:
     """
     Perform functional enrichment analysis (Gene Ontology, KEGG, Pfam, etc.).
 
@@ -235,29 +246,31 @@ def string_enrichment(identifiers: Union[str, List[str]],
         enrichment = string_enrichment(proteins, species=9606)
     """
     if isinstance(identifiers, list):
-        identifiers_str = '%0d'.join(identifiers)
+        identifiers_str = "%0d".join(identifiers)
     else:
         identifiers_str = identifiers
 
     params = {
-        'identifiers': identifiers_str,
-        'species': species,
-        'caller_identity': caller_identity
+        "identifiers": identifiers_str,
+        "species": species,
+        "caller_identity": caller_identity,
     }
 
     url = f"{STRING_BASE_URL}/tsv/enrichment?" + urllib.parse.urlencode(params)
 
     try:
         with urllib.request.urlopen(url) as response:
-            return response.read().decode('utf-8')
+            return response.read().decode("utf-8")
     except urllib.error.HTTPError as e:
         return f"Error: {e.code} - {e.reason}"
 
 
-def string_ppi_enrichment(identifiers: Union[str, List[str]],
-                         species: int = 9606,
-                         required_score: int = 400,
-                         caller_identity: str = "claude_scientific_skills") -> str:
+def string_ppi_enrichment(
+    identifiers: Union[str, List[str]],
+    species: int = 9606,
+    required_score: int = 400,
+    caller_identity: str = "claude_scientific_skills",
+) -> str:
     """
     Test if network has more interactions than expected by chance.
 
@@ -276,29 +289,31 @@ def string_ppi_enrichment(identifiers: Union[str, List[str]],
         ppi_result = string_ppi_enrichment(proteins)
     """
     if isinstance(identifiers, list):
-        identifiers_str = '%0d'.join(identifiers)
+        identifiers_str = "%0d".join(identifiers)
     else:
         identifiers_str = identifiers
 
     params = {
-        'identifiers': identifiers_str,
-        'species': species,
-        'required_score': required_score,
-        'caller_identity': caller_identity
+        "identifiers": identifiers_str,
+        "species": species,
+        "required_score": required_score,
+        "caller_identity": caller_identity,
     }
 
     url = f"{STRING_BASE_URL}/json/ppi_enrichment?" + urllib.parse.urlencode(params)
 
     try:
         with urllib.request.urlopen(url) as response:
-            return response.read().decode('utf-8')
+            return response.read().decode("utf-8")
     except urllib.error.HTTPError as e:
         return f"Error: {e.code} - {e.reason}"
 
 
-def string_homology(identifiers: Union[str, List[str]],
-                   species: int = 9606,
-                   caller_identity: str = "claude_scientific_skills") -> str:
+def string_homology(
+    identifiers: Union[str, List[str]],
+    species: int = 9606,
+    caller_identity: str = "claude_scientific_skills",
+) -> str:
     """
     Get homology/similarity scores between proteins.
 
@@ -315,21 +330,21 @@ def string_homology(identifiers: Union[str, List[str]],
         homology = string_homology(['TP53', 'TP63', 'TP73'])
     """
     if isinstance(identifiers, list):
-        identifiers_str = '%0d'.join(identifiers)
+        identifiers_str = "%0d".join(identifiers)
     else:
         identifiers_str = identifiers
 
     params = {
-        'identifiers': identifiers_str,
-        'species': species,
-        'caller_identity': caller_identity
+        "identifiers": identifiers_str,
+        "species": species,
+        "caller_identity": caller_identity,
     }
 
     url = f"{STRING_BASE_URL}/tsv/homology?" + urllib.parse.urlencode(params)
 
     try:
         with urllib.request.urlopen(url) as response:
-            return response.read().decode('utf-8')
+            return response.read().decode("utf-8")
     except urllib.error.HTTPError as e:
         return f"Error: {e.code} - {e.reason}"
 
@@ -348,7 +363,7 @@ def string_version() -> str:
 
     try:
         with urllib.request.urlopen(url) as response:
-            return response.read().decode('utf-8')
+            return response.read().decode("utf-8")
     except urllib.error.HTTPError as e:
         return f"Error: {e.code} - {e.reason}"
 
@@ -360,10 +375,10 @@ if __name__ == "__main__":
     print()
 
     print("Mapping protein names to STRING IDs:")
-    mapping = string_map_ids(['TP53', 'BRCA1'], species=9606)
+    mapping = string_map_ids(["TP53", "BRCA1"], species=9606)
     print(mapping)
     print()
 
     print("Getting interaction network:")
-    network = string_network('TP53', species=9606, add_nodes=3)
+    network = string_network("TP53", species=9606, add_nodes=3)
     print(network[:500] + "...")

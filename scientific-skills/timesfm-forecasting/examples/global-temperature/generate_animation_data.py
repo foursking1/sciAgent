@@ -135,12 +135,12 @@ def main() -> None:
     with open(OUTPUT_FILE, "w") as f:
         json.dump(output, f, indent=2)
 
-    print(f"\n" + "=" * 60)
+    print("\n" + "=" * 60)
     print("  ✅ ANIMATION DATA COMPLETE")
     print("=" * 60)
     print(f"\n📁 Output: {OUTPUT_FILE}")
     print(f"   Total steps: {len(animation_steps)}")
-    print(f"   Each forecast extends to 2025-12")
+    print("   Each forecast extends to 2025-12")
 
 
 if __name__ == "__main__":

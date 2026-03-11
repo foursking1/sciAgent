@@ -26,7 +26,7 @@ def read_gene_list(filepath: str) -> List[str]:
         List of gene identifiers
     """
     try:
-        with open(filepath, 'r') as f:
+        with open(filepath, "r") as f:
             genes = [line.strip() for line in f if line.strip()]
         return genes
     except FileNotFoundError:
@@ -37,8 +37,9 @@ def read_gene_list(filepath: str) -> List[str]:
         sys.exit(1)
 
 
-def batch_esearch(queries: List[str], organism: Optional[str] = None,
-                  api_key: Optional[str] = None) -> Dict[str, str]:
+def batch_esearch(
+    queries: List[str], organism: Optional[str] = None, api_key: Optional[str] = None
+) -> Dict[str, str]:
     """
     Search for multiple gene symbols and return their IDs.
 
@@ -62,15 +63,10 @@ def batch_esearch(queries: List[str], organism: Optional[str] = None,
         if organism:
             search_term += f" AND {organism}[organism]"
 
-        params = {
-            'db': 'gene',
-            'term': search_term,
-            'retmax': 1,
-            'retmode': 'json'
-        }
+        params = {"db": "gene", "term": search_term, "retmax": 1, "retmode": "json"}
 
         if api_key:
-            params['api_key'] = api_key
+            params["api_key"] = api_key
 
         url = f"{base_url}esearch.fcgi?{urllib.parse.urlencode(params)}"
 
@@ -78,23 +74,24 @@ def batch_esearch(queries: List[str], organism: Optional[str] = None,
             with urllib.request.urlopen(url) as response:
                 data = json.loads(response.read().decode())
 
-            if 'esearchresult' in data and 'idlist' in data['esearchresult']:
-                id_list = data['esearchresult']['idlist']
-                results[query] = id_list[0] if id_list else 'NOT_FOUND'
+            if "esearchresult" in data and "idlist" in data["esearchresult"]:
+                id_list = data["esearchresult"]["idlist"]
+                results[query] = id_list[0] if id_list else "NOT_FOUND"
             else:
-                results[query] = 'ERROR'
+                results[query] = "ERROR"
 
         except Exception as e:
             print(f"Error searching for {query}: {e}", file=sys.stderr)
-            results[query] = 'ERROR'
+            results[query] = "ERROR"
 
         time.sleep(delay)
 
     return results
 
 
-def batch_esummary(gene_ids: List[str], api_key: Optional[str] = None,
-                   chunk_size: int = 200) -> Dict[str, Dict[str, Any]]:
+def batch_esummary(
+    gene_ids: List[str], api_key: Optional[str] = None, chunk_size: int = 200
+) -> Dict[str, Dict[str, Any]]:
     """
     Get summaries for multiple genes in batches.
 
@@ -114,16 +111,12 @@ def batch_esummary(gene_ids: List[str], api_key: Optional[str] = None,
 
     # Process in chunks
     for i in range(0, len(gene_ids), chunk_size):
-        chunk = gene_ids[i:i + chunk_size]
+        chunk = gene_ids[i : i + chunk_size]
 
-        params = {
-            'db': 'gene',
-            'id': ','.join(chunk),
-            'retmode': 'json'
-        }
+        params = {"db": "gene", "id": ",".join(chunk), "retmode": "json"}
 
         if api_key:
-            params['api_key'] = api_key
+            params["api_key"] = api_key
 
         url = f"{base_url}esummary.fcgi?{urllib.parse.urlencode(params)}"
 
@@ -131,10 +124,10 @@ def batch_esummary(gene_ids: List[str], api_key: Optional[str] = None,
             with urllib.request.urlopen(url) as response:
                 data = json.loads(response.read().decode())
 
-            if 'result' in data:
+            if "result" in data:
                 for gene_id in chunk:
-                    if gene_id in data['result']:
-                        all_results[gene_id] = data['result'][gene_id]
+                    if gene_id in data["result"]:
+                        all_results[gene_id] = data["result"][gene_id]
 
         except Exception as e:
             print(f"Error fetching summaries for chunk: {e}", file=sys.stderr)
@@ -144,7 +137,9 @@ def batch_esummary(gene_ids: List[str], api_key: Optional[str] = None,
     return all_results
 
 
-def batch_lookup_by_ids(gene_ids: List[str], api_key: Optional[str] = None) -> List[Dict[str, Any]]:
+def batch_lookup_by_ids(
+    gene_ids: List[str], api_key: Optional[str] = None
+) -> List[Dict[str, Any]]:
     """
     Lookup genes by IDs and return structured data.
 
@@ -161,26 +156,26 @@ def batch_lookup_by_ids(gene_ids: List[str], api_key: Optional[str] = None) -> L
     for gene_id in gene_ids:
         if gene_id in summaries:
             gene = summaries[gene_id]
-            results.append({
-                'gene_id': gene_id,
-                'symbol': gene.get('name', 'N/A'),
-                'description': gene.get('description', 'N/A'),
-                'organism': gene.get('organism', {}).get('scientificname', 'N/A'),
-                'chromosome': gene.get('chromosome', 'N/A'),
-                'map_location': gene.get('maplocation', 'N/A'),
-                'type': gene.get('geneticsource', 'N/A')
-            })
+            results.append(
+                {
+                    "gene_id": gene_id,
+                    "symbol": gene.get("name", "N/A"),
+                    "description": gene.get("description", "N/A"),
+                    "organism": gene.get("organism", {}).get("scientificname", "N/A"),
+                    "chromosome": gene.get("chromosome", "N/A"),
+                    "map_location": gene.get("maplocation", "N/A"),
+                    "type": gene.get("geneticsource", "N/A"),
+                }
+            )
         else:
-            results.append({
-                'gene_id': gene_id,
-                'error': 'Not found or error fetching'
-            })
+            results.append({"gene_id": gene_id, "error": "Not found or error fetching"})
 
     return results
 
 
-def batch_lookup_by_symbols(gene_symbols: List[str], organism: str,
-                            api_key: Optional[str] = None) -> List[Dict[str, Any]]:
+def batch_lookup_by_symbols(
+    gene_symbols: List[str], organism: str, api_key: Optional[str] = None
+) -> List[Dict[str, Any]]:
     """
     Lookup genes by symbols and return structured data.
 
@@ -197,7 +192,7 @@ def batch_lookup_by_symbols(gene_symbols: List[str], organism: str,
     symbol_to_id = batch_esearch(gene_symbols, organism=organism, api_key=api_key)
 
     # Filter to valid IDs
-    valid_ids = [id for id in symbol_to_id.values() if id not in ['NOT_FOUND', 'ERROR']]
+    valid_ids = [id for id in symbol_to_id.values() if id not in ["NOT_FOUND", "ERROR"]]
 
     if not valid_ids:
         print("No genes found", file=sys.stderr)
@@ -211,35 +206,31 @@ def batch_lookup_by_symbols(gene_symbols: List[str], organism: str,
     # Build results
     results = []
     for symbol, gene_id in symbol_to_id.items():
-        if gene_id == 'NOT_FOUND':
-            results.append({
-                'query_symbol': symbol,
-                'status': 'not_found'
-            })
-        elif gene_id == 'ERROR':
-            results.append({
-                'query_symbol': symbol,
-                'status': 'error'
-            })
+        if gene_id == "NOT_FOUND":
+            results.append({"query_symbol": symbol, "status": "not_found"})
+        elif gene_id == "ERROR":
+            results.append({"query_symbol": symbol, "status": "error"})
         elif gene_id in summaries:
             gene = summaries[gene_id]
-            results.append({
-                'query_symbol': symbol,
-                'gene_id': gene_id,
-                'symbol': gene.get('name', 'N/A'),
-                'description': gene.get('description', 'N/A'),
-                'organism': gene.get('organism', {}).get('scientificname', 'N/A'),
-                'chromosome': gene.get('chromosome', 'N/A'),
-                'map_location': gene.get('maplocation', 'N/A'),
-                'type': gene.get('geneticsource', 'N/A')
-            })
+            results.append(
+                {
+                    "query_symbol": symbol,
+                    "gene_id": gene_id,
+                    "symbol": gene.get("name", "N/A"),
+                    "description": gene.get("description", "N/A"),
+                    "organism": gene.get("organism", {}).get("scientificname", "N/A"),
+                    "chromosome": gene.get("chromosome", "N/A"),
+                    "map_location": gene.get("maplocation", "N/A"),
+                    "type": gene.get("geneticsource", "N/A"),
+                }
+            )
 
     return results
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Batch gene lookup using NCBI APIs',
+        description="Batch gene lookup using NCBI APIs",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -251,16 +242,19 @@ Examples:
 
   # Lookup with API key and save to file
   %(prog)s --ids 672,7157,5594 --api-key YOUR_KEY --output results.json
-        """
+        """,
     )
 
-    parser.add_argument('--ids', '-i', help='Comma-separated Gene IDs')
-    parser.add_argument('--file', '-f', help='File containing gene symbols (one per line)')
-    parser.add_argument('--organism', '-o', help='Organism name (required with --file)')
-    parser.add_argument('--output', '-O', help='Output file path (JSON format)')
-    parser.add_argument('--api-key', '-k', help='NCBI API key')
-    parser.add_argument('--pretty', '-p', action='store_true',
-                       help='Pretty-print JSON output')
+    parser.add_argument("--ids", "-i", help="Comma-separated Gene IDs")
+    parser.add_argument(
+        "--file", "-f", help="File containing gene symbols (one per line)"
+    )
+    parser.add_argument("--organism", "-o", help="Organism name (required with --file)")
+    parser.add_argument("--output", "-O", help="Output file path (JSON format)")
+    parser.add_argument("--api-key", "-k", help="NCBI API key")
+    parser.add_argument(
+        "--pretty", "-p", action="store_true", help="Pretty-print JSON output"
+    )
 
     args = parser.parse_args()
 
@@ -272,11 +266,13 @@ Examples:
 
     # Process genes
     if args.ids:
-        gene_ids = [id.strip() for id in args.ids.split(',')]
+        gene_ids = [id.strip() for id in args.ids.split(",")]
         results = batch_lookup_by_ids(gene_ids, api_key=args.api_key)
     else:
         gene_symbols = read_gene_list(args.file)
-        results = batch_lookup_by_symbols(gene_symbols, args.organism, api_key=args.api_key)
+        results = batch_lookup_by_symbols(
+            gene_symbols, args.organism, api_key=args.api_key
+        )
 
     # Output results
     indent = 2 if args.pretty else None
@@ -284,7 +280,7 @@ Examples:
 
     if args.output:
         try:
-            with open(args.output, 'w') as f:
+            with open(args.output, "w") as f:
                 f.write(json_output)
             print(f"Results written to {args.output}", file=sys.stderr)
         except Exception as e:
@@ -294,5 +290,5 @@ Examples:
         print(json_output)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -37,9 +37,7 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler(
-            log_dir / "test_data_scientist.log", mode="w", encoding="utf-8"
-        ),
+        logging.FileHandler(log_dir / "test_data_scientist.log", mode="w", encoding="utf-8"),
     ],
 )
 logger = logging.getLogger("DataScientistTest")

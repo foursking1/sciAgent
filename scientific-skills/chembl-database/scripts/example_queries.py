@@ -56,14 +56,12 @@ def find_molecules_by_properties(max_mw=500, min_logp=None, max_logp=None):
     """
     molecule = new_client.molecule
 
-    filters = {
-        'molecule_properties__mw_freebase__lte': max_mw
-    }
+    filters = {"molecule_properties__mw_freebase__lte": max_mw}
 
     if min_logp is not None:
-        filters['molecule_properties__alogp__gte'] = min_logp
+        filters["molecule_properties__alogp__gte"] = min_logp
     if max_logp is not None:
-        filters['molecule_properties__alogp__lte'] = max_logp
+        filters["molecule_properties__alogp__lte"] = max_logp
 
     results = molecule.filter(**filters)
     return list(results)
@@ -95,13 +93,12 @@ def search_targets_by_name(target_name):
     """
     target = new_client.target
     results = target.filter(
-        target_type='SINGLE PROTEIN',
-        pref_name__icontains=target_name
+        target_type="SINGLE PROTEIN", pref_name__icontains=target_name
     )
     return list(results)
 
 
-def get_bioactivity_data(target_chembl_id, activity_type='IC50', max_value=100):
+def get_bioactivity_data(target_chembl_id, activity_type="IC50", max_value=100):
     """
     Retrieve bioactivity data for a specific target.
 
@@ -118,7 +115,7 @@ def get_bioactivity_data(target_chembl_id, activity_type='IC50', max_value=100):
         target_chembl_id=target_chembl_id,
         standard_type=activity_type,
         standard_value__lte=max_value,
-        standard_units='nM'
+        standard_units="nM",
     )
     return list(results)
 
@@ -135,10 +132,7 @@ def find_similar_compounds(smiles, similarity_threshold=85):
         List of similar compounds
     """
     similarity = new_client.similarity
-    results = similarity.filter(
-        smiles=smiles,
-        similarity=similarity_threshold
-    )
+    results = similarity.filter(smiles=smiles, similarity=similarity_threshold)
     return list(results)
 
 
@@ -197,19 +191,20 @@ def find_kinase_inhibitors(max_ic50=100):
 
     # Find kinase targets
     kinase_targets = target.filter(
-        target_type='SINGLE PROTEIN',
-        pref_name__icontains='kinase'
+        target_type="SINGLE PROTEIN", pref_name__icontains="kinase"
     )
 
     # Get target IDs
-    target_ids = [t['target_chembl_id'] for t in kinase_targets[:10]]  # Limit to first 10
+    target_ids = [
+        t["target_chembl_id"] for t in kinase_targets[:10]
+    ]  # Limit to first 10
 
     # Find activities
     results = activity.filter(
         target_chembl_id__in=target_ids,
-        standard_type='IC50',
+        standard_type="IC50",
         standard_value__lte=max_ic50,
-        standard_units='nM'
+        standard_units="nM",
     )
 
     return list(results)
@@ -227,8 +222,7 @@ def get_compound_bioactivities(molecule_chembl_id):
     """
     activity = new_client.activity
     results = activity.filter(
-        molecule_chembl_id=molecule_chembl_id,
-        pchembl_value__isnull=False
+        molecule_chembl_id=molecule_chembl_id, pchembl_value__isnull=False
     )
     return list(results)
 
@@ -245,6 +239,7 @@ def export_to_dataframe(data):
     """
     try:
         import pandas as pd
+
         return pd.DataFrame(data)
     except ImportError:
         print("pandas not installed. Install with: pip install pandas")
@@ -258,20 +253,20 @@ if __name__ == "__main__":
 
     # Example 1: Get information about aspirin
     print("\n1. Getting information about aspirin (CHEMBL25)...")
-    aspirin = get_molecule_info('CHEMBL25')
+    aspirin = get_molecule_info("CHEMBL25")
     print(f"Name: {aspirin.get('pref_name')}")
     print(f"Formula: {aspirin.get('molecule_properties', {}).get('full_molformula')}")
 
     # Example 2: Search for EGFR inhibitors
     print("\n2. Searching for EGFR targets...")
-    egfr_targets = search_targets_by_name('EGFR')
+    egfr_targets = search_targets_by_name("EGFR")
     if egfr_targets:
         print(f"Found {len(egfr_targets)} EGFR-related targets")
         print(f"First target: {egfr_targets[0]['pref_name']}")
 
     # Example 3: Find potent activities for a target
     print("\n3. Finding potent compounds for EGFR (CHEMBL203)...")
-    activities = get_bioactivity_data('CHEMBL203', 'IC50', max_value=10)
+    activities = get_bioactivity_data("CHEMBL203", "IC50", max_value=10)
     print(f"Found {len(activities)} compounds with IC50 <= 10 nM")
 
     print("\n" + "=" * 50)

@@ -8,7 +8,6 @@ import os
 import time
 import requests
 from typing import Optional, Dict, Any, List
-from functools import lru_cache
 
 
 class FREDQuery:
@@ -29,7 +28,7 @@ class FREDQuery:
         api_key: Optional[str] = None,
         cache_ttl: int = 3600,
         max_retries: int = 3,
-        retry_delay: float = 1.0
+        retry_delay: float = 1.0,
     ):
         """
         Initialize FRED API client.
@@ -52,10 +51,7 @@ class FREDQuery:
         self._cache: Dict[str, tuple] = {}  # (timestamp, data)
 
     def _make_request(
-        self,
-        endpoint: str,
-        params: Dict[str, Any],
-        base_url: Optional[str] = None
+        self, endpoint: str, params: Dict[str, Any], base_url: Optional[str] = None
     ) -> Dict[str, Any]:
         """Make API request with retry logic."""
         url = f"{base_url or self.BASE_URL}/{endpoint}"
@@ -76,7 +72,7 @@ class FREDQuery:
 
                 if response.status_code == 429:
                     # Rate limited - wait and retry
-                    wait_time = self.retry_delay * (2 ** attempt)
+                    wait_time = self.retry_delay * (2**attempt)
                     time.sleep(wait_time)
                     continue
 
@@ -90,7 +86,7 @@ class FREDQuery:
             except requests.exceptions.RequestException as e:
                 if attempt == self.max_retries - 1:
                     return {"error": {"code": 500, "message": str(e)}}
-                time.sleep(self.retry_delay * (2 ** attempt))
+                time.sleep(self.retry_delay * (2**attempt))
 
         return {"error": {"code": 500, "message": "Max retries exceeded"}}
 
@@ -121,7 +117,7 @@ class FREDQuery:
         limit: int = 100000,
         offset: int = 0,
         sort_order: str = "asc",
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """
         Get observations (data values) for an economic data series.
@@ -148,7 +144,7 @@ class FREDQuery:
             "limit": limit,
             "offset": offset,
             "sort_order": sort_order,
-            **kwargs
+            **kwargs,
         }
         if observation_start:
             params["observation_start"] = observation_start
@@ -170,7 +166,7 @@ class FREDQuery:
         filter_variable: Optional[str] = None,
         filter_value: Optional[str] = None,
         tag_names: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """
         Search for economic data series by keywords.
@@ -197,7 +193,7 @@ class FREDQuery:
             "offset": offset,
             "order_by": order_by,
             "sort_order": sort_order,
-            **kwargs
+            **kwargs,
         }
         if filter_variable:
             params["filter_variable"] = filter_variable
@@ -224,18 +220,14 @@ class FREDQuery:
         return self._make_request("series/tags", params)
 
     def get_series_updates(
-        self,
-        limit: int = 100,
-        offset: int = 0,
-        filter_value: str = "all",
-        **kwargs
+        self, limit: int = 100, offset: int = 0, filter_value: str = "all", **kwargs
     ) -> Dict[str, Any]:
         """Get recently updated series."""
         params = {
             "limit": limit,
             "offset": offset,
             "filter_value": filter_value,
-            **kwargs
+            **kwargs,
         }
         return self._make_request("series/updates", params)
 
@@ -268,7 +260,7 @@ class FREDQuery:
         offset: int = 0,
         order_by: str = "series_id",
         sort_order: str = "asc",
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Get series in a category."""
         params = {
@@ -277,7 +269,7 @@ class FREDQuery:
             "offset": offset,
             "order_by": order_by,
             "sort_order": sort_order,
-            **kwargs
+            **kwargs,
         }
         return self._make_request("category/series", params)
 
@@ -294,7 +286,7 @@ class FREDQuery:
         offset: int = 0,
         order_by: str = "release_id",
         sort_order: str = "asc",
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Get all releases."""
         params = {
@@ -302,7 +294,7 @@ class FREDQuery:
             "offset": offset,
             "order_by": order_by,
             "sort_order": sort_order,
-            **kwargs
+            **kwargs,
         }
         return self._make_request("releases", params)
 
@@ -315,7 +307,7 @@ class FREDQuery:
         order_by: str = "release_date",
         sort_order: str = "desc",
         include_release_dates_with_no_data: str = "false",
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Get release dates for all releases."""
         params = {
@@ -324,7 +316,7 @@ class FREDQuery:
             "order_by": order_by,
             "sort_order": sort_order,
             "include_release_dates_with_no_data": include_release_dates_with_no_data,
-            **kwargs
+            **kwargs,
         }
         if realtime_start:
             params["realtime_start"] = realtime_start
@@ -338,19 +330,10 @@ class FREDQuery:
         return self._make_request("release", params)
 
     def get_release_series(
-        self,
-        release_id: int,
-        limit: int = 100,
-        offset: int = 0,
-        **kwargs
+        self, release_id: int, limit: int = 100, offset: int = 0, **kwargs
     ) -> Dict[str, Any]:
         """Get series in a release."""
-        params = {
-            "release_id": release_id,
-            "limit": limit,
-            "offset": offset,
-            **kwargs
-        }
+        params = {"release_id": release_id, "limit": limit, "offset": offset, **kwargs}
         return self._make_request("release/series", params)
 
     def get_release_sources(self, release_id: int, **kwargs) -> Dict[str, Any]:
@@ -373,7 +356,7 @@ class FREDQuery:
         offset: int = 0,
         order_by: str = "series_count",
         sort_order: str = "desc",
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Get FRED tags."""
         params = {
@@ -381,7 +364,7 @@ class FREDQuery:
             "offset": offset,
             "order_by": order_by,
             "sort_order": sort_order,
-            **kwargs
+            **kwargs,
         }
         if tag_group_id:
             params["tag_group_id"] = tag_group_id
@@ -390,19 +373,10 @@ class FREDQuery:
         return self._make_request("tags", params)
 
     def get_related_tags(
-        self,
-        tag_names: str,
-        limit: int = 100,
-        offset: int = 0,
-        **kwargs
+        self, tag_names: str, limit: int = 100, offset: int = 0, **kwargs
     ) -> Dict[str, Any]:
         """Get related tags."""
-        params = {
-            "tag_names": tag_names,
-            "limit": limit,
-            "offset": offset,
-            **kwargs
-        }
+        params = {"tag_names": tag_names, "limit": limit, "offset": offset, **kwargs}
         return self._make_request("related_tags", params)
 
     def get_series_by_tags(
@@ -413,7 +387,7 @@ class FREDQuery:
         offset: int = 0,
         order_by: str = "popularity",
         sort_order: str = "desc",
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """
         Get series matching all specified tags.
@@ -432,7 +406,7 @@ class FREDQuery:
             "offset": offset,
             "order_by": order_by,
             "sort_order": sort_order,
-            **kwargs
+            **kwargs,
         }
         if exclude_tag_names:
             params["exclude_tag_names"] = ";".join(exclude_tag_names)
@@ -446,7 +420,7 @@ class FREDQuery:
         offset: int = 0,
         order_by: str = "source_id",
         sort_order: str = "asc",
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Get all data sources."""
         params = {
@@ -454,7 +428,7 @@ class FREDQuery:
             "offset": offset,
             "order_by": order_by,
             "sort_order": sort_order,
-            **kwargs
+            **kwargs,
         }
         return self._make_request("sources", params)
 
@@ -464,19 +438,10 @@ class FREDQuery:
         return self._make_request("source", params)
 
     def get_source_releases(
-        self,
-        source_id: int,
-        limit: int = 100,
-        offset: int = 0,
-        **kwargs
+        self, source_id: int, limit: int = 100, offset: int = 0, **kwargs
     ) -> Dict[str, Any]:
         """Get releases from a source."""
-        params = {
-            "source_id": source_id,
-            "limit": limit,
-            "offset": offset,
-            **kwargs
-        }
+        params = {"source_id": source_id, "limit": limit, "offset": offset, **kwargs}
         return self._make_request("source/releases", params)
 
     # ========== GeoFRED Endpoints ==========
@@ -500,7 +465,7 @@ class FREDQuery:
         self,
         series_id: str,
         date: Optional[str] = None,
-        start_date: Optional[str] = None
+        start_date: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Get regional data for a series."""
         params = {"series_id": series_id}
@@ -520,7 +485,7 @@ class FREDQuery:
         frequency: str = "a",
         transformation: str = "lin",
         aggregation_method: str = "avg",
-        start_date: Optional[str] = None
+        start_date: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Get regional data by series group.
@@ -544,7 +509,7 @@ class FREDQuery:
             "season": season,
             "frequency": frequency,
             "transformation": transformation,
-            "aggregation_method": aggregation_method
+            "aggregation_method": aggregation_method,
         }
         if start_date:
             params["start_date"] = start_date
@@ -558,7 +523,9 @@ class FREDQuery:
 
 
 # Convenience function for quick queries
-def query_fred(series_id: str, api_key: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+def query_fred(
+    series_id: str, api_key: Optional[str] = None, **kwargs
+) -> Dict[str, Any]:
     """
     Quick function to query a FRED series.
 

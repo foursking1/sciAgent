@@ -20,24 +20,51 @@ except ImportError:
 
 # Tags commonly containing PHI (Protected Health Information)
 PHI_TAGS = [
-    'PatientName', 'PatientID', 'PatientBirthDate', 'PatientBirthTime',
-    'PatientSex', 'PatientAge', 'PatientSize', 'PatientWeight',
-    'PatientAddress', 'PatientTelephoneNumbers', 'PatientMotherBirthName',
-    'MilitaryRank', 'EthnicGroup', 'Occupation', 'PatientComments',
-    'InstitutionName', 'InstitutionAddress', 'InstitutionalDepartmentName',
-    'ReferringPhysicianName', 'ReferringPhysicianAddress',
-    'ReferringPhysicianTelephoneNumbers', 'ReferringPhysicianIdentificationSequence',
-    'PerformingPhysicianName', 'PerformingPhysicianIdentificationSequence',
-    'OperatorsName', 'PhysiciansOfRecord', 'PhysiciansOfRecordIdentificationSequence',
-    'NameOfPhysiciansReadingStudy', 'PhysiciansReadingStudyIdentificationSequence',
-    'StudyDescription', 'SeriesDescription', 'AdmittingDiagnosesDescription',
-    'DerivationDescription', 'RequestingPhysician', 'RequestingService',
-    'RequestedProcedureDescription', 'ScheduledPerformingPhysicianName',
-    'PerformedLocation', 'PerformedStationName',
+    "PatientName",
+    "PatientID",
+    "PatientBirthDate",
+    "PatientBirthTime",
+    "PatientSex",
+    "PatientAge",
+    "PatientSize",
+    "PatientWeight",
+    "PatientAddress",
+    "PatientTelephoneNumbers",
+    "PatientMotherBirthName",
+    "MilitaryRank",
+    "EthnicGroup",
+    "Occupation",
+    "PatientComments",
+    "InstitutionName",
+    "InstitutionAddress",
+    "InstitutionalDepartmentName",
+    "ReferringPhysicianName",
+    "ReferringPhysicianAddress",
+    "ReferringPhysicianTelephoneNumbers",
+    "ReferringPhysicianIdentificationSequence",
+    "PerformingPhysicianName",
+    "PerformingPhysicianIdentificationSequence",
+    "OperatorsName",
+    "PhysiciansOfRecord",
+    "PhysiciansOfRecordIdentificationSequence",
+    "NameOfPhysiciansReadingStudy",
+    "PhysiciansReadingStudyIdentificationSequence",
+    "StudyDescription",
+    "SeriesDescription",
+    "AdmittingDiagnosesDescription",
+    "DerivationDescription",
+    "RequestingPhysician",
+    "RequestingService",
+    "RequestedProcedureDescription",
+    "ScheduledPerformingPhysicianName",
+    "PerformedLocation",
+    "PerformedStationName",
 ]
 
 
-def anonymize_dicom(input_path, output_path, patient_id='ANONYMOUS', patient_name='ANONYMOUS'):
+def anonymize_dicom(
+    input_path, output_path, patient_id="ANONYMOUS", patient_name="ANONYMOUS"
+):
     """
     Anonymize a DICOM file by removing or replacing PHI.
 
@@ -57,14 +84,14 @@ def anonymize_dicom(input_path, output_path, patient_id='ANONYMOUS', patient_nam
         # Remove or replace sensitive data
         for tag in PHI_TAGS:
             if hasattr(ds, tag):
-                if tag == 'PatientName':
+                if tag == "PatientName":
                     ds.PatientName = patient_name
                     anonymized.append(f"{tag}: replaced with '{patient_name}'")
-                elif tag == 'PatientID':
+                elif tag == "PatientID":
                     ds.PatientID = patient_id
                     anonymized.append(f"{tag}: replaced with '{patient_id}'")
-                elif tag == 'PatientBirthDate':
-                    ds.PatientBirthDate = '19000101'
+                elif tag == "PatientBirthDate":
+                    ds.PatientBirthDate = "19000101"
                     anonymized.append(f"{tag}: replaced with '19000101'")
                 else:
                     delattr(ds, tag)
@@ -90,24 +117,36 @@ def anonymize_dicom(input_path, output_path, patient_id='ANONYMOUS', patient_nam
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Anonymize DICOM files by removing or replacing PHI',
+        description="Anonymize DICOM files by removing or replacing PHI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   python anonymize_dicom.py input.dcm output.dcm
   python anonymize_dicom.py input.dcm output.dcm --patient-id ANON001
   python anonymize_dicom.py input.dcm output.dcm --patient-id ANON001 --patient-name "Anonymous^Patient"
-        """
+        """,
     )
 
-    parser.add_argument('input', type=str, help='Input DICOM file')
-    parser.add_argument('output', type=str, help='Output anonymized DICOM file')
-    parser.add_argument('--patient-id', type=str, default='ANONYMOUS',
-                       help='Replacement patient ID (default: ANONYMOUS)')
-    parser.add_argument('--patient-name', type=str, default='ANONYMOUS',
-                       help='Replacement patient name (default: ANONYMOUS)')
-    parser.add_argument('-v', '--verbose', action='store_true',
-                       help='Show detailed anonymization information')
+    parser.add_argument("input", type=str, help="Input DICOM file")
+    parser.add_argument("output", type=str, help="Output anonymized DICOM file")
+    parser.add_argument(
+        "--patient-id",
+        type=str,
+        default="ANONYMOUS",
+        help="Replacement patient ID (default: ANONYMOUS)",
+    )
+    parser.add_argument(
+        "--patient-name",
+        type=str,
+        default="ANONYMOUS",
+        help="Replacement patient name (default: ANONYMOUS)",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Show detailed anonymization information",
+    )
 
     args = parser.parse_args()
 
@@ -119,8 +158,9 @@ Examples:
 
     # Anonymize the file
     print(f"Anonymizing: {args.input}")
-    success, result = anonymize_dicom(args.input, args.output,
-                                     args.patient_id, args.patient_name)
+    success, result = anonymize_dicom(
+        args.input, args.output, args.patient_id, args.patient_name
+    )
 
     if success:
         print(f"✓ Successfully anonymized DICOM file: {args.output}")
@@ -133,5 +173,5 @@ Examples:
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

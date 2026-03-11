@@ -1,16 +1,14 @@
 """
 API tests for data source endpoints.
 """
-import pytest
+
 from httpx import AsyncClient
 
 
 class TestDataSourcesAPI:
     """Tests for data sources API endpoints"""
 
-    async def test_list_data_sources_empty(
-        self, authenticated_client: AsyncClient
-    ):
+    async def test_list_data_sources_empty(self, authenticated_client: AsyncClient):
         """Test listing data sources when none exist"""
         response = await authenticated_client.get("/api/data-sources")
         assert response.status_code == 200
@@ -18,9 +16,7 @@ class TestDataSourcesAPI:
         assert "data_sources" in data
         assert "total" in data
 
-    async def test_create_database_data_source(
-        self, authenticated_client: AsyncClient
-    ):
+    async def test_create_database_data_source(self, authenticated_client: AsyncClient):
         """Test creating a database data source"""
         response = await authenticated_client.post(
             "/api/data-sources",
@@ -43,9 +39,7 @@ class TestDataSourcesAPI:
         assert data["type"] == "database"
         assert "id" in data
 
-    async def test_create_vector_store_data_source(
-        self, authenticated_client: AsyncClient
-    ):
+    async def test_create_vector_store_data_source(self, authenticated_client: AsyncClient):
         """Test creating a vector store data source"""
         response = await authenticated_client.post(
             "/api/data-sources",
@@ -63,9 +57,7 @@ class TestDataSourcesAPI:
         data = response.json()
         assert data["type"] == "vector_store"
 
-    async def test_create_skill_data_source(
-        self, authenticated_client: AsyncClient
-    ):
+    async def test_create_skill_data_source(self, authenticated_client: AsyncClient):
         """Test creating a skill data source"""
         response = await authenticated_client.post(
             "/api/data-sources",
@@ -83,9 +75,7 @@ class TestDataSourcesAPI:
         data = response.json()
         assert data["type"] == "skill"
 
-    async def test_get_data_source(
-        self, authenticated_client: AsyncClient
-    ):
+    async def test_get_data_source(self, authenticated_client: AsyncClient):
         """Test getting a specific data source"""
         # Create one first
         create_response = await authenticated_client.post(
@@ -99,16 +89,12 @@ class TestDataSourcesAPI:
         data_source_id = create_response.json()["id"]
 
         # Get it
-        response = await authenticated_client.get(
-            f"/api/data-sources/{data_source_id}"
-        )
+        response = await authenticated_client.get(f"/api/data-sources/{data_source_id}")
 
         assert response.status_code == 200
         assert response.json()["id"] == data_source_id
 
-    async def test_update_data_source(
-        self, authenticated_client: AsyncClient
-    ):
+    async def test_update_data_source(self, authenticated_client: AsyncClient):
         """Test updating a data source"""
         # Create one first
         create_response = await authenticated_client.post(
@@ -133,9 +119,7 @@ class TestDataSourcesAPI:
         assert response.status_code == 200
         assert response.json()["name"] == "Updated Name"
 
-    async def test_delete_data_source(
-        self, authenticated_client: AsyncClient
-    ):
+    async def test_delete_data_source(self, authenticated_client: AsyncClient):
         """Test deleting a data source"""
         # Create one first
         create_response = await authenticated_client.post(
@@ -149,21 +133,15 @@ class TestDataSourcesAPI:
         data_source_id = create_response.json()["id"]
 
         # Delete it
-        response = await authenticated_client.delete(
-            f"/api/data-sources/{data_source_id}"
-        )
+        response = await authenticated_client.delete(f"/api/data-sources/{data_source_id}")
 
         assert response.status_code == 204
 
         # Verify it's deleted
-        get_response = await authenticated_client.get(
-            f"/api/data-sources/{data_source_id}"
-        )
+        get_response = await authenticated_client.get(f"/api/data-sources/{data_source_id}")
         assert get_response.status_code == 404
 
-    async def test_test_data_source_connection(
-        self, authenticated_client: AsyncClient
-    ):
+    async def test_test_data_source_connection(self, authenticated_client: AsyncClient):
         """Test testing a data source connection"""
         # Create one first
         create_response = await authenticated_client.post(
@@ -177,9 +155,7 @@ class TestDataSourcesAPI:
         data_source_id = create_response.json()["id"]
 
         # Test connection
-        response = await authenticated_client.post(
-            f"/api/data-sources/{data_source_id}/test"
-        )
+        response = await authenticated_client.post(f"/api/data-sources/{data_source_id}/test")
 
         # Connection test may fail, but endpoint should work
         assert response.status_code in [200, 400]

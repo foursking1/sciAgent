@@ -20,7 +20,8 @@ from pathlib import Path
 try:
     from rdkit import Chem
     from rdkit import RDLogger
-    RDLogger.DisableLog('rdApp.*')
+
+    RDLogger.DisableLog("rdApp.*")
     RDKIT_AVAILABLE = True
 except ImportError:
     RDKIT_AVAILABLE = False
@@ -82,7 +83,12 @@ def validate_csv(csv_path, base_dir=None):
         return False, messages
 
     # Check required columns
-    required_cols = ['complex_name', 'protein_path', 'ligand_description', 'protein_sequence']
+    required_cols = [
+        "complex_name",
+        "protein_path",
+        "ligand_description",
+        "protein_sequence",
+    ]
     missing_cols = [col for col in required_cols if col not in df.columns]
 
     if missing_cols:
@@ -100,33 +106,39 @@ def validate_csv(csv_path, base_dir=None):
         row_msgs = []
 
         # Check complex name
-        if pd.isna(row['complex_name']) or row['complex_name'] == "":
+        if pd.isna(row["complex_name"]) or row["complex_name"] == "":
             row_msgs.append("Missing complex_name")
             valid = False
 
         # Check that either protein_path or protein_sequence is provided
-        has_protein_path = not pd.isna(row['protein_path']) and row['protein_path'] != ""
-        has_protein_seq = not pd.isna(row['protein_sequence']) and row['protein_sequence'] != ""
+        has_protein_path = (
+            not pd.isna(row["protein_path"]) and row["protein_path"] != ""
+        )
+        has_protein_seq = (
+            not pd.isna(row["protein_sequence"]) and row["protein_sequence"] != ""
+        )
 
         if not has_protein_path and not has_protein_seq:
             row_msgs.append("Must provide either protein_path or protein_sequence")
             valid = False
         elif has_protein_path and has_protein_seq:
-            row_msgs.append("Warning: Both protein_path and protein_sequence provided, will use protein_path")
+            row_msgs.append(
+                "Warning: Both protein_path and protein_sequence provided, will use protein_path"
+            )
 
         # Validate protein path if provided
         if has_protein_path:
-            file_valid, msg = validate_file_path(row['protein_path'], base_dir)
+            file_valid, msg = validate_file_path(row["protein_path"], base_dir)
             if not file_valid:
                 row_msgs.append(f"Protein file issue: {msg}")
                 valid = False
 
         # Validate ligand description
-        if pd.isna(row['ligand_description']) or row['ligand_description'] == "":
+        if pd.isna(row["ligand_description"]) or row["ligand_description"] == "":
             row_msgs.append("Missing ligand_description")
             valid = False
         else:
-            ligand_desc = row['ligand_description']
+            ligand_desc = row["ligand_description"]
             # Check if it's a file path or SMILES
             if os.path.exists(ligand_desc) or "/" in ligand_desc or "\\" in ligand_desc:
                 # Likely a file path
@@ -160,18 +172,18 @@ def create_template_csv(output_path, num_examples=3):
     """Create a template CSV file with example entries."""
 
     examples = {
-        'complex_name': ['example1', 'example2', 'example3'][:num_examples],
-        'protein_path': ['protein1.pdb', '', 'protein3.pdb'][:num_examples],
-        'ligand_description': [
-            'CC(=O)Oc1ccccc1C(=O)O',  # Aspirin SMILES
-            'COc1ccc(C#N)cc1',  # Example SMILES
-            'ligand.sdf'  # Example file path
+        "complex_name": ["example1", "example2", "example3"][:num_examples],
+        "protein_path": ["protein1.pdb", "", "protein3.pdb"][:num_examples],
+        "ligand_description": [
+            "CC(=O)Oc1ccccc1C(=O)O",  # Aspirin SMILES
+            "COc1ccc(C#N)cc1",  # Example SMILES
+            "ligand.sdf",  # Example file path
         ][:num_examples],
-        'protein_sequence': [
-            '',  # Empty - using PDB file
-            'MSKGEELFTGVVPILVELDGDVNGHKFSVSGEGEGDATYGKLTLKFICTTGKLPVPWPTLVTTFSYGVQCFSRYPDHMKQHDFFKSAMPEGYVQERTIFFKDDGNYKTRAEVKFEGDTLVNRIELKGIDFKEDGNILGHKLEYNYNSHNVYIMADKQKNGIKVNFKIRHNIEDGSVQLADHYQQNTPIGDGPVLLPDNHYLSTQSALSKDPNEKRDHMVLLEFVTAAGITHGMDELYK',  # GFP sequence
-            ''  # Empty - using PDB file
-        ][:num_examples]
+        "protein_sequence": [
+            "",  # Empty - using PDB file
+            "MSKGEELFTGVVPILVELDGDVNGHKFSVSGEGEGDATYGKLTLKFICTTGKLPVPWPTLVTTFSYGVQCFSRYPDHMKQHDFFKSAMPEGYVQERTIFFKDDGNYKTRAEVKFEGDTLVNRIELKGIDFKEDGNILGHKLEYNYNSHNVYIMADKQKNGIKVNFKIRHNIEDGSVQLADHYQQNTPIGDGPVLLPDNHYLSTQSALSKDPNEKRDHMVLLEFVTAAGITHGMDELYK",  # GFP sequence
+            "",  # Empty - using PDB file
+        ][:num_examples],
     }
 
     df = pd.DataFrame(examples)
@@ -182,7 +194,7 @@ def create_template_csv(output_path, num_examples=3):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Prepare and validate DiffDock batch CSV files',
+        description="Prepare and validate DiffDock batch CSV files",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -197,30 +209,34 @@ Examples:
 
   # Validate with custom base directory for relative paths
   python prepare_batch_csv.py input.csv --validate --base-dir /path/to/data/
-        """
+        """,
     )
 
-    parser.add_argument('csv_file', nargs='?', help='CSV file to validate')
-    parser.add_argument('--validate', action='store_true',
-                        help='Validate the CSV file')
-    parser.add_argument('--create', action='store_true',
-                        help='Create a template CSV file')
-    parser.add_argument('--output', '-o', help='Output path for template CSV')
-    parser.add_argument('--num-examples', type=int, default=3,
-                        help='Number of example rows in template (default: 3)')
-    parser.add_argument('--base-dir', help='Base directory for relative file paths')
+    parser.add_argument("csv_file", nargs="?", help="CSV file to validate")
+    parser.add_argument("--validate", action="store_true", help="Validate the CSV file")
+    parser.add_argument(
+        "--create", action="store_true", help="Create a template CSV file"
+    )
+    parser.add_argument("--output", "-o", help="Output path for template CSV")
+    parser.add_argument(
+        "--num-examples",
+        type=int,
+        default=3,
+        help="Number of example rows in template (default: 3)",
+    )
+    parser.add_argument("--base-dir", help="Base directory for relative file paths")
 
     args = parser.parse_args()
 
     # Create template
     if args.create:
-        output_path = args.output or 'diffdock_batch_template.csv'
+        output_path = args.output or "diffdock_batch_template.csv"
         df = create_template_csv(output_path, args.num_examples)
         print(f"✓ Created template CSV: {output_path}")
-        print(f"\nTemplate contents:")
+        print("\nTemplate contents:")
         print(df.to_string(index=False))
-        print(f"\nEdit this file with your protein-ligand pairs and run with:")
-        print(f"  python -m inference --config default_inference_args.yaml \\")
+        print("\nEdit this file with your protein-ligand pairs and run with:")
+        print("  python -m inference --config default_inference_args.yaml \\")
         print(f"    --protein_ligand_csv {output_path} --out_dir results/")
         return 0
 
@@ -236,7 +252,7 @@ Examples:
             return 1
 
         print(f"Validating: {args.csv_file}")
-        print("="*60)
+        print("=" * 60)
 
         valid, messages = validate_csv(args.csv_file, args.base_dir)
 
@@ -250,5 +266,5 @@ Examples:
     return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

@@ -22,7 +22,6 @@ Examples:
 import argparse
 import json
 import sys
-from pathlib import Path
 
 try:
     from pymatgen.core import Structure
@@ -47,9 +46,9 @@ def analyze_structure(struct: Structure, args) -> dict:
     results = {}
 
     # Basic information
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("STRUCTURE ANALYSIS")
-    print("="*60)
+    print("=" * 60)
 
     print("\n--- COMPOSITION ---")
     print(f"Formula (reduced):    {struct.composition.reduced_formula}")
@@ -60,13 +59,13 @@ def analyze_structure(struct: Structure, args) -> dict:
     print(f"Number of species:    {len(struct.composition.elements)}")
     print(f"Molecular weight:     {struct.composition.weight:.2f} amu")
 
-    results['composition'] = {
-        'reduced_formula': struct.composition.reduced_formula,
-        'formula': struct.composition.formula,
-        'hill_formula': struct.composition.hill_formula,
-        'chemical_system': struct.composition.chemical_system,
-        'num_sites': len(struct),
-        'molecular_weight': struct.composition.weight,
+    results["composition"] = {
+        "reduced_formula": struct.composition.reduced_formula,
+        "formula": struct.composition.formula,
+        "hill_formula": struct.composition.hill_formula,
+        "chemical_system": struct.composition.chemical_system,
+        "num_sites": len(struct),
+        "molecular_weight": struct.composition.weight,
     }
 
     # Lattice information
@@ -80,15 +79,15 @@ def analyze_structure(struct: Structure, args) -> dict:
     print(f"Volume:               {struct.volume:.2f} ų")
     print(f"Density:              {struct.density:.3f} g/cm³")
 
-    results['lattice'] = {
-        'a': struct.lattice.a,
-        'b': struct.lattice.b,
-        'c': struct.lattice.c,
-        'alpha': struct.lattice.alpha,
-        'beta': struct.lattice.beta,
-        'gamma': struct.lattice.gamma,
-        'volume': struct.volume,
-        'density': struct.density,
+    results["lattice"] = {
+        "a": struct.lattice.a,
+        "b": struct.lattice.b,
+        "c": struct.lattice.c,
+        "alpha": struct.lattice.alpha,
+        "beta": struct.lattice.beta,
+        "gamma": struct.lattice.gamma,
+        "volume": struct.volume,
+        "density": struct.density,
     }
 
     # Symmetry analysis
@@ -110,17 +109,19 @@ def analyze_structure(struct: Structure, args) -> dict:
             symm_ops = sga.get_symmetry_operations()
             print(f"Symmetry operations:  {len(symm_ops)}")
 
-            results['symmetry'] = {
-                'spacegroup_symbol': spacegroup_symbol,
-                'spacegroup_number': spacegroup_number,
-                'crystal_system': crystal_system,
-                'point_group': point_group,
-                'num_symmetry_ops': len(symm_ops),
+            results["symmetry"] = {
+                "spacegroup_symbol": spacegroup_symbol,
+                "spacegroup_number": spacegroup_number,
+                "crystal_system": crystal_system,
+                "point_group": point_group,
+                "num_symmetry_ops": len(symm_ops),
             }
 
             # Show equivalent sites
             sym_struct = sga.get_symmetrized_structure()
-            print(f"Symmetry-equivalent site groups: {len(sym_struct.equivalent_sites)}")
+            print(
+                f"Symmetry-equivalent site groups: {len(sym_struct.equivalent_sites)}"
+            )
 
         except Exception as e:
             print(f"Could not determine symmetry: {e}")
@@ -156,9 +157,9 @@ def analyze_structure(struct: Structure, args) -> dict:
                 print(f"  Coordination number: {len(neighbors)}")
 
                 if len(neighbors) > 0 and len(neighbors) <= 12:
-                    print(f"  Neighbors:")
+                    print("  Neighbors:")
                     for j, neighbor in enumerate(neighbors):
-                        neighbor_site = struct[neighbor['site_index']]
+                        neighbor_site = struct[neighbor["site_index"]]
                         distance = site.distance(neighbor_site)
                         print(f"    {neighbor_site.species_string} at {distance:.3f} Å")
 
@@ -186,7 +187,7 @@ def analyze_structure(struct: Structure, args) -> dict:
                     print(f"{distance_matrix[i][j]:>8.3f}", end="")
             print()
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
 
     return results
 
@@ -198,38 +199,35 @@ def main():
     )
 
     parser.add_argument(
-        "structure_file",
-        help="Structure file to analyze (CIF, POSCAR, etc.)"
+        "structure_file", help="Structure file to analyze (CIF, POSCAR, etc.)"
     )
 
     parser.add_argument(
-        "--symmetry", "-s",
+        "--symmetry", "-s", action="store_true", help="Perform symmetry analysis"
+    )
+
+    parser.add_argument(
+        "--neighbors",
+        "-n",
         action="store_true",
-        help="Perform symmetry analysis"
+        help="Analyze coordination environment",
     )
 
     parser.add_argument(
-        "--neighbors", "-n",
+        "--distances",
+        "-d",
         action="store_true",
-        help="Analyze coordination environment"
+        help="Show distance matrix (for structures with ≤20 atoms)",
     )
 
     parser.add_argument(
-        "--distances", "-d",
-        action="store_true",
-        help="Show distance matrix (for structures with ≤20 atoms)"
-    )
-
-    parser.add_argument(
-        "--export", "-e",
+        "--export",
+        "-e",
         choices=["json", "yaml"],
-        help="Export analysis results to file"
+        help="Export analysis results to file",
     )
 
-    parser.add_argument(
-        "--output", "-o",
-        help="Output file for exported results"
-    )
+    parser.add_argument("--output", "-o", help="Output file for exported results")
 
     args = parser.parse_args()
 
@@ -255,11 +253,14 @@ def main():
         elif args.export == "yaml":
             try:
                 import yaml
+
                 with open(output_file, "w") as f:
                     yaml.dump(results, f, default_flow_style=False)
                 print(f"\n✓ Analysis exported to {output_file}")
             except ImportError:
-                print("Error: PyYAML is not installed. Install with: pip install pyyaml")
+                print(
+                    "Error: PyYAML is not installed. Install with: pip install pyyaml"
+                )
 
 
 if __name__ == "__main__":

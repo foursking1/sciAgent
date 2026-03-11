@@ -17,25 +17,25 @@ import sys
 
 
 AVAILABLE_MODELS = {
-    'gcn': 'Graph Convolutional Network',
-    'gat': 'Graph Attention Network',
-    'attentivefp': 'Attentive Fingerprint',
-    'mpnn': 'Message Passing Neural Network',
-    'dmpnn': 'Directed Message Passing Neural Network'
+    "gcn": "Graph Convolutional Network",
+    "gat": "Graph Attention Network",
+    "attentivefp": "Attentive Fingerprint",
+    "mpnn": "Message Passing Neural Network",
+    "dmpnn": "Directed Message Passing Neural Network",
 }
 
 MOLNET_DATASETS = {
-    'tox21': ('classification', 12),
-    'bbbp': ('classification', 1),
-    'bace': ('classification', 1),
-    'hiv': ('classification', 1),
-    'delaney': ('regression', 1),
-    'freesolv': ('regression', 1),
-    'lipo': ('regression', 1)
+    "tox21": ("classification", 12),
+    "bbbp": ("classification", 1),
+    "bace": ("classification", 1),
+    "hiv": ("classification", 1),
+    "delaney": ("regression", 1),
+    "freesolv": ("regression", 1),
+    "lipo": ("regression", 1),
 }
 
 
-def create_model(model_type, n_tasks, mode='classification'):
+def create_model(model_type, n_tasks, mode="classification"):
     """
     Create a graph neural network model.
 
@@ -47,41 +47,25 @@ def create_model(model_type, n_tasks, mode='classification'):
     Returns:
         DeepChem model
     """
-    if model_type == 'gcn':
+    if model_type == "gcn":
         return dc.models.GCNModel(
-            n_tasks=n_tasks,
-            mode=mode,
-            batch_size=128,
-            learning_rate=0.001,
-            dropout=0.0
+            n_tasks=n_tasks, mode=mode, batch_size=128, learning_rate=0.001, dropout=0.0
         )
-    elif model_type == 'gat':
+    elif model_type == "gat":
         return dc.models.GATModel(
-            n_tasks=n_tasks,
-            mode=mode,
-            batch_size=128,
-            learning_rate=0.001
+            n_tasks=n_tasks, mode=mode, batch_size=128, learning_rate=0.001
         )
-    elif model_type == 'attentivefp':
+    elif model_type == "attentivefp":
         return dc.models.AttentiveFPModel(
-            n_tasks=n_tasks,
-            mode=mode,
-            batch_size=128,
-            learning_rate=0.001
+            n_tasks=n_tasks, mode=mode, batch_size=128, learning_rate=0.001
         )
-    elif model_type == 'mpnn':
+    elif model_type == "mpnn":
         return dc.models.MPNNModel(
-            n_tasks=n_tasks,
-            mode=mode,
-            batch_size=128,
-            learning_rate=0.001
+            n_tasks=n_tasks, mode=mode, batch_size=128, learning_rate=0.001
         )
-    elif model_type == 'dmpnn':
+    elif model_type == "dmpnn":
         return dc.models.DMPNNModel(
-            n_tasks=n_tasks,
-            mode=mode,
-            batch_size=128,
-            learning_rate=0.001
+            n_tasks=n_tasks, mode=mode, batch_size=128, learning_rate=0.001
         )
     else:
         raise ValueError(f"Unknown model type: {model_type}")
@@ -108,15 +92,14 @@ def train_on_molnet(dataset_name, model_type, n_epochs=50):
 
     # Load dataset with graph featurization
     print(f"\nLoading {dataset_name} dataset with GraphConv featurizer...")
-    load_func = getattr(dc.molnet, f'load_{dataset_name}')
+    load_func = getattr(dc.molnet, f"load_{dataset_name}")
     tasks, datasets, transformers = load_func(
-        featurizer='GraphConv',
-        splitter='scaffold'
+        featurizer="GraphConv", splitter="scaffold"
     )
     train, valid, test = datasets
 
     n_tasks = len(tasks)
-    print(f"\nDataset Information:")
+    print("\nDataset Information:")
     print(f"  Task type: {task_type}")
     print(f"  Number of tasks: {n_tasks}")
     print(f"  Training samples: {len(train)}")
@@ -137,21 +120,25 @@ def train_on_molnet(dataset_name, model_type, n_epochs=50):
     print("Model Evaluation")
     print("=" * 70)
 
-    if task_type == 'classification':
+    if task_type == "classification":
         metrics = [
-            dc.metrics.Metric(dc.metrics.roc_auc_score, name='ROC-AUC'),
-            dc.metrics.Metric(dc.metrics.accuracy_score, name='Accuracy'),
-            dc.metrics.Metric(dc.metrics.f1_score, name='F1'),
+            dc.metrics.Metric(dc.metrics.roc_auc_score, name="ROC-AUC"),
+            dc.metrics.Metric(dc.metrics.accuracy_score, name="Accuracy"),
+            dc.metrics.Metric(dc.metrics.f1_score, name="F1"),
         ]
     else:
         metrics = [
-            dc.metrics.Metric(dc.metrics.r2_score, name='R²'),
-            dc.metrics.Metric(dc.metrics.mean_absolute_error, name='MAE'),
-            dc.metrics.Metric(dc.metrics.root_mean_squared_error, name='RMSE'),
+            dc.metrics.Metric(dc.metrics.r2_score, name="R²"),
+            dc.metrics.Metric(dc.metrics.mean_absolute_error, name="MAE"),
+            dc.metrics.Metric(dc.metrics.root_mean_squared_error, name="RMSE"),
         ]
 
     results = {}
-    for dataset_name_eval, dataset in [('Train', train), ('Valid', valid), ('Test', test)]:
+    for dataset_name_eval, dataset in [
+        ("Train", train),
+        ("Valid", valid),
+        ("Test", test),
+    ]:
         print(f"\n{dataset_name_eval} Set:")
         scores = model.evaluate(dataset, metrics)
         results[dataset_name_eval] = scores
@@ -161,7 +148,9 @@ def train_on_molnet(dataset_name, model_type, n_epochs=50):
     return model, results
 
 
-def train_on_custom_data(data_path, model_type, task_type, target_cols, smiles_col='smiles', n_epochs=50):
+def train_on_custom_data(
+    data_path, model_type, task_type, target_cols, smiles_col="smiles", n_epochs=50
+):
     """
     Train a graph neural network on custom CSV data.
 
@@ -184,9 +173,7 @@ def train_on_custom_data(data_path, model_type, task_type, target_cols, smiles_c
     print(f"\nLoading data from {data_path}...")
     featurizer = dc.feat.MolGraphConvFeaturizer()
     loader = dc.data.CSVLoader(
-        tasks=target_cols,
-        feature_field=smiles_col,
-        featurizer=featurizer
+        tasks=target_cols, feature_field=smiles_col, featurizer=featurizer
     )
     dataset = loader.create_dataset(data_path)
 
@@ -196,10 +183,7 @@ def train_on_custom_data(data_path, model_type, task_type, target_cols, smiles_c
     print("\nSplitting data with scaffold splitter...")
     splitter = dc.splits.ScaffoldSplitter()
     train, valid, test = splitter.train_valid_test_split(
-        dataset,
-        frac_train=0.8,
-        frac_valid=0.1,
-        frac_test=0.1
+        dataset, frac_train=0.8, frac_valid=0.1, frac_test=0.1
     )
 
     print(f"  Training: {len(train)}")
@@ -221,18 +205,18 @@ def train_on_custom_data(data_path, model_type, task_type, target_cols, smiles_c
     print("Model Evaluation")
     print("=" * 70)
 
-    if task_type == 'classification':
+    if task_type == "classification":
         metrics = [
-            dc.metrics.Metric(dc.metrics.roc_auc_score, name='ROC-AUC'),
-            dc.metrics.Metric(dc.metrics.accuracy_score, name='Accuracy'),
+            dc.metrics.Metric(dc.metrics.roc_auc_score, name="ROC-AUC"),
+            dc.metrics.Metric(dc.metrics.accuracy_score, name="Accuracy"),
         ]
     else:
         metrics = [
-            dc.metrics.Metric(dc.metrics.r2_score, name='R²'),
-            dc.metrics.Metric(dc.metrics.mean_absolute_error, name='MAE'),
+            dc.metrics.Metric(dc.metrics.r2_score, name="R²"),
+            dc.metrics.Metric(dc.metrics.mean_absolute_error, name="MAE"),
         ]
 
-    for dataset_name, dataset in [('Train', train), ('Valid', valid), ('Test', test)]:
+    for dataset_name, dataset in [("Train", train), ("Valid", valid), ("Test", test)]:
         print(f"\n{dataset_name} Set:")
         scores = model.evaluate(dataset, metrics)
         for metric_name, score in scores.items():
@@ -243,74 +227,64 @@ def train_on_custom_data(data_path, model_type, task_type, target_cols, smiles_c
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Train graph neural networks for molecular property prediction'
+        description="Train graph neural networks for molecular property prediction"
     )
     parser.add_argument(
-        '--model',
+        "--model",
         type=str,
         choices=list(AVAILABLE_MODELS.keys()),
-        default='gcn',
-        help='Type of graph neural network model'
+        default="gcn",
+        help="Type of graph neural network model",
     )
     parser.add_argument(
-        '--dataset',
+        "--dataset",
         type=str,
         choices=list(MOLNET_DATASETS.keys()),
         default=None,
-        help='MoleculeNet dataset to use'
+        help="MoleculeNet dataset to use",
     )
     parser.add_argument(
-        '--data',
+        "--data", type=str, default=None, help="Path to custom CSV file"
+    )
+    parser.add_argument(
+        "--task-type",
         type=str,
-        default=None,
-        help='Path to custom CSV file'
+        choices=["classification", "regression"],
+        default="classification",
+        help="Type of prediction task (for custom data)",
     )
     parser.add_argument(
-        '--task-type',
-        type=str,
-        choices=['classification', 'regression'],
-        default='classification',
-        help='Type of prediction task (for custom data)'
+        "--targets",
+        nargs="+",
+        default=["target"],
+        help="Names of target columns (for custom data)",
     )
     parser.add_argument(
-        '--targets',
-        nargs='+',
-        default=['target'],
-        help='Names of target columns (for custom data)'
+        "--smiles-col", type=str, default="smiles", help="Name of SMILES column"
     )
     parser.add_argument(
-        '--smiles-col',
-        type=str,
-        default='smiles',
-        help='Name of SMILES column'
-    )
-    parser.add_argument(
-        '--epochs',
-        type=int,
-        default=50,
-        help='Number of training epochs'
+        "--epochs", type=int, default=50, help="Number of training epochs"
     )
 
     args = parser.parse_args()
 
     # Validate arguments
     if args.dataset is None and args.data is None:
-        print("Error: Must specify either --dataset (MoleculeNet) or --data (custom CSV)",
-              file=sys.stderr)
+        print(
+            "Error: Must specify either --dataset (MoleculeNet) or --data (custom CSV)",
+            file=sys.stderr,
+        )
         return 1
 
     if args.dataset and args.data:
-        print("Error: Cannot specify both --dataset and --data",
-              file=sys.stderr)
+        print("Error: Cannot specify both --dataset and --data", file=sys.stderr)
         return 1
 
     # Train model
     try:
         if args.dataset:
             model, results = train_on_molnet(
-                args.dataset,
-                args.model,
-                n_epochs=args.epochs
+                args.dataset, args.model, n_epochs=args.epochs
             )
         else:
             model, test_set = train_on_custom_data(
@@ -319,7 +293,7 @@ def main():
                 args.task_type,
                 args.targets,
                 smiles_col=args.smiles_col,
-                n_epochs=args.epochs
+                n_epochs=args.epochs,
             )
 
         print("\n" + "=" * 70)
@@ -330,9 +304,10 @@ def main():
     except Exception as e:
         print(f"\nError: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

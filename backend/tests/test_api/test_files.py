@@ -1,15 +1,9 @@
 """
 API tests for file endpoints.
 """
-import os
-import tempfile
 
-import pytest
-from httpx import AsyncClient
-from sqlalchemy import select
-
-from backend.db.models.file import File as FileModel
 from backend.db.models.session import Session
+from httpx import AsyncClient
 
 
 class TestFilesAPI:
@@ -19,18 +13,14 @@ class TestFilesAPI:
         self, authenticated_client: AsyncClient, test_session: Session
     ):
         """Test listing files for a session"""
-        response = await authenticated_client.get(
-            f"/api/files/{test_session.id}"
-        )
+        response = await authenticated_client.get(f"/api/files/{test_session.id}")
         assert response.status_code == 200
         data = response.json()
         assert "files" in data
         assert "total" in data
         assert isinstance(data["files"], list)
 
-    async def test_list_files_invalid_session(
-        self, authenticated_client: AsyncClient
-    ):
+    async def test_list_files_invalid_session(self, authenticated_client: AsyncClient):
         """Test listing files for non-existent session"""
         response = await authenticated_client.get("/api/files/invalid-session-id")
         assert response.status_code == 404
@@ -79,9 +69,7 @@ class TestFilesAPI:
         assert data["success"] is True
         assert len(data["files"]) == 2
 
-    async def test_upload_file_invalid_session(
-        self, authenticated_client: AsyncClient
-    ):
+    async def test_upload_file_invalid_session(self, authenticated_client: AsyncClient):
         """Test uploading to non-existent session"""
         response = await authenticated_client.post(
             "/api/files/upload?session_id=invalid-session",
@@ -103,9 +91,7 @@ class TestFilesAPI:
         )
 
         # Preview the file
-        response = await authenticated_client.get(
-            f"/api/files/{test_session.id}/preview/test.txt"
-        )
+        response = await authenticated_client.get(f"/api/files/{test_session.id}/preview/test.txt")
 
         assert response.status_code == 200
         data = response.json()
@@ -126,9 +112,7 @@ class TestFilesAPI:
         )
 
         # Delete the file
-        response = await authenticated_client.delete(
-            f"/api/files/{test_session.id}/to_delete.txt"
-        )
+        response = await authenticated_client.delete(f"/api/files/{test_session.id}/to_delete.txt")
 
         assert response.status_code == 204
 
@@ -136,7 +120,5 @@ class TestFilesAPI:
         self, api_client: AsyncClient, test_session: Session
     ):
         """Test downloading file from non-public session"""
-        response = await api_client.get(
-            f"/api/files/public/{test_session.id}/test.txt"
-        )
+        response = await api_client.get(f"/api/files/public/{test_session.id}/test.txt")
         assert response.status_code == 404

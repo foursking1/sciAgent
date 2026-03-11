@@ -16,34 +16,34 @@ Usage:
 # =============================================================================
 
 # Input/Output paths
-DATA_PATH = '/path/to/your/spikeglx/data/'
-OUTPUT_DIR = 'analysis_output/'
-DATA_FORMAT = 'spikeglx'  # 'spikeglx', 'openephys', or 'nwb'
-STREAM_ID = 'imec0.ap'    # For multi-probe recordings
+DATA_PATH = "/path/to/your/spikeglx/data/"
+OUTPUT_DIR = "analysis_output/"
+DATA_FORMAT = "spikeglx"  # 'spikeglx', 'openephys', or 'nwb'
+STREAM_ID = "imec0.ap"  # For multi-probe recordings
 
 # Preprocessing parameters
-FREQ_MIN = 300           # Highpass filter (Hz)
-FREQ_MAX = 6000          # Lowpass filter (Hz)
+FREQ_MIN = 300  # Highpass filter (Hz)
+FREQ_MAX = 6000  # Lowpass filter (Hz)
 APPLY_PHASE_SHIFT = True
 APPLY_CMR = True
 DETECT_BAD_CHANNELS = True
 
 # Motion correction
 CORRECT_MOTION = True
-MOTION_PRESET = 'nonrigid_accurate'  # 'kilosort_like', 'nonrigid_fast_and_accurate'
+MOTION_PRESET = "nonrigid_accurate"  # 'kilosort_like', 'nonrigid_fast_and_accurate'
 
 # Spike sorting
-SORTER = 'kilosort4'     # 'kilosort4', 'spykingcircus2', 'mountainsort5'
+SORTER = "kilosort4"  # 'kilosort4', 'spykingcircus2', 'mountainsort5'
 SORTER_PARAMS = {
-    'batch_size': 30000,
-    'nblocks': 1,        # Increase for long recordings with drift
+    "batch_size": 30000,
+    "nblocks": 1,  # Increase for long recordings with drift
 }
 
 # Quality metrics and curation
-CURATION_METHOD = 'allen'  # 'allen', 'ibl', 'strict'
+CURATION_METHOD = "allen"  # 'allen', 'ibl', 'strict'
 
 # Processing
-N_JOBS = -1              # -1 = all cores
+N_JOBS = -1  # -1 = all cores
 
 # =============================================================================
 # ANALYSIS PIPELINE - Usually no need to modify below
@@ -69,11 +69,11 @@ def main():
     print("1. LOADING DATA")
     print("=" * 60)
 
-    if DATA_FORMAT == 'spikeglx':
+    if DATA_FORMAT == "spikeglx":
         recording = si.read_spikeglx(DATA_PATH, stream_id=STREAM_ID)
-    elif DATA_FORMAT == 'openephys':
+    elif DATA_FORMAT == "openephys":
         recording = si.read_openephys(DATA_PATH)
-    elif DATA_FORMAT == 'nwb':
+    elif DATA_FORMAT == "nwb":
         recording = si.read_nwb(DATA_PATH)
     else:
         raise ValueError(f"Unknown format: {DATA_FORMAT}")
@@ -111,11 +111,11 @@ def main():
     # Common median reference
     if APPLY_CMR:
         print("Applying common median reference...")
-        rec = si.common_reference(rec, operator='median', reference='global')
+        rec = si.common_reference(rec, operator="median", reference="global")
 
     # Save preprocessed
     print("Saving preprocessed recording...")
-    rec.save(folder=output_path / 'preprocessed', n_jobs=N_JOBS)
+    rec.save(folder=output_path / "preprocessed", n_jobs=N_JOBS)
 
     # =========================================================================
     # 3. MOTION CORRECTION
@@ -129,7 +129,7 @@ def main():
         rec = si.correct_motion(
             rec,
             preset=MOTION_PRESET,
-            folder=output_path / 'motion',
+            folder=output_path / "motion",
         )
 
     # =========================================================================
@@ -143,7 +143,7 @@ def main():
     sorting = si.run_sorter(
         SORTER,
         rec,
-        output_folder=output_path / f'{SORTER}_output',
+        output_folder=output_path / f"{SORTER}_output",
         verbose=True,
         **SORTER_PARAMS,
     )
@@ -161,19 +161,19 @@ def main():
     analyzer = si.create_sorting_analyzer(
         sorting,
         rec,
-        format='binary_folder',
-        folder=output_path / 'analyzer',
+        format="binary_folder",
+        folder=output_path / "analyzer",
         sparse=True,
     )
 
     print("Computing extensions...")
-    analyzer.compute('random_spikes', max_spikes_per_unit=500)
-    analyzer.compute('waveforms', ms_before=1.0, ms_after=2.0)
-    analyzer.compute('templates', operators=['average', 'std'])
-    analyzer.compute('noise_levels')
-    analyzer.compute('spike_amplitudes')
-    analyzer.compute('correlograms', window_ms=50.0, bin_ms=1.0)
-    analyzer.compute('unit_locations', method='monopolar_triangulation')
+    analyzer.compute("random_spikes", max_spikes_per_unit=500)
+    analyzer.compute("waveforms", ms_before=1.0, ms_after=2.0)
+    analyzer.compute("templates", operators=["average", "std"])
+    analyzer.compute("noise_levels")
+    analyzer.compute("spike_amplitudes")
+    analyzer.compute("correlograms", window_ms=50.0, bin_ms=1.0)
+    analyzer.compute("unit_locations", method="monopolar_triangulation")
 
     # =========================================================================
     # 6. QUALITY METRICS
@@ -186,18 +186,22 @@ def main():
     metrics = si.compute_quality_metrics(
         analyzer,
         metric_names=[
-            'snr', 'isi_violations_ratio', 'presence_ratio',
-            'amplitude_cutoff', 'firing_rate', 'amplitude_cv',
+            "snr",
+            "isi_violations_ratio",
+            "presence_ratio",
+            "amplitude_cutoff",
+            "firing_rate",
+            "amplitude_cv",
         ],
         n_jobs=N_JOBS,
     )
 
-    metrics.to_csv(output_path / 'quality_metrics.csv')
+    metrics.to_csv(output_path / "quality_metrics.csv")
     print(f"Saved metrics to: {output_path / 'quality_metrics.csv'}")
 
     # Print summary
     print("\nMetrics summary:")
-    for col in ['snr', 'isi_violations_ratio', 'presence_ratio', 'firing_rate']:
+    for col in ["snr", "isi_violations_ratio", "presence_ratio", "firing_rate"]:
         if col in metrics.columns:
             print(f"  {col}: {metrics[col].median():.4f} (median)")
 
@@ -210,9 +214,9 @@ def main():
 
     # Curation criteria
     criteria = {
-        'allen': {'snr': 3.0, 'isi_violations_ratio': 0.1, 'presence_ratio': 0.9},
-        'ibl': {'snr': 4.0, 'isi_violations_ratio': 0.5, 'presence_ratio': 0.5},
-        'strict': {'snr': 5.0, 'isi_violations_ratio': 0.01, 'presence_ratio': 0.95},
+        "allen": {"snr": 3.0, "isi_violations_ratio": 0.1, "presence_ratio": 0.9},
+        "ibl": {"snr": 4.0, "isi_violations_ratio": 0.5, "presence_ratio": 0.5},
+        "strict": {"snr": 5.0, "isi_violations_ratio": 0.01, "presence_ratio": 0.95},
     }[CURATION_METHOD]
 
     print(f"Applying {CURATION_METHOD} criteria: {criteria}")
@@ -221,27 +225,27 @@ def main():
     for unit_id in metrics.index:
         row = metrics.loc[unit_id]
         is_good = (
-            row.get('snr', 0) >= criteria['snr'] and
-            row.get('isi_violations_ratio', 1) <= criteria['isi_violations_ratio'] and
-            row.get('presence_ratio', 0) >= criteria['presence_ratio']
+            row.get("snr", 0) >= criteria["snr"]
+            and row.get("isi_violations_ratio", 1) <= criteria["isi_violations_ratio"]
+            and row.get("presence_ratio", 0) >= criteria["presence_ratio"]
         )
         if is_good:
-            labels[int(unit_id)] = 'good'
-        elif row.get('snr', 0) < 2:
-            labels[int(unit_id)] = 'noise'
+            labels[int(unit_id)] = "good"
+        elif row.get("snr", 0) < 2:
+            labels[int(unit_id)] = "noise"
         else:
-            labels[int(unit_id)] = 'mua'
+            labels[int(unit_id)] = "mua"
 
     # Save labels
-    with open(output_path / 'curation_labels.json', 'w') as f:
+    with open(output_path / "curation_labels.json", "w") as f:
         json.dump(labels, f, indent=2)
 
     # Count
-    good_count = sum(1 for v in labels.values() if v == 'good')
-    mua_count = sum(1 for v in labels.values() if v == 'mua')
-    noise_count = sum(1 for v in labels.values() if v == 'noise')
+    good_count = sum(1 for v in labels.values() if v == "good")
+    mua_count = sum(1 for v in labels.values() if v == "mua")
+    noise_count = sum(1 for v in labels.values() if v == "noise")
 
-    print(f"\nCuration results:")
+    print("\nCuration results:")
     print(f"  Good: {good_count}")
     print(f"  MUA: {mua_count}")
     print(f"  Noise: {noise_count}")
@@ -257,15 +261,15 @@ def main():
     print("Exporting to Phy...")
     export_to_phy(
         analyzer,
-        output_folder=output_path / 'phy_export',
+        output_folder=output_path / "phy_export",
         copy_binary=True,
     )
 
-    print(f"\nAnalysis complete!")
+    print("\nAnalysis complete!")
     print(f"Results saved to: {output_path}")
-    print(f"\nTo open in Phy:")
+    print("\nTo open in Phy:")
     print(f"  phy template-gui {output_path / 'phy_export' / 'params.py'}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

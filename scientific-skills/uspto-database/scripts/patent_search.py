@@ -17,8 +17,7 @@ import os
 import sys
 import json
 import requests
-from typing import Dict, List, Optional, Any
-from datetime import datetime
+from typing import Dict, List, Optional
 
 
 class PatentSearchClient:
@@ -35,15 +34,20 @@ class PatentSearchClient:
         """
         self.api_key = api_key or os.getenv("PATENTSVIEW_API_KEY")
         if not self.api_key:
-            raise ValueError("API key required. Set PATENTSVIEW_API_KEY environment variable or pass to constructor.")
+            raise ValueError(
+                "API key required. Set PATENTSVIEW_API_KEY environment variable or pass to constructor."
+            )
 
-        self.headers = {
-            "X-Api-Key": self.api_key,
-            "Content-Type": "application/json"
-        }
+        self.headers = {"X-Api-Key": self.api_key, "Content-Type": "application/json"}
 
-    def _request(self, endpoint: str, query: Dict, fields: Optional[List[str]] = None,
-                 sort: Optional[List[Dict]] = None, options: Optional[Dict] = None) -> Dict:
+    def _request(
+        self,
+        endpoint: str,
+        query: Dict,
+        fields: Optional[List[str]] = None,
+        sort: Optional[List[Dict]] = None,
+        options: Optional[Dict] = None,
+    ) -> Dict:
         """
         Make a request to the PatentSearch API.
 
@@ -72,9 +76,14 @@ class PatentSearchClient:
 
         return response.json()
 
-    def search_patents(self, query: Dict, fields: Optional[List[str]] = None,
-                       sort: Optional[List[Dict]] = None, page: int = 1,
-                       per_page: int = 100) -> Dict:
+    def search_patents(
+        self,
+        query: Dict,
+        fields: Optional[List[str]] = None,
+        sort: Optional[List[Dict]] = None,
+        page: int = 1,
+        per_page: int = 100,
+    ) -> Dict:
         """
         Search for patents.
 
@@ -101,9 +110,12 @@ class PatentSearchClient:
         """
         if fields is None:
             fields = [
-                "patent_id", "patent_title", "patent_date",
-                "patent_abstract", "assignees",
-                "inventors"
+                "patent_id",
+                "patent_title",
+                "patent_date",
+                "patent_abstract",
+                "assignees",
+                "inventors",
             ]
 
         if sort is None:
@@ -128,9 +140,16 @@ class PatentSearchClient:
 
         query = {"patent_number": patent_number}
         fields = [
-            "patent_number", "patent_title", "patent_date", "patent_abstract",
-            "patent_type", "inventor_name", "assignee_organization",
-            "cpc_subclass_id", "cited_patent_number", "citedby_patent_number"
+            "patent_number",
+            "patent_title",
+            "patent_date",
+            "patent_abstract",
+            "patent_type",
+            "inventor_name",
+            "assignee_organization",
+            "cpc_subclass_id",
+            "cited_patent_number",
+            "citedby_patent_number",
         ]
 
         result = self._request("patent", query, fields)
@@ -193,17 +212,18 @@ class PatentSearchClient:
         Returns:
             Search results
         """
-        query = {
-            "patent_date": {
-                "_gte": start_date,
-                "_lte": end_date
-            }
-        }
+        query = {"patent_date": {"_gte": start_date, "_lte": end_date}}
         return self.search_patents(query, **kwargs)
 
-    def advanced_search(self, keywords: List[str], assignee: Optional[str] = None,
-                        start_date: Optional[str] = None, end_date: Optional[str] = None,
-                        cpc_codes: Optional[List[str]] = None, **kwargs) -> Dict:
+    def advanced_search(
+        self,
+        keywords: List[str],
+        assignee: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        cpc_codes: Optional[List[str]] = None,
+        **kwargs,
+    ) -> Dict:
         """
         Perform advanced search with multiple criteria.
 
@@ -222,27 +242,21 @@ class PatentSearchClient:
 
         # Keyword search in abstract
         if keywords:
-            conditions.append({
-                "patent_abstract": {"_text_all": keywords}
-            })
+            conditions.append({"patent_abstract": {"_text_all": keywords}})
 
         # Assignee filter
         if assignee:
-            conditions.append({
-                "assignee_organization": {"_text_any": assignee.split()}
-            })
+            conditions.append(
+                {"assignee_organization": {"_text_any": assignee.split()}}
+            )
 
         # Date range
         if start_date and end_date:
-            conditions.append({
-                "patent_date": {"_gte": start_date, "_lte": end_date}
-            })
+            conditions.append({"patent_date": {"_gte": start_date, "_lte": end_date}})
 
         # CPC classification
         if cpc_codes:
-            conditions.append({
-                "cpc_subclass_id": cpc_codes
-            })
+            conditions.append({"cpc_subclass_id": cpc_codes})
 
         query = {"_and": conditions} if len(conditions) > 1 else conditions[0]
 

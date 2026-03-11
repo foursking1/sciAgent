@@ -22,7 +22,7 @@ Examples:
 import sys
 import json
 import requests
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 
 class ReactomeClient:
@@ -54,8 +54,7 @@ class ReactomeClient:
     def search_pathways(self, term: str) -> List[Dict]:
         """Search for pathways by name"""
         response = requests.get(
-            f"{self.CONTENT_BASE}/data/query",
-            params={"name": term}
+            f"{self.CONTENT_BASE}/data/query", params={"name": term}
         )
         response.raise_for_status()
         return response.json()
@@ -66,7 +65,7 @@ class ReactomeClient:
         response = requests.post(
             f"{self.ANALYSIS_BASE}/identifiers/",
             headers={"Content-Type": "text/plain"},
-            data=data
+            data=data,
         )
         response.raise_for_status()
         return response.json()
@@ -99,12 +98,12 @@ def command_query(pathway_id: str):
         print(f"ID: {pathway['stId']}")
         print(f"Type: {pathway['schemaClass']}")
 
-        if 'species' in pathway and pathway['species']:
-            species = pathway['species'][0]['displayName']
+        if "species" in pathway and pathway["species"]:
+            species = pathway["species"][0]["displayName"]
             print(f"Species: {species}")
 
-        if 'summation' in pathway and pathway['summation']:
-            summation = pathway['summation'][0]['text']
+        if "summation" in pathway and pathway["summation"]:
+            summation = pathway["summation"][0]["text"]
             print(f"\nDescription: {summation}")
 
         print("\nFull JSON response:")
@@ -128,7 +127,7 @@ def command_entities(pathway_id: str):
         # Group by type
         by_type = {}
         for entity in entities:
-            entity_type = entity['schemaClass']
+            entity_type = entity["schemaClass"]
             if entity_type not in by_type:
                 by_type[entity_type] = []
             by_type[entity_type].append(entity)
@@ -159,8 +158,8 @@ def command_search(term: str):
 
         for result in results[:20]:  # Show first 20
             print(f"{result['stId']}: {result['displayName']}")
-            if 'species' in result and result['species']:
-                species = result['species'][0]['displayName']
+            if "species" in result and result["species"]:
+                species = result["species"][0]["displayName"]
                 print(f"  Species: {species}")
             print(f"  Type: {result['schemaClass']}")
             print()
@@ -179,7 +178,7 @@ def command_analyze(gene_file: str):
 
     # Read gene list
     try:
-        with open(gene_file, 'r') as f:
+        with open(gene_file, "r") as f:
             genes = [line.strip() for line in f if line.strip()]
     except FileNotFoundError:
         print(f"Error: File '{gene_file}' not found")
@@ -191,17 +190,17 @@ def command_analyze(gene_file: str):
         result = client.analyze_genes(genes)
 
         # Display summary
-        summary = result['summary']
+        summary = result["summary"]
         print(f"\nAnalysis Type: {summary['type']}")
         print(f"Token: {summary['token']} (valid for 7 days)")
         print(f"Species: {summary.get('species', 'N/A')}")
 
         # Display pathways
-        pathways = result.get('pathways', [])
+        pathways = result.get("pathways", [])
         print(f"\nEnriched Pathways: {len(pathways)} found")
 
         # Show significant pathways (FDR < 0.05)
-        significant = [p for p in pathways if p['entities']['fdr'] < 0.05]
+        significant = [p for p in pathways if p["entities"]["fdr"] < 0.05]
         print(f"Significant (FDR < 0.05): {len(significant)}\n")
 
         # Display top 10 pathways
@@ -209,22 +208,22 @@ def command_analyze(gene_file: str):
         for i, pathway in enumerate(pathways[:10], 1):
             print(f"\n{i}. {pathway['name']}")
             print(f"   ID: {pathway['stId']}")
-            entities = pathway['entities']
+            entities = pathway["entities"]
             print(f"   Found: {entities['found']}/{entities['total']} entities")
             print(f"   p-value: {entities['pValue']:.6e}")
             print(f"   FDR: {entities['fdr']:.6e}")
 
         # Generate browser URL for top pathway
         if pathways:
-            token = summary['token']
-            top_pathway = pathways[0]['stId']
+            token = summary["token"]
+            top_pathway = pathways[0]["stId"]
             url = f"https://reactome.org/PathwayBrowser/#{top_pathway}&DTAB=AN&ANALYSIS={token}"
-            print(f"\nView top result in browser:")
+            print("\nView top result in browser:")
             print(url)
 
         # Save full results
-        output_file = gene_file.replace('.txt', '_results.json')
-        with open(output_file, 'w') as f:
+        output_file = gene_file.replace(".txt", "_results.json")
+        with open(output_file, "w") as f:
             json.dump(result, f, indent=2)
         print(f"\nFull results saved to: {output_file}")
 

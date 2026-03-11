@@ -10,7 +10,6 @@ from pymoo.problems import get_problem
 from pymoo.optimize import minimize
 from pymoo.util.ref_dirs import get_reference_directions
 from pymoo.visualization.pcp import PCP
-import numpy as np
 
 
 def run_many_objective_optimization():
@@ -27,24 +26,15 @@ def run_many_objective_optimization():
     print(f"Number of reference directions: {len(ref_dirs)}")
 
     # Configure NSGA-III algorithm
-    algorithm = NSGA3(
-        ref_dirs=ref_dirs,
-        eliminate_duplicates=True
-    )
+    algorithm = NSGA3(ref_dirs=ref_dirs, eliminate_duplicates=True)
 
     # Run optimization
-    result = minimize(
-        problem,
-        algorithm,
-        ('n_gen', 300),
-        seed=1,
-        verbose=True
-    )
+    result = minimize(problem, algorithm, ("n_gen", 300), seed=1, verbose=True)
 
     # Print results summary
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("MANY-OBJECTIVE OPTIMIZATION RESULTS")
-    print("="*60)
+    print("=" * 60)
     print(f"Number of objectives: {n_obj}")
     print(f"Number of solutions: {len(result.F)}")
     print(f"Number of generations: {result.algorithm.n_gen}")
@@ -54,13 +44,13 @@ def run_many_objective_optimization():
     print("\nObjective space statistics:")
     print(f"Minimum values per objective: {result.F.min(axis=0)}")
     print(f"Maximum values per objective: {result.F.max(axis=0)}")
-    print("="*60)
+    print("=" * 60)
 
     # Visualize using Parallel Coordinate Plot
     plot = PCP(
         title=f"DTLZ2 ({n_obj} objectives) - NSGA-III Results",
         labels=[f"f{i+1}" for i in range(n_obj)],
-        normalize_each_axis=True
+        normalize_each_axis=True,
     )
     plot.add(result.F, alpha=0.3, color="blue")
     plot.show()

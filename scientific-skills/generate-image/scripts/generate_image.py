@@ -26,10 +26,10 @@ def check_env_file() -> Optional[str]:
     for parent in [current_dir] + list(current_dir.parents):
         env_file = parent / ".env"
         if env_file.exists():
-            with open(env_file, 'r') as f:
+            with open(env_file, "r") as f:
                 for line in f:
-                    if line.startswith('OPENROUTER_API_KEY='):
-                        api_key = line.split('=', 1)[1].strip().strip('"').strip("'")
+                    if line.startswith("OPENROUTER_API_KEY="):
+                        api_key = line.split("=", 1)[1].strip().strip('"').strip("'")
                         if api_key:
                             return api_key
     return None
@@ -41,34 +41,34 @@ def load_image_as_base64(image_path: str) -> str:
     if not path.exists():
         print(f"❌ Error: Image file not found: {image_path}")
         sys.exit(1)
-    
+
     # Determine MIME type from extension
     ext = path.suffix.lower()
     mime_types = {
-        '.png': 'image/png',
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.gif': 'image/gif',
-        '.webp': 'image/webp',
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
     }
-    mime_type = mime_types.get(ext, 'image/png')
-    
-    with open(path, 'rb') as f:
+    mime_type = mime_types.get(ext, "image/png")
+
+    with open(path, "rb") as f:
         image_data = f.read()
-    
-    base64_data = base64.b64encode(image_data).decode('utf-8')
+
+    base64_data = base64.b64encode(image_data).decode("utf-8")
     return f"data:{mime_type};base64,{base64_data}"
 
 
 def save_base64_image(base64_data: str, output_path: str) -> None:
     """Save base64 encoded image to file."""
     # Remove data URL prefix if present
-    if ',' in base64_data:
-        base64_data = base64_data.split(',', 1)[1]
+    if "," in base64_data:
+        base64_data = base64_data.split(",", 1)[1]
 
     # Decode and save
     image_data = base64.b64decode(base64_data)
-    with open(output_path, 'wb') as f:
+    with open(output_path, "wb") as f:
         f.write(image_data)
 
 
@@ -77,7 +77,7 @@ def generate_image(
     model: str = "google/gemini-3.1-flash-image-preview",
     output_path: str = "generated_image.png",
     api_key: Optional[str] = None,
-    input_image: Optional[str] = None
+    input_image: Optional[str] = None,
 ) -> dict:
     """
     Generate or edit an image using OpenRouter API.
@@ -113,27 +113,19 @@ def generate_image(
 
     # Determine if this is generation or editing
     is_editing = input_image is not None
-    
+
     if is_editing:
         print(f"✏️ Editing image with model: {model}")
         print(f"📷 Input image: {input_image}")
         print(f"📝 Edit prompt: {prompt}")
-        
+
         # Load input image as base64
         image_data_url = load_image_as_base64(input_image)
-        
+
         # Build multimodal message content for image editing
         message_content = [
-            {
-                "type": "text",
-                "text": prompt
-            },
-            {
-                "type": "image_url",
-                "image_url": {
-                    "url": image_data_url
-                }
-            }
+            {"type": "text", "text": prompt},
+            {"type": "image_url", "image_url": {"url": image_data_url}},
         ]
     else:
         print(f"🎨 Generating image with model: {model}")
@@ -149,14 +141,9 @@ def generate_image(
         },
         json={
             "model": model,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": message_content
-                }
-            ],
-            "modalities": ["image", "text"]
-        }
+            "messages": [{"role": "user", "content": message_content}],
+            "modalities": ["image", "text"],
+        },
     )
 
     # Check for errors
@@ -231,39 +218,42 @@ Popular image models:
   - google/gemini-3.1-flash-image-preview (default, high quality, generation + editing)
   - black-forest-labs/flux.2-pro (fast, high quality, generation + editing)
   - black-forest-labs/flux.2-flex (development version)
-        """
+        """,
     )
 
     parser.add_argument(
         "prompt",
         type=str,
-        help="Text description of the image to generate, or editing instructions"
+        help="Text description of the image to generate, or editing instructions",
     )
 
     parser.add_argument(
-        "--model", "-m",
+        "--model",
+        "-m",
         type=str,
         default="google/gemini-3.1-flash-image-preview",
-        help="OpenRouter model ID (default: google/gemini-3.1-flash-image-preview)"
+        help="OpenRouter model ID (default: google/gemini-3.1-flash-image-preview)",
     )
 
     parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         type=str,
         default="generated_image.png",
-        help="Output file path (default: generated_image.png)"
+        help="Output file path (default: generated_image.png)",
     )
 
     parser.add_argument(
-        "--input", "-i",
+        "--input",
+        "-i",
         type=str,
-        help="Input image path for editing (enables edit mode)"
+        help="Input image path for editing (enables edit mode)",
     )
 
     parser.add_argument(
         "--api-key",
         type=str,
-        help="OpenRouter API key (will check .env if not provided)"
+        help="OpenRouter API key (will check .env if not provided)",
     )
 
     args = parser.parse_args()
@@ -273,7 +263,7 @@ Popular image models:
         model=args.model,
         output_path=args.output,
         api_key=args.api_key,
-        input_image=args.input
+        input_image=args.input,
     )
 
 

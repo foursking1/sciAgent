@@ -17,7 +17,6 @@ Requirements:
 """
 
 import argparse
-import os
 import pickle
 import sys
 from pathlib import Path
@@ -44,7 +43,7 @@ def load_and_validate_data(counts_path, metadata_path, transpose_counts=True):
     print(f"Loading metadata from {metadata_path}...")
     metadata = pd.read_csv(metadata_path, index_col=0)
 
-    print(f"\nData loaded:")
+    print("\nData loaded:")
     print(f"  Counts shape: {counts_df.shape} (samples × genes)")
     print(f"  Metadata shape: {metadata.shape} (samples × variables)")
 
@@ -65,7 +64,7 @@ def load_and_validate_data(counts_path, metadata_path, transpose_counts=True):
 
 def filter_data(counts_df, metadata, min_counts=10, condition_col=None):
     """Filter low-count genes and samples with missing data."""
-    print(f"\nFiltering data...")
+    print("\nFiltering data...")
 
     initial_genes = counts_df.shape[1]
     initial_samples = counts_df.shape[0]
@@ -83,9 +82,13 @@ def filter_data(counts_df, metadata, min_counts=10, condition_col=None):
         metadata = metadata.loc[samples_to_keep]
         samples_removed = initial_samples - counts_df.shape[0]
         if samples_removed > 0:
-            print(f"  Removed {samples_removed} samples with missing '{condition_col}' data")
+            print(
+                f"  Removed {samples_removed} samples with missing '{condition_col}' data"
+            )
 
-    print(f"  Final data shape: {counts_df.shape[0]} samples × {counts_df.shape[1]} genes")
+    print(
+        f"  Final data shape: {counts_df.shape[0]} samples × {counts_df.shape[1]} genes"
+    )
 
     return counts_df, metadata
 
@@ -100,7 +103,7 @@ def run_deseq2(counts_df, metadata, design, n_cpus=1):
         design=design,
         refit_cooks=True,
         n_cpus=n_cpus,
-        quiet=False
+        quiet=False,
     )
 
     print("\nRunning DESeq2 pipeline...")
@@ -121,7 +124,7 @@ def run_deseq2(counts_df, metadata, design, n_cpus=1):
 
 def run_statistical_tests(dds, contrast, alpha=0.05, shrink_lfc=True):
     """Perform Wald tests and compute p-values."""
-    print(f"\nPerforming statistical tests...")
+    print("\nPerforming statistical tests...")
     print(f"  Contrast: {contrast}")
     print(f"  Significance threshold: {alpha}")
 
@@ -131,7 +134,7 @@ def run_statistical_tests(dds, contrast, alpha=0.05, shrink_lfc=True):
         alpha=alpha,
         cooks_filter=True,
         independent_filter=True,
-        quiet=False
+        quiet=False,
     )
 
     print("\n  Running Wald tests...")
@@ -221,19 +224,25 @@ def create_plots(ds, output_dir):
     plt.scatter(
         results.loc[~significant, "log2FoldChange"],
         results.loc[~significant, "-log10(padj)"],
-        alpha=0.3, s=10, c='gray', label='Not significant'
+        alpha=0.3,
+        s=10,
+        c="gray",
+        label="Not significant",
     )
     plt.scatter(
         results.loc[significant, "log2FoldChange"],
         results.loc[significant, "-log10(padj)"],
-        alpha=0.6, s=10, c='red', label='Significant (padj < 0.05)'
+        alpha=0.6,
+        s=10,
+        c="red",
+        label="Significant (padj < 0.05)",
     )
-    plt.axhline(-np.log10(0.05), color='blue', linestyle='--', linewidth=1, alpha=0.5)
-    plt.axvline(1, color='gray', linestyle='--', linewidth=1, alpha=0.5)
-    plt.axvline(-1, color='gray', linestyle='--', linewidth=1, alpha=0.5)
+    plt.axhline(-np.log10(0.05), color="blue", linestyle="--", linewidth=1, alpha=0.5)
+    plt.axvline(1, color="gray", linestyle="--", linewidth=1, alpha=0.5)
+    plt.axvline(-1, color="gray", linestyle="--", linewidth=1, alpha=0.5)
     plt.xlabel("Log2 Fold Change", fontsize=12)
     plt.ylabel("-Log10(Adjusted P-value)", fontsize=12)
-    plt.title("Volcano Plot", fontsize=14, fontweight='bold')
+    plt.title("Volcano Plot", fontsize=14, fontweight="bold")
     plt.legend()
     plt.tight_layout()
     volcano_path = output_dir / "volcano_plot.png"
@@ -246,17 +255,23 @@ def create_plots(ds, output_dir):
     plt.scatter(
         np.log10(results.loc[~significant, "baseMean"] + 1),
         results.loc[~significant, "log2FoldChange"],
-        alpha=0.3, s=10, c='gray', label='Not significant'
+        alpha=0.3,
+        s=10,
+        c="gray",
+        label="Not significant",
     )
     plt.scatter(
         np.log10(results.loc[significant, "baseMean"] + 1),
         results.loc[significant, "log2FoldChange"],
-        alpha=0.6, s=10, c='red', label='Significant (padj < 0.05)'
+        alpha=0.6,
+        s=10,
+        c="red",
+        label="Significant (padj < 0.05)",
     )
-    plt.axhline(0, color='blue', linestyle='--', linewidth=1, alpha=0.5)
+    plt.axhline(0, color="blue", linestyle="--", linewidth=1, alpha=0.5)
     plt.xlabel("Log10(Base Mean + 1)", fontsize=12)
     plt.ylabel("Log2 Fold Change", fontsize=12)
-    plt.title("MA Plot", fontsize=14, fontweight='bold')
+    plt.title("MA Plot", fontsize=14, fontweight="bold")
     plt.legend()
     plt.tight_layout()
     ma_path = output_dir / "ma_plot.png"
@@ -287,45 +302,63 @@ Examples:
     --contrast condition treated control \\
     --output results/ \\
     --n-cpus 4
-        """
+        """,
     )
 
     parser.add_argument("--counts", required=True, help="Path to count matrix CSV file")
     parser.add_argument("--metadata", required=True, help="Path to metadata CSV file")
-    parser.add_argument("--design", required=True, help="Design formula (e.g., '~condition')")
-    parser.add_argument("--contrast", nargs=3, required=True,
-                       metavar=("VARIABLE", "TEST", "REFERENCE"),
-                       help="Contrast specification: variable test_level reference_level")
-    parser.add_argument("--output", default="results", help="Output directory (default: results)")
-    parser.add_argument("--min-counts", type=int, default=10,
-                       help="Minimum total counts for gene filtering (default: 10)")
-    parser.add_argument("--alpha", type=float, default=0.05,
-                       help="Significance threshold (default: 0.05)")
-    parser.add_argument("--no-transpose", action="store_true",
-                       help="Don't transpose count matrix (use if already samples × genes)")
-    parser.add_argument("--no-shrink", action="store_true",
-                       help="Skip LFC shrinkage")
-    parser.add_argument("--n-cpus", type=int, default=1,
-                       help="Number of CPUs for parallel processing (default: 1)")
-    parser.add_argument("--plots", action="store_true",
-                       help="Generate volcano and MA plots")
+    parser.add_argument(
+        "--design", required=True, help="Design formula (e.g., '~condition')"
+    )
+    parser.add_argument(
+        "--contrast",
+        nargs=3,
+        required=True,
+        metavar=("VARIABLE", "TEST", "REFERENCE"),
+        help="Contrast specification: variable test_level reference_level",
+    )
+    parser.add_argument(
+        "--output", default="results", help="Output directory (default: results)"
+    )
+    parser.add_argument(
+        "--min-counts",
+        type=int,
+        default=10,
+        help="Minimum total counts for gene filtering (default: 10)",
+    )
+    parser.add_argument(
+        "--alpha",
+        type=float,
+        default=0.05,
+        help="Significance threshold (default: 0.05)",
+    )
+    parser.add_argument(
+        "--no-transpose",
+        action="store_true",
+        help="Don't transpose count matrix (use if already samples × genes)",
+    )
+    parser.add_argument("--no-shrink", action="store_true", help="Skip LFC shrinkage")
+    parser.add_argument(
+        "--n-cpus",
+        type=int,
+        default=1,
+        help="Number of CPUs for parallel processing (default: 1)",
+    )
+    parser.add_argument(
+        "--plots", action="store_true", help="Generate volcano and MA plots"
+    )
 
     args = parser.parse_args()
 
     # Load data
     counts_df, metadata = load_and_validate_data(
-        args.counts,
-        args.metadata,
-        transpose_counts=not args.no_transpose
+        args.counts, args.metadata, transpose_counts=not args.no_transpose
     )
 
     # Filter data
     condition_col = args.contrast[0]
     counts_df, metadata = filter_data(
-        counts_df,
-        metadata,
-        min_counts=args.min_counts,
-        condition_col=condition_col
+        counts_df, metadata, min_counts=args.min_counts, condition_col=condition_col
     )
 
     # Run DESeq2
@@ -333,10 +366,7 @@ Examples:
 
     # Statistical testing
     ds = run_statistical_tests(
-        dds,
-        contrast=args.contrast,
-        alpha=args.alpha,
-        shrink_lfc=not args.no_shrink
+        dds, contrast=args.contrast, alpha=args.alpha, shrink_lfc=not args.no_shrink
     )
 
     # Save results

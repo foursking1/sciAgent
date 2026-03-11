@@ -33,12 +33,13 @@ def example_drug_safety_profile(fda, drug_name):
         print(f"Total Adverse Event Reports: {total:,}")
 
     # 2. Most common reactions
-    print(f"\nMost Common Adverse Reactions:")
+    print("\nMost Common Adverse Reactions:")
     reactions = fda.count_by_field(
-        "drug", "event",
+        "drug",
+        "event",
         search=f"patient.drug.medicinalproduct:*{drug_name}*",
         field="patient.reaction.reactionmeddrapt",
-        exact=True
+        exact=True,
     )
     if "results" in reactions:
         for i, item in enumerate(reactions["results"][:10], 1):
@@ -46,9 +47,10 @@ def example_drug_safety_profile(fda, drug_name):
 
     # 3. Serious events
     serious_events = fda.query(
-        "drug", "event",
+        "drug",
+        "event",
         search=f"patient.drug.medicinalproduct:*{drug_name}*+AND+serious:1",
-        limit=1
+        limit=1,
     )
     if "meta" in serious_events and "results" in serious_events["meta"]:
         serious_total = serious_events["meta"]["results"].get("total", 0)
@@ -59,10 +61,12 @@ def example_drug_safety_profile(fda, drug_name):
     if "results" in recalls and len(recalls["results"]) > 0:
         print(f"\nRecent Recalls: {len(recalls['results'])}")
         for recall in recalls["results"][:3]:
-            print(f"  - {recall.get('reason_for_recall', 'Unknown')} "
-                  f"(Class {recall.get('classification', 'Unknown')})")
+            print(
+                f"  - {recall.get('reason_for_recall', 'Unknown')} "
+                f"(Class {recall.get('classification', 'Unknown')})"
+            )
     else:
-        print(f"\nRecent Recalls: None found")
+        print("\nRecent Recalls: None found")
 
 
 def example_device_surveillance(fda, device_name):
@@ -85,12 +89,13 @@ def example_device_surveillance(fda, device_name):
         print(f"Total Adverse Event Reports: {total:,}")
 
     # 2. Event types
-    print(f"\nEvent Type Distribution:")
+    print("\nEvent Type Distribution:")
     event_types = fda.count_by_field(
-        "device", "event",
+        "device",
+        "event",
         search=f"device.brand_name:*{device_name}*",
         field="event_type",
-        exact=False
+        exact=False,
     )
     if "results" in event_types:
         for item in event_types["results"]:
@@ -99,7 +104,7 @@ def example_device_surveillance(fda, device_name):
     # 3. Recent events
     recent = fda.query_device_events(device_name, limit=5)
     if "results" in recent and len(recent["results"]) > 0:
-        print(f"\nRecent Events (sample):")
+        print("\nRecent Events (sample):")
         for i, event in enumerate(recent["results"][:3], 1):
             event_type = event.get("event_type", "Unknown")
             date = event.get("date_received", "Unknown")
@@ -164,7 +169,10 @@ def example_substance_lookup(fda, substance_name):
             # Names
             names = substance.get("names", [])
             if names:
-                preferred = next((n["name"] for n in names if n.get("preferred")), names[0].get("name"))
+                preferred = next(
+                    (n["name"] for n in names if n.get("preferred")),
+                    names[0].get("name"),
+                )
                 print(f"  Name: {preferred}")
 
             # UNII
@@ -208,7 +216,7 @@ def example_comparative_drug_analysis(fda, drug_list):
         drug_list: List of drug names to compare
     """
     print(f"\n{'='*60}")
-    print(f"COMPARATIVE DRUG ANALYSIS")
+    print("COMPARATIVE DRUG ANALYSIS")
     print(f"{'='*60}\n")
 
     print(f"Comparing: {', '.join(drug_list)}\n")
@@ -224,9 +232,10 @@ def example_comparative_drug_analysis(fda, drug_list):
 
         # Get serious events
         serious = fda.query(
-            "drug", "event",
+            "drug",
+            "event",
             search=f"patient.drug.medicinalproduct:*{drug}*+AND+serious:1",
-            limit=1
+            limit=1,
         )
         serious_total = 0
         if "meta" in serious and "results" in serious["meta"]:
@@ -237,7 +246,7 @@ def example_comparative_drug_analysis(fda, drug_list):
         comparison[drug] = {
             "total_events": total,
             "serious_events": serious_total,
-            "serious_rate": serious_rate
+            "serious_rate": serious_rate,
         }
 
     # Display comparison
@@ -245,8 +254,10 @@ def example_comparative_drug_analysis(fda, drug_list):
     print("-" * 65)
 
     for drug, data in comparison.items():
-        print(f"{drug:<20} {data['total_events']:>15,} "
-              f"{data['serious_events']:>15,} {data['serious_rate']:>11.2f}%")
+        print(
+            f"{drug:<20} {data['total_events']:>15,} "
+            f"{data['serious_events']:>15,} {data['serious_rate']:>11.2f}%"
+        )
 
 
 def example_veterinary_analysis(fda, species, drug_name):
@@ -280,17 +291,20 @@ def example_veterinary_analysis(fda, species, drug_name):
                     if "veddra_term_name" in reaction:
                         reactions.append(reaction["veddra_term_name"])
 
-        print(f"Serious Events: {serious_count} ({serious_count/len(events['results'])*100:.1f}%)")
+        print(
+            f"Serious Events: {serious_count} ({serious_count/len(events['results'])*100:.1f}%)"
+        )
 
         # Count reactions
         from collections import Counter
+
         reaction_counts = Counter(reactions)
 
-        print(f"\nMost Common Reactions:")
+        print("\nMost Common Reactions:")
         for reaction, count in reaction_counts.most_common(10):
             print(f"  {reaction}: {count}")
     else:
-        print(f"No adverse events found")
+        print("No adverse events found")
 
 
 def main():

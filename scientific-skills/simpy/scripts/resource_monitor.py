@@ -8,7 +8,6 @@ queue lengths, utilization, wait times, and generating reports.
 """
 
 import simpy
-from collections import defaultdict
 from typing import List, Tuple, Dict, Any
 
 
@@ -23,7 +22,9 @@ class ResourceMonitor:
     - Request and release events
     """
 
-    def __init__(self, env: simpy.Environment, resource: simpy.Resource, name: str = "Resource"):
+    def __init__(
+        self, env: simpy.Environment, resource: simpy.Resource, name: str = "Resource"
+    ):
         """
         Initialize the resource monitor.
 
@@ -60,10 +61,13 @@ class ResourceMonitor:
 
             self.queue_data.append((self.env.now, queue_length))
             self.utilization_data.append((self.env.now, utilization))
-            self.events.append((self.env.now, 'request', {
-                'queue_length': queue_length,
-                'utilization': utilization
-            }))
+            self.events.append(
+                (
+                    self.env.now,
+                    "request",
+                    {"queue_length": queue_length, "utilization": utilization},
+                )
+            )
 
             # Store request time for wait time calculation
             self.request_times[req] = self.env.now
@@ -87,10 +91,13 @@ class ResourceMonitor:
 
             self.queue_data.append((self.env.now, queue_length))
             self.utilization_data.append((self.env.now, utilization))
-            self.events.append((self.env.now, 'release', {
-                'queue_length': queue_length,
-                'utilization': utilization
-            }))
+            self.events.append(
+                (
+                    self.env.now,
+                    "release",
+                    {"queue_length": queue_length, "utilization": utilization},
+                )
+            )
 
             return result
 
@@ -146,23 +153,27 @@ class ResourceMonitor:
         print(f"{'=' * 60}")
         print(f"Simulation time: 0.00 to {self.env.now:.2f}")
         print(f"Capacity: {self.resource.capacity}")
-        print(f"\nUtilization:")
+        print("\nUtilization:")
         print(f"  Average: {self.average_utilization():.2%}")
         print(f"  Final: {self.resource.count / self.resource.capacity:.2%}")
-        print(f"\nQueue Statistics:")
+        print("\nQueue Statistics:")
         print(f"  Average length: {self.average_queue_length():.2f}")
         print(f"  Max length: {self.max_queue_length()}")
         print(f"  Final length: {len(self.resource.queue)}")
-        print(f"\nWait Time Statistics:")
+        print("\nWait Time Statistics:")
         print(f"  Total requests: {len(self.wait_times)}")
         if self.wait_times:
             print(f"  Average wait: {self.average_wait_time():.2f}")
             print(f"  Max wait: {max(self.wait_times):.2f}")
             print(f"  Min wait: {min(self.wait_times):.2f}")
-        print(f"\nEvent Summary:")
+        print("\nEvent Summary:")
         print(f"  Total events: {len(self.events)}")
-        request_count = sum(1 for _, event_type, _ in self.events if event_type == 'request')
-        release_count = sum(1 for _, event_type, _ in self.events if event_type == 'release')
+        request_count = sum(
+            1 for _, event_type, _ in self.events if event_type == "request"
+        )
+        release_count = sum(
+            1 for _, event_type, _ in self.events if event_type == "release"
+        )
         print(f"  Requests: {request_count}")
         print(f"  Releases: {release_count}")
         print(f"{'=' * 60}")
@@ -176,17 +187,14 @@ class ResourceMonitor:
         """
         import csv
 
-        with open(filename, 'w', newline='') as f:
+        with open(filename, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(['Time', 'Event', 'Queue Length', 'Utilization'])
+            writer.writerow(["Time", "Event", "Queue Length", "Utilization"])
 
             for time, event_type, data in self.events:
-                writer.writerow([
-                    time,
-                    event_type,
-                    data['queue_length'],
-                    data['utilization']
-                ])
+                writer.writerow(
+                    [time, event_type, data["queue_length"], data["utilization"]]
+                )
 
         print(f"Data exported to {filename}")
 
@@ -230,9 +238,11 @@ class MultiResourceMonitor:
         print(f"{'-' * 20} {'-' * 12} {'-' * 12} {'-' * 12}")
 
         for name, monitor in self.monitors.items():
-            print(f"{name:<20} {monitor.average_utilization():<12.2%} "
-                  f"{monitor.average_queue_length():<12.2f} "
-                  f"{monitor.average_wait_time():<12.2f}")
+            print(
+                f"{name:<20} {monitor.average_utilization():<12.2%} "
+                f"{monitor.average_queue_length():<12.2f} "
+                f"{monitor.average_wait_time():<12.2f}"
+            )
 
         print(f"{'=' * 60}")
 
@@ -240,7 +250,12 @@ class MultiResourceMonitor:
 class ContainerMonitor:
     """Monitor Container resources (for tracking level changes)."""
 
-    def __init__(self, env: simpy.Environment, container: simpy.Container, name: str = "Container"):
+    def __init__(
+        self,
+        env: simpy.Environment,
+        container: simpy.Container,
+        name: str = "Container",
+    ):
         """
         Initialize container monitor.
 
@@ -319,6 +334,7 @@ class ContainerMonitor:
 
 # Example usage
 if __name__ == "__main__":
+
     def example_process(env, name, resource, duration):
         """Example process using a resource."""
         with resource.request() as req:

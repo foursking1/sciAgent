@@ -1,19 +1,15 @@
 """
 API tests for public session endpoints.
 """
-import pytest
-from httpx import AsyncClient
-from sqlalchemy import select
 
 from backend.db.models.session import Session
+from httpx import AsyncClient
 
 
 class TestPublicSessionsAPI:
     """Tests for public sessions API endpoints"""
 
-    async def test_list_public_sessions_empty(
-        self, api_client: AsyncClient
-    ):
+    async def test_list_public_sessions_empty(self, api_client: AsyncClient):
         """Test listing public sessions when none exist"""
         response = await api_client.get("/api/sessions/public")
         assert response.status_code == 200
@@ -44,9 +40,7 @@ class TestPublicSessionsAPI:
         data = response.json()
         assert data["total"] >= 1
 
-    async def test_get_public_session_not_found(
-        self, api_client: AsyncClient
-    ):
+    async def test_get_public_session_not_found(self, api_client: AsyncClient):
         """Test getting non-existent public session"""
         response = await api_client.get("/api/sessions/public/non-existent-id")
         assert response.status_code == 404

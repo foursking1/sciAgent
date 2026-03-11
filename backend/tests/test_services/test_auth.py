@@ -86,9 +86,7 @@ class TestAccessTokenCreation:
 
     def test_token_expiration(self):
         """Test token expiration"""
-        token = create_access_token(
-            {"sub": "user123"}, expires_delta=timedelta(seconds=1)
-        )
+        token = create_access_token({"sub": "user123"}, expires_delta=timedelta(seconds=1))
 
         time.sleep(2)
 
@@ -125,9 +123,7 @@ class TestDecodeToken:
 
     def test_decode_expired_token(self):
         """Test decoding an expired token"""
-        token = create_access_token(
-            {"sub": "user123"}, expires_delta=timedelta(seconds=1)
-        )
+        token = create_access_token({"sub": "user123"}, expires_delta=timedelta(seconds=1))
         time.sleep(2)
 
         payload = decode_token(token)
@@ -154,9 +150,7 @@ class TestGetCurrentUser:
 
     def test_get_current_user_with_expired_token(self):
         """Test getting current user with expired token"""
-        token = create_access_token(
-            {"sub": "expired_user"}, expires_delta=timedelta(seconds=1)
-        )
+        token = create_access_token({"sub": "expired_user"}, expires_delta=timedelta(seconds=1))
         time.sleep(2)
 
         with pytest.raises(Exception):

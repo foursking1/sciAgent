@@ -23,13 +23,7 @@ def run_optimization_for_decision_making():
     problem = get_problem("zdt1")
     algorithm = NSGA2(pop_size=100)
 
-    result = minimize(
-        problem,
-        algorithm,
-        ('n_gen', 200),
-        seed=1,
-        verbose=False
-    )
+    result = minimize(problem, algorithm, ("n_gen", 200), seed=1, verbose=False)
 
     print(f"Obtained {len(result.F)} solutions in Pareto front\n")
 
@@ -42,7 +36,9 @@ def apply_pseudo_weights(result, weights):
     print(f"Applying Pseudo-Weights with weights: {weights}")
 
     # Normalize objectives to [0, 1]
-    F_norm = (result.F - result.F.min(axis=0)) / (result.F.max(axis=0) - result.F.min(axis=0))
+    F_norm = (result.F - result.F.min(axis=0)) / (
+        result.F.max(axis=0) - result.F.min(axis=0)
+    )
 
     # Apply MCDM
     dm = PseudoWeights(weights)
@@ -61,9 +57,9 @@ def apply_pseudo_weights(result, weights):
 def compare_different_preferences(result):
     """Compare selections with different preference weights."""
 
-    print("="*60)
+    print("=" * 60)
     print("COMPARING DIFFERENT PREFERENCE WEIGHTS")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     # Define different preference scenarios
     scenarios = [
@@ -102,7 +98,7 @@ def visualize_selected_solutions(result, selections):
     plot = Petal(
         title="Selected Solutions Comparison",
         bounds=[f_min, f_max],
-        labels=["f1", "f2"]
+        labels=["f1", "f2"],
     )
 
     colors = ["red", "blue", "green"]
@@ -115,9 +111,9 @@ def visualize_selected_solutions(result, selections):
 def find_extreme_solutions(result):
     """Find extreme solutions (best in each objective)."""
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("EXTREME SOLUTIONS")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     # Best f1 (minimize f1)
     best_f1_idx = np.argmin(result.F[:, 0])
@@ -147,9 +143,9 @@ def main():
     # Step 4: Visualize selections with petal diagram
     visualize_selected_solutions(result, selections)
 
-    print("="*60)
+    print("=" * 60)
     print("DECISION MAKING EXAMPLE COMPLETED")
-    print("="*60)
+    print("=" * 60)
     print("\nKey Takeaways:")
     print("1. Different weights lead to different selected solutions")
     print("2. Higher weight on an objective selects solutions better in that objective")

@@ -12,11 +12,14 @@ Usage:
 
 import argparse
 import deepchem as dc
-import numpy as np
 import sys
 
 
-def train_solubility_model(data_path=None, smiles_col='smiles', target_col='measured log solubility in mols per litre'):
+def train_solubility_model(
+    data_path=None,
+    smiles_col="smiles",
+    target_col="measured log solubility in mols per litre",
+):
     """
     Train a solubility prediction model.
 
@@ -36,17 +39,14 @@ def train_solubility_model(data_path=None, smiles_col='smiles', target_col='meas
     if data_path is None:
         print("\nUsing Delaney (ESOL) benchmark dataset...")
         tasks, datasets, transformers = dc.molnet.load_delaney(
-            featurizer='ECFP',
-            splitter='scaffold'
+            featurizer="ECFP", splitter="scaffold"
         )
         train, valid, test = datasets
     else:
         print(f"\nLoading custom data from {data_path}...")
         featurizer = dc.feat.CircularFingerprint(radius=2, size=2048)
         loader = dc.data.CSVLoader(
-            tasks=[target_col],
-            feature_field=smiles_col,
-            featurizer=featurizer
+            tasks=[target_col], feature_field=smiles_col, featurizer=featurizer
         )
         dataset = loader.create_dataset(data_path)
 
@@ -54,19 +54,13 @@ def train_solubility_model(data_path=None, smiles_col='smiles', target_col='meas
         print("Splitting data with scaffold splitter...")
         splitter = dc.splits.ScaffoldSplitter()
         train, valid, test = splitter.train_valid_test_split(
-            dataset,
-            frac_train=0.8,
-            frac_valid=0.1,
-            frac_test=0.1
+            dataset, frac_train=0.8, frac_valid=0.1, frac_test=0.1
         )
 
         # Normalize data
         print("Normalizing features and targets...")
         transformers = [
-            dc.trans.NormalizationTransformer(
-                transform_y=True,
-                dataset=train
-            )
+            dc.trans.NormalizationTransformer(transform_y=True, dataset=train)
         ]
         for transformer in transformers:
             train = transformer.transform(train)
@@ -75,7 +69,7 @@ def train_solubility_model(data_path=None, smiles_col='smiles', target_col='meas
 
         tasks = [target_col]
 
-    print(f"\nDataset sizes:")
+    print("\nDataset sizes:")
     print(f"  Training:   {len(train)} molecules")
     print(f"  Validation: {len(valid)} molecules")
     print(f"  Test:       {len(test)} molecules")
@@ -88,7 +82,7 @@ def train_solubility_model(data_path=None, smiles_col='smiles', target_col='meas
         layer_sizes=[1000, 500],
         dropouts=0.25,
         learning_rate=0.001,
-        batch_size=50
+        batch_size=50,
     )
 
     # Train model
@@ -102,12 +96,12 @@ def train_solubility_model(data_path=None, smiles_col='smiles', target_col='meas
     print("=" * 60)
 
     metrics = [
-        dc.metrics.Metric(dc.metrics.r2_score, name='R²'),
-        dc.metrics.Metric(dc.metrics.mean_absolute_error, name='MAE'),
-        dc.metrics.Metric(dc.metrics.root_mean_squared_error, name='RMSE'),
+        dc.metrics.Metric(dc.metrics.r2_score, name="R²"),
+        dc.metrics.Metric(dc.metrics.mean_absolute_error, name="MAE"),
+        dc.metrics.Metric(dc.metrics.root_mean_squared_error, name="RMSE"),
     ]
 
-    for dataset_name, dataset in [('Train', train), ('Valid', valid), ('Test', test)]:
+    for dataset_name, dataset in [("Train", train), ("Valid", valid), ("Test", test)]:
         print(f"\n{dataset_name} Set:")
         scores = model.evaluate(dataset, metrics)
         for metric_name, score in scores.items():
@@ -157,31 +151,28 @@ def predict_new_molecules(model, smiles_list, transformers=None):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Train a molecular solubility prediction model'
+        description="Train a molecular solubility prediction model"
     )
     parser.add_argument(
-        '--data',
+        "--data", type=str, default=None, help="Path to CSV file with molecular data"
+    )
+    parser.add_argument(
+        "--smiles-col",
         type=str,
+        default="smiles",
+        help="Name of column containing SMILES strings",
+    )
+    parser.add_argument(
+        "--target-col",
+        type=str,
+        default="solubility",
+        help="Name of column containing target values",
+    )
+    parser.add_argument(
+        "--predict",
+        nargs="+",
         default=None,
-        help='Path to CSV file with molecular data'
-    )
-    parser.add_argument(
-        '--smiles-col',
-        type=str,
-        default='smiles',
-        help='Name of column containing SMILES strings'
-    )
-    parser.add_argument(
-        '--target-col',
-        type=str,
-        default='solubility',
-        help='Name of column containing target values'
-    )
-    parser.add_argument(
-        '--predict',
-        nargs='+',
-        default=None,
-        help='SMILES strings to predict after training'
+        help="SMILES strings to predict after training",
     )
 
     args = parser.parse_args()
@@ -189,9 +180,7 @@ def main():
     # Train model
     try:
         model, test_set, transformers = train_solubility_model(
-            data_path=args.data,
-            smiles_col=args.smiles_col,
-            target_col=args.target_col
+            data_path=args.data, smiles_col=args.smiles_col, target_col=args.target_col
         )
     except Exception as e:
         print(f"\nError during training: {e}", file=sys.stderr)
@@ -207,10 +196,10 @@ def main():
     else:
         # Example predictions
         example_smiles = [
-            'CCO',                    # Ethanol
-            'CC(=O)O',                # Acetic acid
-            'c1ccccc1',               # Benzene
-            'CN1C=NC2=C1C(=O)N(C(=O)N2C)C',  # Caffeine
+            "CCO",  # Ethanol
+            "CC(=O)O",  # Acetic acid
+            "c1ccccc1",  # Benzene
+            "CN1C=NC2=C1C(=O)N(C(=O)N2C)C",  # Caffeine
         ]
         predict_new_molecules(model, example_smiles, transformers)
 
@@ -220,5 +209,5 @@ def main():
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

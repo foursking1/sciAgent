@@ -17,50 +17,52 @@ from pathlib import Path
 try:
     from rdkit import Chem
 except ImportError:
-    print("Error: RDKit not installed. Install with: conda install -c conda-forge rdkit")
+    print(
+        "Error: RDKit not installed. Install with: conda install -c conda-forge rdkit"
+    )
     sys.exit(1)
 
 
 # Common SMARTS pattern libraries
 PATTERN_LIBRARIES = {
-    'functional-groups': {
-        'alcohol': '[OH][C]',
-        'aldehyde': '[CH1](=O)',
-        'ketone': '[C](=O)[C]',
-        'carboxylic_acid': 'C(=O)[OH]',
-        'ester': 'C(=O)O[C]',
-        'amide': 'C(=O)N',
-        'amine': '[NX3]',
-        'ether': '[C][O][C]',
-        'nitrile': 'C#N',
-        'nitro': '[N+](=O)[O-]',
-        'halide': '[C][F,Cl,Br,I]',
-        'thiol': '[C][SH]',
-        'sulfide': '[C][S][C]',
+    "functional-groups": {
+        "alcohol": "[OH][C]",
+        "aldehyde": "[CH1](=O)",
+        "ketone": "[C](=O)[C]",
+        "carboxylic_acid": "C(=O)[OH]",
+        "ester": "C(=O)O[C]",
+        "amide": "C(=O)N",
+        "amine": "[NX3]",
+        "ether": "[C][O][C]",
+        "nitrile": "C#N",
+        "nitro": "[N+](=O)[O-]",
+        "halide": "[C][F,Cl,Br,I]",
+        "thiol": "[C][SH]",
+        "sulfide": "[C][S][C]",
     },
-    'rings': {
-        'benzene': 'c1ccccc1',
-        'pyridine': 'n1ccccc1',
-        'pyrrole': 'n1cccc1',
-        'furan': 'o1cccc1',
-        'thiophene': 's1cccc1',
-        'imidazole': 'n1cncc1',
-        'indole': 'c1ccc2[nH]ccc2c1',
-        'naphthalene': 'c1ccc2ccccc2c1',
+    "rings": {
+        "benzene": "c1ccccc1",
+        "pyridine": "n1ccccc1",
+        "pyrrole": "n1cccc1",
+        "furan": "o1cccc1",
+        "thiophene": "s1cccc1",
+        "imidazole": "n1cncc1",
+        "indole": "c1ccc2[nH]ccc2c1",
+        "naphthalene": "c1ccc2ccccc2c1",
     },
-    'pains': {
-        'rhodanine': 'S1C(=O)NC(=S)C1',
-        'catechol': 'c1ccc(O)c(O)c1',
-        'quinone': 'O=C1C=CC(=O)C=C1',
-        'michael_acceptor': 'C=CC(=O)',
-        'alkyl_halide': '[C][I,Br]',
+    "pains": {
+        "rhodanine": "S1C(=O)NC(=S)C1",
+        "catechol": "c1ccc(O)c(O)c1",
+        "quinone": "O=C1C=CC(=O)C=C1",
+        "michael_acceptor": "C=CC(=O)",
+        "alkyl_halide": "[C][I,Br]",
     },
-    'privileged': {
-        'biphenyl': 'c1ccccc1-c2ccccc2',
-        'piperazine': 'N1CCNCC1',
-        'piperidine': 'N1CCCCC1',
-        'morpholine': 'N1CCOCC1',
-    }
+    "privileged": {
+        "biphenyl": "c1ccccc1-c2ccccc2",
+        "piperazine": "N1CCNCC1",
+        "piperidine": "N1CCCCC1",
+        "morpholine": "N1CCOCC1",
+    },
 }
 
 
@@ -74,9 +76,9 @@ def load_molecules(file_path, keep_props=True):
 
     molecules = []
 
-    if path.suffix.lower() in ['.sdf', '.mol']:
+    if path.suffix.lower() in [".sdf", ".mol"]:
         suppl = Chem.SDMolSupplier(str(path))
-    elif path.suffix.lower() in ['.smi', '.smiles', '.txt']:
+    elif path.suffix.lower() in [".smi", ".smiles", ".txt"]:
         suppl = Chem.SmilesMolSupplier(str(path), titleLine=False)
     else:
         print(f"Error: Unsupported file format: {path.suffix}")
@@ -108,8 +110,9 @@ def create_pattern_query(pattern_string):
     return None
 
 
-def filter_molecules(molecules, include_patterns=None, exclude_patterns=None,
-                    match_all_include=False):
+def filter_molecules(
+    molecules, include_patterns=None, exclude_patterns=None, match_all_include=False
+):
     """
     Filter molecules based on substructure patterns.
 
@@ -139,12 +142,14 @@ def filter_molecules(molecules, include_patterns=None, exclude_patterns=None,
                     exclude_matches.append(name)
 
         if excluded:
-            match_info.append({
-                'index': idx + 1,
-                'smiles': Chem.MolToSmiles(mol),
-                'status': 'excluded',
-                'matches': exclude_matches
-            })
+            match_info.append(
+                {
+                    "index": idx + 1,
+                    "smiles": Chem.MolToSmiles(mol),
+                    "status": "excluded",
+                    "matches": exclude_matches,
+                }
+            )
             continue
 
         # Check inclusion patterns
@@ -162,28 +167,34 @@ def filter_molecules(molecules, include_patterns=None, exclude_patterns=None,
 
             if passed:
                 filtered.append(mol)
-                match_info.append({
-                    'index': idx + 1,
-                    'smiles': Chem.MolToSmiles(mol),
-                    'status': 'included',
-                    'matches': include_matches
-                })
+                match_info.append(
+                    {
+                        "index": idx + 1,
+                        "smiles": Chem.MolToSmiles(mol),
+                        "status": "included",
+                        "matches": include_matches,
+                    }
+                )
             else:
-                match_info.append({
-                    'index': idx + 1,
-                    'smiles': Chem.MolToSmiles(mol),
-                    'status': 'no_match',
-                    'matches': []
-                })
+                match_info.append(
+                    {
+                        "index": idx + 1,
+                        "smiles": Chem.MolToSmiles(mol),
+                        "status": "no_match",
+                        "matches": [],
+                    }
+                )
         else:
             # No inclusion patterns, keep all non-excluded
             filtered.append(mol)
-            match_info.append({
-                'index': idx + 1,
-                'smiles': Chem.MolToSmiles(mol),
-                'status': 'included',
-                'matches': []
-            })
+            match_info.append(
+                {
+                    "index": idx + 1,
+                    "smiles": Chem.MolToSmiles(mol),
+                    "status": "included",
+                    "matches": [],
+                }
+            )
 
     return filtered, match_info
 
@@ -192,16 +203,16 @@ def write_molecules(molecules, output_file):
     """Write molecules to file."""
     output_path = Path(output_file)
 
-    if output_path.suffix.lower() in ['.sdf']:
+    if output_path.suffix.lower() in [".sdf"]:
         writer = Chem.SDWriter(str(output_path))
         for mol in molecules:
             writer.write(mol)
         writer.close()
-    elif output_path.suffix.lower() in ['.smi', '.smiles', '.txt']:
-        with open(output_path, 'w') as f:
+    elif output_path.suffix.lower() in [".smi", ".smiles", ".txt"]:
+        with open(output_path, "w") as f:
             for mol in molecules:
                 smiles = Chem.MolToSmiles(mol)
-                name = mol.GetProp('_Name') if mol.HasProp('_Name') else ''
+                name = mol.GetProp("_Name") if mol.HasProp("_Name") else ""
                 f.write(f"{smiles} {name}\n")
     else:
         print(f"Error: Unsupported output format: {output_path.suffix}")
@@ -214,25 +225,27 @@ def write_report(match_info, output_file):
     """Write detailed match report."""
     import csv
 
-    with open(output_file, 'w', newline='') as f:
-        fieldnames = ['Index', 'SMILES', 'Status', 'Matches']
+    with open(output_file, "w", newline="") as f:
+        fieldnames = ["Index", "SMILES", "Status", "Matches"]
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
 
         for info in match_info:
-            writer.writerow({
-                'Index': info['index'],
-                'SMILES': info['smiles'],
-                'Status': info['status'],
-                'Matches': ', '.join(info['matches'])
-            })
+            writer.writerow(
+                {
+                    "Index": info["index"],
+                    "SMILES": info["smiles"],
+                    "Status": info["status"],
+                    "Matches": ", ".join(info["matches"]),
+                }
+            )
 
 
 def print_summary(total, filtered, match_info):
     """Print filtering summary."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Filtering Summary")
-    print("="*60)
+    print("=" * 60)
     print(f"Total molecules:     {total}")
     print(f"Passed filter:       {len(filtered)}")
     print(f"Filtered out:        {total - len(filtered)}")
@@ -241,21 +254,21 @@ def print_summary(total, filtered, match_info):
     # Count by status
     status_counts = {}
     for info in match_info:
-        status = info['status']
+        status = info["status"]
         status_counts[status] = status_counts.get(status, 0) + 1
 
     print("\nBreakdown:")
     for status, count in status_counts.items():
         print(f"  {status:15s}: {count}")
 
-    print("="*60)
+    print("=" * 60)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Filter molecules by substructure patterns',
+        description="Filter molecules by substructure patterns",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=f"""
+        epilog="""
 Pattern libraries:
   --filter-type functional-groups    Common functional groups
   --filter-type rings               Ring systems
@@ -277,31 +290,51 @@ Examples:
 
   # Multiple patterns
   python substructure_filter.py mol.smi --pattern "c1ccccc1" --pattern "N" -o aromatic_amines.smi
-        """
+        """,
     )
 
-    parser.add_argument('input', help='Input file (SDF or SMILES)')
-    parser.add_argument('--pattern', '-p', action='append',
-                       help='SMARTS/SMILES pattern to include (can specify multiple)')
-    parser.add_argument('--exclude', '-e', action='append',
-                       help='SMARTS/SMILES pattern to exclude (can specify multiple)')
-    parser.add_argument('--filter-type', choices=PATTERN_LIBRARIES.keys(),
-                       help='Use predefined pattern library')
-    parser.add_argument('--exclude-mode', action='store_true',
-                       help='Use filter-type patterns for exclusion instead of inclusion')
-    parser.add_argument('--match-all', action='store_true',
-                       help='Molecule must match ALL include patterns')
-    parser.add_argument('--output', '-o', help='Output file')
-    parser.add_argument('--report', '-r', help='Write detailed report to CSV')
-    parser.add_argument('--list-patterns', action='store_true',
-                       help='List available pattern libraries and exit')
+    parser.add_argument("input", help="Input file (SDF or SMILES)")
+    parser.add_argument(
+        "--pattern",
+        "-p",
+        action="append",
+        help="SMARTS/SMILES pattern to include (can specify multiple)",
+    )
+    parser.add_argument(
+        "--exclude",
+        "-e",
+        action="append",
+        help="SMARTS/SMILES pattern to exclude (can specify multiple)",
+    )
+    parser.add_argument(
+        "--filter-type",
+        choices=PATTERN_LIBRARIES.keys(),
+        help="Use predefined pattern library",
+    )
+    parser.add_argument(
+        "--exclude-mode",
+        action="store_true",
+        help="Use filter-type patterns for exclusion instead of inclusion",
+    )
+    parser.add_argument(
+        "--match-all",
+        action="store_true",
+        help="Molecule must match ALL include patterns",
+    )
+    parser.add_argument("--output", "-o", help="Output file")
+    parser.add_argument("--report", "-r", help="Write detailed report to CSV")
+    parser.add_argument(
+        "--list-patterns",
+        action="store_true",
+        help="List available pattern libraries and exit",
+    )
 
     args = parser.parse_args()
 
     # List patterns mode
     if args.list_patterns:
         print("\nAvailable Pattern Libraries:")
-        print("="*60)
+        print("=" * 60)
         for lib_name, patterns in PATTERN_LIBRARIES.items():
             print(f"\n{lib_name}:")
             for name, pattern in patterns.items():
@@ -326,14 +359,14 @@ Examples:
         for pattern_str in args.pattern:
             query = create_pattern_query(pattern_str)
             if query:
-                include_patterns.append(('custom', query))
+                include_patterns.append(("custom", query))
 
     # Add custom exclude patterns
     if args.exclude:
         for pattern_str in args.exclude:
             query = create_pattern_query(pattern_str)
             if query:
-                exclude_patterns.append(('custom', query))
+                exclude_patterns.append(("custom", query))
 
     # Add library patterns
     if args.filter_type:
@@ -351,7 +384,7 @@ Examples:
         sys.exit(1)
 
     # Print filter configuration
-    print(f"\nFilter configuration:")
+    print("\nFilter configuration:")
     if include_patterns:
         print(f"  Include patterns: {len(include_patterns)}")
         if args.match_all:
@@ -367,7 +400,7 @@ Examples:
         molecules,
         include_patterns=include_patterns if include_patterns else None,
         exclude_patterns=exclude_patterns if exclude_patterns else None,
-        match_all_include=args.match_all
+        match_all_include=args.match_all,
     )
 
     # Print summary
@@ -382,5 +415,5 @@ Examples:
         print(f"Detailed report written to: {args.report}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

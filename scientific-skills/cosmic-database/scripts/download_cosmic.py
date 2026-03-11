@@ -32,7 +32,7 @@ def download_cosmic_file(
     password: str,
     filepath: str,
     output_filename: Optional[str] = None,
-    genome_assembly: str = "GRCh38"
+    genome_assembly: str = "GRCh38",
 ) -> bool:
     """
     Download a file from COSMIC database.
@@ -63,11 +63,7 @@ def download_cosmic_file(
     try:
         # Step 1: Get the download URL
         print(f"Requesting download URL for: {filepath}")
-        r = requests.get(
-            base_url + filepath,
-            auth=(email, password),
-            timeout=30
-        )
+        r = requests.get(base_url + filepath, auth=(email, password), timeout=30)
 
         if r.status_code == 401:
             print("ERROR: Authentication failed. Check email and password.")
@@ -93,14 +89,16 @@ def download_cosmic_file(
         file_response = requests.get(download_url, stream=True, timeout=300)
 
         if file_response.status_code != 200:
-            print(f"ERROR: Download failed with status code {file_response.status_code}")
+            print(
+                f"ERROR: Download failed with status code {file_response.status_code}"
+            )
             return False
 
         # Step 3: Write to disk
         print(f"Saving to: {output_filename}")
-        total_size = int(file_response.headers.get('content-length', 0))
+        total_size = int(file_response.headers.get("content-length", 0))
 
-        with open(output_filename, 'wb') as f:
+        with open(output_filename, "wb") as f:
             if total_size == 0:
                 f.write(file_response.content)
             else:
@@ -111,7 +109,7 @@ def download_cosmic_file(
                         downloaded += len(chunk)
                         # Show progress
                         progress = (downloaded / total_size) * 100
-                        print(f"\rProgress: {progress:.1f}%", end='', flush=True)
+                        print(f"\rProgress: {progress:.1f}%", end="", flush=True)
                 print()  # New line after progress
 
         print(f"✓ Successfully downloaded: {output_filename}")
@@ -129,9 +127,7 @@ def download_cosmic_file(
 
 
 def get_common_file_path(
-    data_type: str,
-    genome_assembly: str = "GRCh38",
-    version: str = "latest"
+    data_type: str, genome_assembly: str = "GRCh38", version: str = "latest"
 ) -> Optional[str]:
     """
     Get the filepath for common COSMIC data files.
@@ -145,16 +141,16 @@ def get_common_file_path(
         Filepath string or None if type unknown
     """
     common_files = {
-        'mutations': f'{genome_assembly}/cosmic/{version}/CosmicMutantExport.tsv.gz',
-        'mutations_vcf': f'{genome_assembly}/cosmic/{version}/VCF/CosmicCodingMuts.vcf.gz',
-        'gene_census': f'{genome_assembly}/cosmic/{version}/cancer_gene_census.csv',
-        'resistance_mutations': f'{genome_assembly}/cosmic/{version}/CosmicResistanceMutations.tsv.gz',
-        'structural_variants': f'{genome_assembly}/cosmic/{version}/CosmicStructExport.tsv.gz',
-        'gene_expression': f'{genome_assembly}/cosmic/{version}/CosmicCompleteGeneExpression.tsv.gz',
-        'copy_number': f'{genome_assembly}/cosmic/{version}/CosmicCompleteCNA.tsv.gz',
-        'fusion_genes': f'{genome_assembly}/cosmic/{version}/CosmicFusionExport.tsv.gz',
-        'signatures': f'signatures/signatures.tsv',
-        'sample_info': f'{genome_assembly}/cosmic/{version}/CosmicSample.tsv.gz',
+        "mutations": f"{genome_assembly}/cosmic/{version}/CosmicMutantExport.tsv.gz",
+        "mutations_vcf": f"{genome_assembly}/cosmic/{version}/VCF/CosmicCodingMuts.vcf.gz",
+        "gene_census": f"{genome_assembly}/cosmic/{version}/cancer_gene_census.csv",
+        "resistance_mutations": f"{genome_assembly}/cosmic/{version}/CosmicResistanceMutations.tsv.gz",
+        "structural_variants": f"{genome_assembly}/cosmic/{version}/CosmicStructExport.tsv.gz",
+        "gene_expression": f"{genome_assembly}/cosmic/{version}/CosmicCompleteGeneExpression.tsv.gz",
+        "copy_number": f"{genome_assembly}/cosmic/{version}/CosmicCompleteCNA.tsv.gz",
+        "fusion_genes": f"{genome_assembly}/cosmic/{version}/CosmicFusionExport.tsv.gz",
+        "signatures": "signatures/signatures.tsv",
+        "sample_info": f"{genome_assembly}/cosmic/{version}/CosmicSample.tsv.gz",
     }
 
     return common_files.get(data_type)
@@ -165,7 +161,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description='Download files from COSMIC database',
+        description="Download files from COSMIC database",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -177,30 +173,48 @@ Examples:
 
   # Download for GRCh37
   %(prog)s user@email.com --data-type gene_census --assembly GRCh37
-        """
+        """,
     )
 
-    parser.add_argument('email', help='COSMIC account email')
-    parser.add_argument('--password', help='COSMIC account password (will prompt if not provided)')
-    parser.add_argument('--filepath', help='Full filepath to download')
-    parser.add_argument('--data-type',
-                       choices=['mutations', 'mutations_vcf', 'gene_census', 'resistance_mutations',
-                               'structural_variants', 'gene_expression', 'copy_number',
-                               'fusion_genes', 'signatures', 'sample_info'],
-                       help='Common data type shorthand')
-    parser.add_argument('--assembly', default='GRCh38',
-                       choices=['GRCh37', 'GRCh38'],
-                       help='Genome assembly (default: GRCh38)')
-    parser.add_argument('--version', default='latest',
-                       help='COSMIC version (default: latest)')
-    parser.add_argument('-o', '--output', help='Output filename')
+    parser.add_argument("email", help="COSMIC account email")
+    parser.add_argument(
+        "--password", help="COSMIC account password (will prompt if not provided)"
+    )
+    parser.add_argument("--filepath", help="Full filepath to download")
+    parser.add_argument(
+        "--data-type",
+        choices=[
+            "mutations",
+            "mutations_vcf",
+            "gene_census",
+            "resistance_mutations",
+            "structural_variants",
+            "gene_expression",
+            "copy_number",
+            "fusion_genes",
+            "signatures",
+            "sample_info",
+        ],
+        help="Common data type shorthand",
+    )
+    parser.add_argument(
+        "--assembly",
+        default="GRCh38",
+        choices=["GRCh37", "GRCh38"],
+        help="Genome assembly (default: GRCh38)",
+    )
+    parser.add_argument(
+        "--version", default="latest", help="COSMIC version (default: latest)"
+    )
+    parser.add_argument("-o", "--output", help="Output filename")
 
     args = parser.parse_args()
 
     # Get password if not provided
     if not args.password:
         import getpass
-        args.password = getpass.getpass('COSMIC password: ')
+
+        args.password = getpass.getpass("COSMIC password: ")
 
     # Determine filepath
     if args.filepath:
@@ -221,11 +235,11 @@ Examples:
         password=args.password,
         filepath=filepath,
         output_filename=args.output,
-        genome_assembly=args.assembly
+        genome_assembly=args.assembly,
     )
 
     return 0 if success else 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

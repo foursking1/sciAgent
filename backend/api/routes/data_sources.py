@@ -89,9 +89,7 @@ async def get_data_source(
     data_source = result.scalar_one_or_none()
 
     if not data_source:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found")
 
     return DataSourceResponse.model_validate(data_source)
 
@@ -112,9 +110,7 @@ async def update_data_source(
     data_source = result.scalar_one_or_none()
 
     if not data_source:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found")
 
     # Update fields
     if data.name is not None:
@@ -161,9 +157,7 @@ async def delete_data_source(
     data_source = result.scalar_one_or_none()
 
     if not data_source:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found")
 
     await db.delete(data_source)
     await db.commit()
@@ -184,9 +178,7 @@ async def test_data_source(
     data_source = result.scalar_one_or_none()
 
     if not data_source:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found")
 
     # TODO: Implement actual connection testing based on type
     # For now, return a mock success response

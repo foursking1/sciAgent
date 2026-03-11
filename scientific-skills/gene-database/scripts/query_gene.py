@@ -13,7 +13,6 @@ import time
 import urllib.parse
 import urllib.request
 from typing import Optional, Dict, List, Any
-from xml.etree import ElementTree as ET
 
 
 BASE_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
@@ -32,15 +31,10 @@ def esearch(query: str, retmax: int = 20, api_key: Optional[str] = None) -> List
     Returns:
         List of Gene IDs as strings
     """
-    params = {
-        'db': DB,
-        'term': query,
-        'retmax': retmax,
-        'retmode': 'json'
-    }
+    params = {"db": DB, "term": query, "retmax": retmax, "retmode": "json"}
 
     if api_key:
-        params['api_key'] = api_key
+        params["api_key"] = api_key
 
     url = f"{BASE_URL}esearch.fcgi?{urllib.parse.urlencode(params)}"
 
@@ -48,10 +42,10 @@ def esearch(query: str, retmax: int = 20, api_key: Optional[str] = None) -> List
         with urllib.request.urlopen(url) as response:
             data = json.loads(response.read().decode())
 
-        if 'esearchresult' in data and 'idlist' in data['esearchresult']:
-            return data['esearchresult']['idlist']
+        if "esearchresult" in data and "idlist" in data["esearchresult"]:
+            return data["esearchresult"]["idlist"]
         else:
-            print(f"Error: Unexpected response format", file=sys.stderr)
+            print("Error: Unexpected response format", file=sys.stderr)
             return []
 
     except urllib.error.HTTPError as e:
@@ -73,14 +67,10 @@ def esummary(gene_ids: List[str], api_key: Optional[str] = None) -> Dict[str, An
     Returns:
         Dictionary of gene summaries
     """
-    params = {
-        'db': DB,
-        'id': ','.join(gene_ids),
-        'retmode': 'json'
-    }
+    params = {"db": DB, "id": ",".join(gene_ids), "retmode": "json"}
 
     if api_key:
-        params['api_key'] = api_key
+        params["api_key"] = api_key
 
     url = f"{BASE_URL}esummary.fcgi?{urllib.parse.urlencode(params)}"
 
@@ -96,7 +86,9 @@ def esummary(gene_ids: List[str], api_key: Optional[str] = None) -> Dict[str, An
         return {}
 
 
-def efetch(gene_ids: List[str], retmode: str = 'xml', api_key: Optional[str] = None) -> str:
+def efetch(
+    gene_ids: List[str], retmode: str = "xml", api_key: Optional[str] = None
+) -> str:
     """
     Fetch full gene records.
 
@@ -108,14 +100,10 @@ def efetch(gene_ids: List[str], retmode: str = 'xml', api_key: Optional[str] = N
     Returns:
         Gene records as string in requested format
     """
-    params = {
-        'db': DB,
-        'id': ','.join(gene_ids),
-        'retmode': retmode
-    }
+    params = {"db": DB, "id": ",".join(gene_ids), "retmode": retmode}
 
     if api_key:
-        params['api_key'] = api_key
+        params["api_key"] = api_key
 
     url = f"{BASE_URL}efetch.fcgi?{urllib.parse.urlencode(params)}"
 
@@ -130,8 +118,12 @@ def efetch(gene_ids: List[str], retmode: str = 'xml', api_key: Optional[str] = N
         return ""
 
 
-def search_and_summarize(query: str, organism: Optional[str] = None,
-                        max_results: int = 20, api_key: Optional[str] = None) -> None:
+def search_and_summarize(
+    query: str,
+    organism: Optional[str] = None,
+    max_results: int = 20,
+    api_key: Optional[str] = None,
+) -> None:
     """
     Search for genes and display summaries.
 
@@ -143,7 +135,7 @@ def search_and_summarize(query: str, organism: Optional[str] = None,
     """
     # Add organism filter if provided
     if organism:
-        if '[organism]' not in query.lower():
+        if "[organism]" not in query.lower():
             query = f"{query} AND {organism}[organism]"
 
     print(f"Searching for: {query}")
@@ -162,14 +154,16 @@ def search_and_summarize(query: str, organism: Optional[str] = None,
     # Get summaries
     summaries = esummary(gene_ids, api_key=api_key)
 
-    if 'result' in summaries:
+    if "result" in summaries:
         for gene_id in gene_ids:
-            if gene_id in summaries['result']:
-                gene = summaries['result'][gene_id]
+            if gene_id in summaries["result"]:
+                gene = summaries["result"][gene_id]
                 print(f"Gene ID: {gene_id}")
                 print(f"  Symbol: {gene.get('name', 'N/A')}")
                 print(f"  Description: {gene.get('description', 'N/A')}")
-                print(f"  Organism: {gene.get('organism', {}).get('scientificname', 'N/A')}")
+                print(
+                    f"  Organism: {gene.get('organism', {}).get('scientificname', 'N/A')}"
+                )
                 print(f"  Chromosome: {gene.get('chromosome', 'N/A')}")
                 print(f"  Map Location: {gene.get('maplocation', 'N/A')}")
                 print(f"  Type: {gene.get('geneticsource', 'N/A')}")
@@ -179,8 +173,9 @@ def search_and_summarize(query: str, organism: Optional[str] = None,
     time.sleep(0.34)  # ~3 requests per second
 
 
-def fetch_by_id(gene_ids: List[str], output_format: str = 'json',
-                api_key: Optional[str] = None) -> None:
+def fetch_by_id(
+    gene_ids: List[str], output_format: str = "json", api_key: Optional[str] = None
+) -> None:
     """
     Fetch and display gene information by ID.
 
@@ -189,7 +184,7 @@ def fetch_by_id(gene_ids: List[str], output_format: str = 'json',
         output_format: Output format ('json', 'xml', 'text')
         api_key: Optional NCBI API key
     """
-    if output_format == 'json':
+    if output_format == "json":
         # Get summaries in JSON format
         summaries = esummary(gene_ids, api_key=api_key)
         print(json.dumps(summaries, indent=2))
@@ -204,7 +199,7 @@ def fetch_by_id(gene_ids: List[str], output_format: str = 'json',
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Query NCBI Gene database using E-utilities',
+        description="Query NCBI Gene database using E-utilities",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -219,18 +214,27 @@ Examples:
 
   # Multiple gene IDs
   %(prog)s --id 672,7157,5594
-        """
+        """,
     )
 
-    parser.add_argument('--search', '-s', help='Search query')
-    parser.add_argument('--organism', '-o', help='Organism filter')
-    parser.add_argument('--id', '-i', help='Gene ID(s), comma-separated')
-    parser.add_argument('--format', '-f', default='json',
-                       choices=['json', 'xml', 'text'],
-                       help='Output format (default: json)')
-    parser.add_argument('--max-results', '-m', type=int, default=20,
-                       help='Maximum number of search results (default: 20)')
-    parser.add_argument('--api-key', '-k', help='NCBI API key for higher rate limits')
+    parser.add_argument("--search", "-s", help="Search query")
+    parser.add_argument("--organism", "-o", help="Organism filter")
+    parser.add_argument("--id", "-i", help="Gene ID(s), comma-separated")
+    parser.add_argument(
+        "--format",
+        "-f",
+        default="json",
+        choices=["json", "xml", "text"],
+        help="Output format (default: json)",
+    )
+    parser.add_argument(
+        "--max-results",
+        "-m",
+        type=int,
+        default=20,
+        help="Maximum number of search results (default: 20)",
+    )
+    parser.add_argument("--api-key", "-k", help="NCBI API key for higher rate limits")
 
     args = parser.parse_args()
 
@@ -239,13 +243,17 @@ Examples:
 
     if args.id:
         # Fetch by ID
-        gene_ids = [id.strip() for id in args.id.split(',')]
+        gene_ids = [id.strip() for id in args.id.split(",")]
         fetch_by_id(gene_ids, output_format=args.format, api_key=args.api_key)
     else:
         # Search and summarize
-        search_and_summarize(args.search, organism=args.organism,
-                           max_results=args.max_results, api_key=args.api_key)
+        search_and_summarize(
+            args.search,
+            organism=args.organism,
+            max_results=args.max_results,
+            api_key=args.api_key,
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

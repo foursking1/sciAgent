@@ -118,12 +118,14 @@ class CustomEnv(gym.Env):
             info: Additional information dictionary
         """
         # Map action to direction (0: up, 1: down, 2: left, 3: right)
-        direction = np.array([
-            [-1, 0],  # up
-            [1, 0],   # down
-            [0, -1],  # left
-            [0, 1],   # right
-        ])[action]
+        direction = np.array(
+            [
+                [-1, 0],  # up
+                [1, 0],  # down
+                [0, -1],  # left
+                [0, 1],  # right
+            ]
+        )[action]
 
         # Update agent position (clip to stay within grid)
         self._agent_position = np.clip(
@@ -204,11 +206,9 @@ class CustomEnv(gym.Env):
         elif self.render_mode == "rgb_array":
             # Return RGB array for video recording
             # This is a placeholder - implement proper rendering as needed
-            canvas = np.zeros((
-                self.grid_size * 50,
-                self.grid_size * 50,
-                3
-            ), dtype=np.uint8)
+            canvas = np.zeros(
+                (self.grid_size * 50, self.grid_size * 50, 3), dtype=np.uint8
+            )
             # Draw agent and goal on canvas
             # ... (implement visual rendering)
             return canvas
@@ -285,6 +285,7 @@ def train_on_custom_env():
 
     # Validate first
     from stable_baselines3.common.env_checker import check_env
+
     check_env(env, warn=True)
 
     # Train agent

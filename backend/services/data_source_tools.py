@@ -47,8 +47,8 @@ def get_database_schema_tool_description(data_source: DataSource) -> str:
 数据库数据源: {data_source.name}
 类型: {db_type}
 配置信息:
-- Host: {config.get('host', 'N/A')}
-- Database: {config.get('database', 'N/A')}
+- Host: {config.get("host", "N/A")}
+- Database: {config.get("database", "N/A")}
 
 使用说明:
 - 该数据源提供数据库 schema 信息供 Agent 参考
@@ -67,7 +67,7 @@ def get_vector_store_tool_description(data_source: DataSource) -> str:
     return f"""
 向量库数据源: {data_source.name}
 Collection: {collection}
-Embedding模型: {config.get('embedding_model', 'default')}
+Embedding模型: {config.get("embedding_model", "default")}
 
 使用说明:
 - 该数据源可用于语义检索
@@ -86,12 +86,12 @@ def get_skill_tool_description(data_source: DataSource) -> str:
     return f"""
 Skill数据源: {data_source.name}
 Skill名称: {skill_name}
-端点: {config.get('endpoint', 'N/A')}
+端点: {config.get("endpoint", "N/A")}
 
 使用说明:
 - 该数据源是一个自定义技能
 - Agent 可以调用此技能获取数据
-- 参数: {config.get('params', {})}
+- 参数: {config.get("params", {})}
 """
 
 

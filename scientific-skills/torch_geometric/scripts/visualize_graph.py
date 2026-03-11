@@ -20,7 +20,7 @@ import argparse
 import matplotlib.pyplot as plt
 import networkx as nx
 import torch
-from typing import Optional, Union
+from typing import Optional
 import numpy as np
 
 
@@ -53,7 +53,9 @@ def visualize_data(
     """
     # Sample nodes if graph is too large
     if max_nodes and data.num_nodes > max_nodes:
-        print(f"Graph has {data.num_nodes} nodes. Sampling {max_nodes} nodes for visualization.")
+        print(
+            f"Graph has {data.num_nodes} nodes. Sampling {max_nodes} nodes for visualization."
+        )
         node_indices = torch.randperm(data.num_nodes)[:max_nodes]
         data = data.subgraph(node_indices)
 
@@ -92,7 +94,7 @@ def visualize_data(
             # Multi-dimensional features - use first dimension
             node_colors = node_colors[:, 0]
     else:
-        node_colors = 'skyblue'
+        node_colors = "skyblue"
 
     # Determine edge colors
     if edge_color_attr and hasattr(data, edge_color_attr):
@@ -100,37 +102,34 @@ def visualize_data(
         if len(edge_colors.shape) > 1:
             edge_colors = edge_colors[:, 0]
     else:
-        edge_colors = 'gray'
+        edge_colors = "gray"
 
     # Draw graph
     nx.draw_networkx_nodes(
-        G, pos,
-        node_color=node_colors,
-        node_size=node_size,
-        cmap=plt.cm.viridis,
-        ax=ax
+        G, pos, node_color=node_colors, node_size=node_size, cmap=plt.cm.viridis, ax=ax
     )
 
     nx.draw_networkx_edges(
-        G, pos,
+        G,
+        pos,
         edge_color=edge_colors,
         alpha=0.3,
         arrows=isinstance(G, nx.DiGraph),
         arrowsize=10,
-        ax=ax
+        ax=ax,
     )
 
     if show_labels:
         nx.draw_networkx_labels(G, pos, font_size=8, ax=ax)
 
-    ax.set_title(title, fontsize=16, fontweight='bold')
-    ax.axis('off')
+    ax.set_title(title, fontsize=16, fontweight="bold")
+    ax.axis("off")
 
     # Add colorbar if using numeric node colors
     if node_color_attr and isinstance(node_colors, np.ndarray):
         sm = plt.cm.ScalarMappable(
             cmap=plt.cm.viridis,
-            norm=plt.Normalize(vmin=node_colors.min(), vmax=node_colors.max())
+            norm=plt.Normalize(vmin=node_colors.min(), vmax=node_colors.max()),
         )
         sm.set_array([])
         cbar = plt.colorbar(sm, ax=ax, fraction=0.046, pad=0.04)
@@ -139,7 +138,7 @@ def visualize_data(
     plt.tight_layout()
 
     if output_path:
-        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        plt.savefig(output_path, dpi=300, bbox_inches="tight")
         print(f"Figure saved to {output_path}")
     else:
         plt.show()
@@ -170,24 +169,24 @@ def plot_degree_distribution(data, output_path: Optional[str] = None):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
 
     # Histogram
-    ax1.hist(deg, bins=50, edgecolor='black', alpha=0.7)
-    ax1.set_xlabel('Degree', fontsize=12)
-    ax1.set_ylabel('Frequency', fontsize=12)
-    ax1.set_title('Degree Distribution', fontsize=14, fontweight='bold')
+    ax1.hist(deg, bins=50, edgecolor="black", alpha=0.7)
+    ax1.set_xlabel("Degree", fontsize=12)
+    ax1.set_ylabel("Frequency", fontsize=12)
+    ax1.set_title("Degree Distribution", fontsize=14, fontweight="bold")
     ax1.grid(alpha=0.3)
 
     # Log-log plot
     unique_degrees, counts = np.unique(deg, return_counts=True)
-    ax2.loglog(unique_degrees, counts, 'o-', alpha=0.7)
-    ax2.set_xlabel('Degree (log scale)', fontsize=12)
-    ax2.set_ylabel('Frequency (log scale)', fontsize=12)
-    ax2.set_title('Degree Distribution (Log-Log)', fontsize=14, fontweight='bold')
+    ax2.loglog(unique_degrees, counts, "o-", alpha=0.7)
+    ax2.set_xlabel("Degree (log scale)", fontsize=12)
+    ax2.set_ylabel("Frequency (log scale)", fontsize=12)
+    ax2.set_title("Degree Distribution (Log-Log)", fontsize=14, fontweight="bold")
     ax2.grid(alpha=0.3)
 
     plt.tight_layout()
 
     if output_path:
-        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        plt.savefig(output_path, dpi=300, bbox_inches="tight")
         print(f"Degree distribution saved to {output_path}")
     else:
         plt.show()
@@ -197,44 +196,55 @@ def plot_degree_distribution(data, output_path: Optional[str] = None):
 
 def plot_graph_statistics(data, output_path: Optional[str] = None):
     """Plot various graph statistics."""
-    from torch_geometric.utils import degree, contains_self_loops, is_undirected as check_undirected
+    from torch_geometric.utils import (
+        degree,
+        contains_self_loops,
+        is_undirected as check_undirected,
+    )
 
     # Compute statistics
     row, col = data.edge_index
     deg = degree(col, data.num_nodes).cpu().numpy()
 
     stats = {
-        'Nodes': data.num_nodes,
-        'Edges': data.num_edges,
-        'Avg Degree': deg.mean(),
-        'Max Degree': deg.max(),
-        'Self-loops': contains_self_loops(data.edge_index),
-        'Undirected': check_undirected(data.edge_index),
+        "Nodes": data.num_nodes,
+        "Edges": data.num_edges,
+        "Avg Degree": deg.mean(),
+        "Max Degree": deg.max(),
+        "Self-loops": contains_self_loops(data.edge_index),
+        "Undirected": check_undirected(data.edge_index),
     }
 
-    if hasattr(data, 'num_node_features'):
-        stats['Node Features'] = data.num_node_features
-    if hasattr(data, 'num_edge_features') and data.edge_attr is not None:
-        stats['Edge Features'] = data.num_edge_features
-    if hasattr(data, 'y'):
+    if hasattr(data, "num_node_features"):
+        stats["Node Features"] = data.num_node_features
+    if hasattr(data, "num_edge_features") and data.edge_attr is not None:
+        stats["Edge Features"] = data.num_edge_features
+    if hasattr(data, "y"):
         if data.y.dim() == 1:
-            stats['Classes'] = int(data.y.max().item()) + 1
+            stats["Classes"] = int(data.y.max().item()) + 1
 
     # Create text plot
     fig, ax = plt.subplots(figsize=(8, 6))
-    ax.axis('off')
+    ax.axis("off")
 
     text = "Graph Statistics\n" + "=" * 40 + "\n\n"
     for key, value in stats.items():
         text += f"{key:20s}: {value}\n"
 
-    ax.text(0.1, 0.5, text, fontsize=14, family='monospace',
-            verticalalignment='center', transform=ax.transAxes)
+    ax.text(
+        0.1,
+        0.5,
+        text,
+        fontsize=14,
+        family="monospace",
+        verticalalignment="center",
+        transform=ax.transAxes,
+    )
 
     plt.tight_layout()
 
     if output_path:
-        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        plt.savefig(output_path, dpi=300, bbox_inches="tight")
         print(f"Statistics saved to {output_path}")
     else:
         plt.show()
@@ -247,23 +257,33 @@ def plot_graph_statistics(data, output_path: Optional[str] = None):
 
 def main():
     parser = argparse.ArgumentParser(description="Visualize PyTorch Geometric graphs")
-    parser.add_argument('--dataset', type=str, default='Cora',
-                        help='Dataset name (e.g., Cora, CiteSeer, ENZYMES)')
-    parser.add_argument('--output', type=str, default=None,
-                        help='Output file path for visualization')
-    parser.add_argument('--node-color', type=str, default='y',
-                        help='Attribute to use for node colors')
-    parser.add_argument('--layout', type=str, default='spring',
-                        choices=['spring', 'circular', 'kamada_kawai', 'spectral'],
-                        help='Graph layout algorithm')
-    parser.add_argument('--show-labels', action='store_true',
-                        help='Show node labels')
-    parser.add_argument('--max-nodes', type=int, default=500,
-                        help='Maximum nodes to visualize')
-    parser.add_argument('--stats', action='store_true',
-                        help='Show graph statistics')
-    parser.add_argument('--degree', action='store_true',
-                        help='Show degree distribution')
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default="Cora",
+        help="Dataset name (e.g., Cora, CiteSeer, ENZYMES)",
+    )
+    parser.add_argument(
+        "--output", type=str, default=None, help="Output file path for visualization"
+    )
+    parser.add_argument(
+        "--node-color", type=str, default="y", help="Attribute to use for node colors"
+    )
+    parser.add_argument(
+        "--layout",
+        type=str,
+        default="spring",
+        choices=["spring", "circular", "kamada_kawai", "spectral"],
+        help="Graph layout algorithm",
+    )
+    parser.add_argument("--show-labels", action="store_true", help="Show node labels")
+    parser.add_argument(
+        "--max-nodes", type=int, default=500, help="Maximum nodes to visualize"
+    )
+    parser.add_argument("--stats", action="store_true", help="Show graph statistics")
+    parser.add_argument(
+        "--degree", action="store_true", help="Show degree distribution"
+    )
 
     args = parser.parse_args()
 
@@ -273,13 +293,15 @@ def main():
     try:
         # Try Planetoid datasets
         from torch_geometric.datasets import Planetoid
-        dataset = Planetoid(root=f'/tmp/{args.dataset}', name=args.dataset)
+
+        dataset = Planetoid(root=f"/tmp/{args.dataset}", name=args.dataset)
         data = dataset[0]
     except:
         try:
             # Try TUDataset
             from torch_geometric.datasets import TUDataset
-            dataset = TUDataset(root=f'/tmp/{args.dataset}', name=args.dataset)
+
+            dataset = TUDataset(root=f"/tmp/{args.dataset}", name=args.dataset)
             data = dataset[0]
         except Exception as e:
             print(f"Error loading dataset: {e}")
@@ -290,11 +312,15 @@ def main():
 
     # Generate visualizations
     if args.stats:
-        stats_output = args.output.replace('.png', '_stats.png') if args.output else None
+        stats_output = (
+            args.output.replace(".png", "_stats.png") if args.output else None
+        )
         plot_graph_statistics(data, stats_output)
 
     if args.degree:
-        degree_output = args.output.replace('.png', '_degree.png') if args.output else None
+        degree_output = (
+            args.output.replace(".png", "_degree.png") if args.output else None
+        )
         plot_degree_distribution(data, degree_output)
 
     # Main visualization
@@ -305,9 +331,9 @@ def main():
         show_labels=args.show_labels,
         layout=args.layout,
         output_path=args.output,
-        max_nodes=args.max_nodes
+        max_nodes=args.max_nodes,
     )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

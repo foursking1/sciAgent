@@ -26,15 +26,14 @@ import sys
 import time
 import json
 from typing import List, Dict, Optional, Generator
-from urllib.parse import urlencode
 
 BASE_URL = "https://rest.uniprot.org"
 POLLING_INTERVAL = 3  # seconds
 
 
-def search_proteins(query: str, format: str = "json",
-                   fields: Optional[List[str]] = None,
-                   size: int = 25) -> Dict:
+def search_proteins(
+    query: str, format: str = "json", fields: Optional[List[str]] = None, size: int = 25
+) -> Dict:
     """
     Search UniProt database with a query.
 
@@ -49,11 +48,7 @@ def search_proteins(query: str, format: str = "json",
     """
     endpoint = f"{BASE_URL}/uniprotkb/search"
 
-    params = {
-        "query": query,
-        "format": format,
-        "size": size
-    }
+    params = {"query": query, "format": format, "size": size}
 
     if fields:
         params["fields"] = ",".join(fields)
@@ -89,8 +84,9 @@ def get_protein(accession: str, format: str = "json") -> str:
         return response.text
 
 
-def batch_retrieve(accessions: List[str], format: str = "json",
-                  fields: Optional[List[str]] = None) -> str:
+def batch_retrieve(
+    accessions: List[str], format: str = "json", fields: Optional[List[str]] = None
+) -> str:
     """
     Retrieve multiple protein entries efficiently.
 
@@ -106,9 +102,12 @@ def batch_retrieve(accessions: List[str], format: str = "json",
     return search_proteins(query, format=format, fields=fields, size=len(accessions))
 
 
-def stream_results(query: str, format: str = "fasta",
-                  fields: Optional[List[str]] = None,
-                  chunk_size: int = 8192) -> Generator[str, None, None]:
+def stream_results(
+    query: str,
+    format: str = "fasta",
+    fields: Optional[List[str]] = None,
+    chunk_size: int = 8192,
+) -> Generator[str, None, None]:
     """
     Stream large result sets without pagination.
 
@@ -123,10 +122,7 @@ def stream_results(query: str, format: str = "fasta",
     """
     endpoint = f"{BASE_URL}/uniprotkb/stream"
 
-    params = {
-        "query": query,
-        "format": format
-    }
+    params = {"query": query, "format": format}
 
     if fields:
         params["fields"] = ",".join(fields)
@@ -139,8 +135,7 @@ def stream_results(query: str, format: str = "fasta",
             yield chunk
 
 
-def map_ids(ids: List[str], from_db: str, to_db: str,
-           format: str = "json") -> Dict:
+def map_ids(ids: List[str], from_db: str, to_db: str, format: str = "json") -> Dict:
     """
     Map protein identifiers between different database systems.
 
@@ -164,11 +159,7 @@ def map_ids(ids: List[str], from_db: str, to_db: str,
     # Step 1: Submit job
     submit_endpoint = f"{BASE_URL}/idmapping/run"
 
-    data = {
-        "from": from_db,
-        "to": to_db,
-        "ids": ",".join(ids)
-    }
+    data = {"from": from_db, "to": to_db, "ids": ",".join(ids)}
 
     response = requests.post(submit_endpoint, data=data)
     response.raise_for_status()
@@ -235,7 +226,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description='Query UniProt database using REST API',
+        description="Query UniProt database using REST API",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -256,34 +247,39 @@ Examples:
 
   # List mapping databases
   %(prog)s --list-databases
-        """
+        """,
     )
 
     # Main operation arguments (mutually exclusive)
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--search', '-s', help='Search query string')
-    group.add_argument('--get', '-g', help='Get protein by accession number')
-    group.add_argument('--map', '-m', help='Map IDs (comma-separated)')
-    group.add_argument('--stream', help='Stream large result sets')
-    group.add_argument('--list-fields', action='store_true',
-                      help='List all available query fields')
-    group.add_argument('--list-databases', action='store_true',
-                      help='List all ID mapping databases')
+    group.add_argument("--search", "-s", help="Search query string")
+    group.add_argument("--get", "-g", help="Get protein by accession number")
+    group.add_argument("--map", "-m", help="Map IDs (comma-separated)")
+    group.add_argument("--stream", help="Stream large result sets")
+    group.add_argument(
+        "--list-fields", action="store_true", help="List all available query fields"
+    )
+    group.add_argument(
+        "--list-databases", action="store_true", help="List all ID mapping databases"
+    )
 
     # Format options
-    parser.add_argument('--format', '-f', default='json',
-                       help='Output format (json, tsv, xlsx, xml, fasta, txt, rdf)')
+    parser.add_argument(
+        "--format",
+        "-f",
+        default="json",
+        help="Output format (json, tsv, xlsx, xml, fasta, txt, rdf)",
+    )
 
     # Search-specific options
-    parser.add_argument('--fields', help='Comma-separated list of fields to return')
-    parser.add_argument('--size', type=int, default=25,
-                       help='Number of results (default: 25, max: 500)')
+    parser.add_argument("--fields", help="Comma-separated list of fields to return")
+    parser.add_argument(
+        "--size", type=int, default=25, help="Number of results (default: 25, max: 500)"
+    )
 
     # Mapping-specific options
-    parser.add_argument('--from', dest='from_db',
-                       help='Source database for ID mapping')
-    parser.add_argument('--to', dest='to_db',
-                       help='Target database for ID mapping')
+    parser.add_argument("--from", dest="from_db", help="Source database for ID mapping")
+    parser.add_argument("--to", dest="to_db", help="Target database for ID mapping")
 
     args = parser.parse_args()
 
@@ -297,21 +293,18 @@ Examples:
             print(json.dumps(databases, indent=2))
 
         elif args.search:
-            fields_list = args.fields.split(',') if args.fields else None
+            fields_list = args.fields.split(",") if args.fields else None
             results = search_proteins(
-                args.search,
-                format=args.format,
-                fields=fields_list,
-                size=args.size
+                args.search, format=args.format, fields=fields_list, size=args.size
             )
-            if args.format == 'json':
+            if args.format == "json":
                 print(json.dumps(results, indent=2))
             else:
                 print(results)
 
         elif args.get:
             protein = get_protein(args.get, format=args.format)
-            if args.format == 'json':
+            if args.format == "json":
                 print(json.dumps(protein, indent=2))
             else:
                 print(protein)
@@ -320,17 +313,19 @@ Examples:
             if not args.from_db or not args.to_db:
                 parser.error("--map requires --from and --to arguments")
 
-            ids = [id.strip() for id in args.map.split(',')]
+            ids = [id.strip() for id in args.map.split(",")]
             mapping = map_ids(ids, args.from_db, args.to_db, format=args.format)
-            if args.format == 'json':
+            if args.format == "json":
                 print(json.dumps(mapping, indent=2))
             else:
                 print(mapping)
 
         elif args.stream:
-            fields_list = args.fields.split(',') if args.fields else None
-            for chunk in stream_results(args.stream, format=args.format, fields=fields_list):
-                print(chunk, end='')
+            fields_list = args.fields.split(",") if args.fields else None
+            for chunk in stream_results(
+                args.stream, format=args.format, fields=fields_list
+            ):
+                print(chunk, end="")
 
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
