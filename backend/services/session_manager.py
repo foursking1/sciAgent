@@ -135,7 +135,10 @@ class DataScientistCache:
                 cached = self._cache[session_id]
 
                 # 验证配置是否匹配（防止配置变化）
-                if cached.agent_type == agent_type and cached.working_dir == working_dir:
+                if (
+                    cached.agent_type == agent_type
+                    and cached.working_dir == working_dir
+                ):
                     cached.last_accessed = datetime.now()
                     cached.call_count += 1
                     self._stats["hits"] += 1
@@ -145,7 +148,9 @@ class DataScientistCache:
                     return cached.instance
                 else:
                     # 配置变化，需要重建
-                    logger.info(f"DataScientist 配置变化，重建实例：session={session_id}")
+                    logger.info(
+                        f"DataScientist 配置变化，重建实例：session={session_id}"
+                    )
                     del self._cache[session_id]
 
             # 缓存未命中，创建新实例
@@ -155,7 +160,9 @@ class DataScientistCache:
             await self._cleanup_if_needed()
 
             # 创建新实例
-            logger.info(f"创建新 DataScientist 实例：session={session_id}, agent={agent_type}")
+            logger.info(
+                f"创建新 DataScientist 实例：session={session_id}, agent={agent_type}"
+            )
             start_time = time.time()
 
             from agentic_data_scientist.core.api import DataScientist
@@ -187,7 +194,9 @@ class DataScientistCache:
 
         # 1. 清理过期实例
         expired = [
-            sid for sid, cached in self._cache.items() if now - cached.last_accessed > self._ttl
+            sid
+            for sid, cached in self._cache.items()
+            if now - cached.last_accessed > self._ttl
         ]
 
         for sid in expired:
@@ -420,7 +429,9 @@ class SessionManager:
             raise ValueError(f"Invalid mode: {new_mode}. Valid modes: {VALID_MODES}")
 
         # Fetch session directly from database (bypass cache to ensure it's attached to this db session)
-        query = select(Session).where(Session.id == session_id, Session.user_id == user_id)
+        query = select(Session).where(
+            Session.id == session_id, Session.user_id == user_id
+        )
         result = await db.execute(query)
         session = result.scalar_one_or_none()
 
@@ -457,7 +468,9 @@ class SessionManager:
         logger.info(f"列出用户 {user_id} 的所有会话")
 
         result = await db.execute(
-            select(Session).where(Session.user_id == user_id).order_by(Session.created_at.desc())
+            select(Session)
+            .where(Session.user_id == user_id)
+            .order_by(Session.created_at.desc())
         )
         sessions = list(result.scalars().all())
 
@@ -617,7 +630,9 @@ class SessionManager:
         logger.info(f"  Agent 类型：{agent_type}")
         logger.info(f"  流式模式：{stream}")
         logger.info(
-            f"  消息内容：{message[:50]}..." if len(message) > 50 else f"  消息内容：{message}"
+            f"  消息内容：{message[:50]}..."
+            if len(message) > 50
+            else f"  消息内容：{message}"
         )
 
         try:
@@ -679,7 +694,9 @@ class SessionManager:
                 else:
                     result_dict = {"type": "result", "content": str(result)}
 
-                logger.debug(f"结果：{json.dumps(result_dict, ensure_ascii=False)[:200]}...")
+                logger.debug(
+                    f"结果：{json.dumps(result_dict, ensure_ascii=False)[:200]}..."
+                )
                 yield result_dict
 
             elapsed = time.time() - start_time

@@ -91,7 +91,9 @@ class TestFilesAPI:
         )
 
         # Preview the file
-        response = await authenticated_client.get(f"/api/files/{test_session.id}/preview/test.txt")
+        response = await authenticated_client.get(
+            f"/api/files/{test_session.id}/preview/test.txt"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -112,7 +114,9 @@ class TestFilesAPI:
         )
 
         # Delete the file
-        response = await authenticated_client.delete(f"/api/files/{test_session.id}/to_delete.txt")
+        response = await authenticated_client.delete(
+            f"/api/files/{test_session.id}/to_delete.txt"
+        )
 
         assert response.status_code == 204
 

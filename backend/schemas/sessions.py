@@ -8,14 +8,20 @@ from typing import Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 # Session mode types
-SessionMode = Literal["data-question", "scientific-experiment", "data-extraction", "paper-writing"]
+SessionMode = Literal[
+    "data-question", "scientific-experiment", "data-extraction", "paper-writing"
+]
 
 
 class SessionCreate(BaseModel):
     """Schema for creating a new session"""
 
-    agent_type: Optional[str] = Field(default="claude_code", description="Type of agent to use")
-    mode: Optional[SessionMode] = Field(default="data-question", description="Session mode")
+    agent_type: Optional[str] = Field(
+        default="claude_code", description="Type of agent to use"
+    )
+    mode: Optional[SessionMode] = Field(
+        default="data-question", description="Session mode"
+    )
 
 
 class SessionResponse(BaseModel):

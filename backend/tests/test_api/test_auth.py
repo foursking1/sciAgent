@@ -36,7 +36,9 @@ class TestAuthAPI:
         )
         assert response.status_code == 400
 
-    async def test_login_success(self, api_client: AsyncClient, async_session, test_user):
+    async def test_login_success(
+        self, api_client: AsyncClient, async_session, test_user
+    ):
         """Test successful login"""
         # Update user password hash
         from backend.services.auth import get_password_hash
@@ -54,7 +56,9 @@ class TestAuthAPI:
         assert "access_token" in data
         assert data["token_type"] == "bearer"
 
-    async def test_login_wrong_password(self, api_client: AsyncClient, async_session, test_user):
+    async def test_login_wrong_password(
+        self, api_client: AsyncClient, async_session, test_user
+    ):
         """Test login with wrong password"""
         # Update user with valid password hash
         from backend.services.auth import get_password_hash

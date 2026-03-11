@@ -73,7 +73,9 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["session_id"], ["sessions.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_messages_session_id"), "messages", ["session_id"], unique=False)
+    op.create_index(
+        op.f("ix_messages_session_id"), "messages", ["session_id"], unique=False
+    )
 
     # Create files table
     op.create_table(

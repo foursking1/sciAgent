@@ -43,7 +43,9 @@ class Message(Base):
         index=True,
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    role: Mapped[str] = mapped_column(String(50), nullable=False, default=MessageRole.USER)
+    role: Mapped[str] = mapped_column(
+        String(50), nullable=False, default=MessageRole.USER
+    )
     is_stopped: Mapped[bool] = mapped_column(default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -53,4 +55,6 @@ class Message(Base):
     session: Mapped["Session"] = relationship("Session", back_populates="messages")
 
     def __repr__(self) -> str:
-        return f"<Message(id={self.id}, session_id={self.session_id}, role={self.role})>"
+        return (
+            f"<Message(id={self.id}, session_id={self.session_id}, role={self.role})>"
+        )

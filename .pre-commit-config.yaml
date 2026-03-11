@@ -1,5 +1,5 @@
 repos:
-  # Ruff - Python linter and formatter (backend only)
+  # Python linting (backend only)
   - repo: local
     hooks:
       - id: ruff-fix
@@ -9,14 +9,14 @@ repos:
         types: [python]
         pass_filenames: false
 
-      - id: ruff-format
-        name: ruff format
-        entry: bash -c 'cd backend && uv run ruff format .'
+      - id: black
+        name: black format
+        entry: bash -c 'cd backend && uv run black .'
         language: system
         types: [python]
         pass_filenames: false
 
-  # Frontend - ESLint and Prettier
+  # Frontend - ESLint
   - repo: local
     hooks:
       - id: eslint-fix

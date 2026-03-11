@@ -39,7 +39,9 @@ class TestDataSourcesAPI:
         assert data["type"] == "database"
         assert "id" in data
 
-    async def test_create_vector_store_data_source(self, authenticated_client: AsyncClient):
+    async def test_create_vector_store_data_source(
+        self, authenticated_client: AsyncClient
+    ):
         """Test creating a vector store data source"""
         response = await authenticated_client.post(
             "/api/data-sources",
@@ -133,12 +135,16 @@ class TestDataSourcesAPI:
         data_source_id = create_response.json()["id"]
 
         # Delete it
-        response = await authenticated_client.delete(f"/api/data-sources/{data_source_id}")
+        response = await authenticated_client.delete(
+            f"/api/data-sources/{data_source_id}"
+        )
 
         assert response.status_code == 204
 
         # Verify it's deleted
-        get_response = await authenticated_client.get(f"/api/data-sources/{data_source_id}")
+        get_response = await authenticated_client.get(
+            f"/api/data-sources/{data_source_id}"
+        )
         assert get_response.status_code == 404
 
     async def test_test_data_source_connection(self, authenticated_client: AsyncClient):
@@ -155,7 +161,9 @@ class TestDataSourcesAPI:
         data_source_id = create_response.json()["id"]
 
         # Test connection
-        response = await authenticated_client.post(f"/api/data-sources/{data_source_id}/test")
+        response = await authenticated_client.post(
+            f"/api/data-sources/{data_source_id}/test"
+        )
 
         # Connection test may fail, but endpoint should work
         assert response.status_code in [200, 400]

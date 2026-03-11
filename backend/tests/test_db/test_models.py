@@ -77,15 +77,21 @@ class TestUserModel:
         assert user.password_hash != password
         assert user.password_hash.startswith("hashed_")
 
-    async def test_user_relationships(self, async_session: AsyncSession, test_user: User):
+    async def test_user_relationships(
+        self, async_session: AsyncSession, test_user: User
+    ):
         """测试用户关联关系"""
         # 创建会话
-        session = Session(id="session_123", user_id=test_user.id, working_dir="/tmp/test_session")
+        session = Session(
+            id="session_123", user_id=test_user.id, working_dir="/tmp/test_session"
+        )
         async_session.add(session)
         await async_session.commit()
 
         # 验证关系
-        result = await async_session.execute(select(Session).where(Session.user_id == test_user.id))
+        result = await async_session.execute(
+            select(Session).where(Session.user_id == test_user.id)
+        )
         sessions = result.scalars().all()
         assert len(sessions) == 1
         assert sessions[0].id == "session_123"
@@ -95,7 +101,9 @@ class TestSessionModel:
     """Tests for Session model"""
 
     @pytest_asyncio.fixture(scope="function")
-    async def test_session(self, async_session: AsyncSession, test_user: User) -> Session:
+    async def test_session(
+        self, async_session: AsyncSession, test_user: User
+    ) -> Session:
         """Create a test session"""
         session = Session(
             id="session_test_123", user_id=test_user.id, working_dir="/tmp/test_session"
@@ -107,7 +115,9 @@ class TestSessionModel:
 
     async def test_session_create(self, async_session: AsyncSession, test_user: User):
         """测试会话创建"""
-        session = Session(id="session_new", user_id=test_user.id, working_dir="/tmp/new_session")
+        session = Session(
+            id="session_new", user_id=test_user.id, working_dir="/tmp/new_session"
+        )
         async_session.add(session)
         await async_session.commit()
 
@@ -121,18 +131,26 @@ class TestSessionModel:
         async_session.add(user)
         await async_session.commit()
 
-        test_session = Session(id="session_test", user_id=user.id, working_dir="/tmp/test")
+        test_session = Session(
+            id="session_test", user_id=user.id, working_dir="/tmp/test"
+        )
         async_session.add(test_session)
         await async_session.commit()
 
         # 验证关系
-        result = await async_session.execute(select(Session).where(Session.user_id == user.id))
+        result = await async_session.execute(
+            select(Session).where(Session.user_id == user.id)
+        )
         sessions = result.scalars().all()
         assert len(sessions) == 1
 
-    async def test_session_created_timestamp(self, async_session: AsyncSession, test_user: User):
+    async def test_session_created_timestamp(
+        self, async_session: AsyncSession, test_user: User
+    ):
         """测试会话创建时间戳"""
-        session = Session(id="session_timestamp", user_id=test_user.id, working_dir="/tmp/session")
+        session = Session(
+            id="session_timestamp", user_id=test_user.id, working_dir="/tmp/session"
+        )
         async_session.add(session)
         await async_session.commit()
         await async_session.refresh(session)
@@ -145,7 +163,9 @@ class TestSessionModel:
         self, async_session: AsyncSession, test_session: Session
     ):
         """测试会话的用户关联"""
-        result = await async_session.execute(select(Session).where(Session.id == test_session.id))
+        result = await async_session.execute(
+            select(Session).where(Session.id == test_session.id)
+        )
         session = result.scalar_one()
 
         assert session.user is not None
@@ -156,15 +176,21 @@ class TestMessageModel:
     """Tests for Message model"""
 
     @pytest_asyncio.fixture(scope="function")
-    async def test_message(self, async_session: AsyncSession, test_session: Session) -> Message:
+    async def test_message(
+        self, async_session: AsyncSession, test_session: Session
+    ) -> Message:
         """Create a test message"""
-        message = Message(session_id=test_session.id, content="Test message content", role="user")
+        message = Message(
+            session_id=test_session.id, content="Test message content", role="user"
+        )
         async_session.add(message)
         await async_session.commit()
         await async_session.refresh(message)
         return message
 
-    async def test_message_create(self, async_session: AsyncSession, test_session: Session):
+    async def test_message_create(
+        self, async_session: AsyncSession, test_session: Session
+    ):
         """测试消息创建"""
         message = Message(
             session_id=test_session.id,
@@ -184,7 +210,9 @@ class TestMessageModel:
         """测试消息角色验证"""
         # 有效角色
         for role in ["user", "assistant", "system"]:
-            message = Message(session_id=test_session.id, content=f"Test {role} message", role=role)
+            message = Message(
+                session_id=test_session.id, content=f"Test {role} message", role=role
+            )
             async_session.add(message)
             await async_session.commit()
             await async_session.refresh(message)
@@ -194,16 +222,22 @@ class TestMessageModel:
         self, async_session: AsyncSession, test_message: Message
     ):
         """测试消息的会话关联"""
-        result = await async_session.execute(select(Message).where(Message.id == test_message.id))
+        result = await async_session.execute(
+            select(Message).where(Message.id == test_message.id)
+        )
         message = result.scalar_one()
         await async_session.refresh(message, attribute_names=["session"])
 
         assert message.session is not None
         assert message.session.id == test_message.session.id
 
-    async def test_message_timestamp(self, async_session: AsyncSession, test_session: Session):
+    async def test_message_timestamp(
+        self, async_session: AsyncSession, test_session: Session
+    ):
         """测试消息时间戳"""
-        message = Message(session_id=test_session.id, content="Timestamp test", role="user")
+        message = Message(
+            session_id=test_session.id, content="Timestamp test", role="user"
+        )
         async_session.add(message)
         await async_session.commit()
         await async_session.refresh(message)
@@ -217,7 +251,9 @@ class TestFileModel:
     """Tests for File model"""
 
     @pytest_asyncio.fixture(scope="function")
-    async def test_file(self, async_session: AsyncSession, test_session: Session) -> File:
+    async def test_file(
+        self, async_session: AsyncSession, test_session: Session
+    ) -> File:
         """Create a test file"""
         file = File(
             session_id=test_session.id,
@@ -230,7 +266,9 @@ class TestFileModel:
         await async_session.refresh(file)
         return file
 
-    async def test_file_create(self, async_session: AsyncSession, test_session: Session):
+    async def test_file_create(
+        self, async_session: AsyncSession, test_session: Session
+    ):
         """测试文件创建"""
         file = File(
             session_id=test_session.id,
@@ -246,16 +284,22 @@ class TestFileModel:
         assert file.file_path == "/tmp/session/data.csv"
         assert file.file_size == 2048
 
-    async def test_file_session_relationship(self, async_session: AsyncSession, test_file: File):
+    async def test_file_session_relationship(
+        self, async_session: AsyncSession, test_file: File
+    ):
         """测试文件的会话关联"""
-        result = await async_session.execute(select(File).where(File.id == test_file.id))
+        result = await async_session.execute(
+            select(File).where(File.id == test_file.id)
+        )
         file = result.scalar_one()
         await async_session.refresh(file, attribute_names=["session"])
 
         assert file.session is not None
         assert file.session.id == test_file.session.id
 
-    async def test_file_content_type(self, async_session: AsyncSession, test_session: Session):
+    async def test_file_content_type(
+        self, async_session: AsyncSession, test_session: Session
+    ):
         """测试文件内容类型"""
         file = File(
             session_id=test_session.id,
@@ -314,7 +358,9 @@ class TestIntegration:
         await async_session.refresh(session)
 
         # 3. 创建消息
-        message = Message(session_id=session.id, content="Analyze this data please", role="user")
+        message = Message(
+            session_id=session.id, content="Analyze this data please", role="user"
+        )
         async_session.add(message)
         await async_session.commit()
         await async_session.refresh(message)
@@ -335,7 +381,9 @@ class TestIntegration:
         fetched_user = result.scalar_one()
         assert fetched_user.email == "workflow@example.com"
 
-        result = await async_session.execute(select(Session).where(Session.user_id == user.id))
+        result = await async_session.execute(
+            select(Session).where(Session.user_id == user.id)
+        )
         sessions = result.scalars().all()
         assert len(sessions) == 1
 
@@ -345,6 +393,8 @@ class TestIntegration:
         messages = result.scalars().all()
         assert len(messages) == 1
 
-        result = await async_session.execute(select(File).where(File.session_id == session.id))
+        result = await async_session.execute(
+            select(File).where(File.session_id == session.id)
+        )
         files = result.scalars().all()
         assert len(files) == 1

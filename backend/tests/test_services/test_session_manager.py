@@ -185,7 +185,9 @@ class TestDataScientistIntegration:
         result = json.loads(events[0]["data"])
         assert result is not None
 
-    async def test_run_data_scientist_import_error(self, session_manager_instance, ds_test_session):
+    async def test_run_data_scientist_import_error(
+        self, session_manager_instance, ds_test_session
+    ):
         """Test error handling when DataScientist is not available"""
         with patch.dict("sys.modules", {"agentic_data_scientist.core.api": None}):
             events = []
@@ -228,7 +230,9 @@ class TestSessionManagerWithDatabase:
         from backend.db.models.session import Session
         from sqlalchemy import select
 
-        result = await async_session.execute(select(Session).where(Session.id == session.id))
+        result = await async_session.execute(
+            select(Session).where(Session.id == session.id)
+        )
         db_session = result.scalar_one_or_none()
         assert db_session is not None
         assert db_session.working_dir == session.working_dir
@@ -305,7 +309,9 @@ class TestSessionManagerWithDatabase:
         from backend.db.models.session import Session
         from sqlalchemy import select
 
-        result = await async_session.execute(select(Session).where(Session.id == session.id))
+        result = await async_session.execute(
+            select(Session).where(Session.id == session.id)
+        )
         assert result.scalar_one_or_none() is None
 
     async def test_add_message_with_db(

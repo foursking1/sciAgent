@@ -25,7 +25,9 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
     handlers=[
         logging.StreamHandler(sys.stdout),  # 输出到控制台
-        logging.FileHandler("/tmp/logs/backend.log", mode="a", encoding="utf-8"),  # 输出到文件
+        logging.FileHandler(
+            "/tmp/logs/backend.log", mode="a", encoding="utf-8"
+        ),  # 输出到文件
     ],
 )
 logger = logging.getLogger("SciAgent")
