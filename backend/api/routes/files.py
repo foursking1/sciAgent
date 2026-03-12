@@ -407,10 +407,7 @@ async def preview_file(
             # Limit preview size (100KB max)
             max_size = 100 * 1024
             if len(content) > max_size:
-                content = (
-                    content[:max_size]
-                    + "\n\n... [File truncated, too large to preview]"
-                )
+                content = content[:max_size] + "\n\n... [File truncated, too large to preview]"
 
             return {
                 "type": "text",

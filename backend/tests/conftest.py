@@ -40,13 +40,9 @@ async def api_client(async_session: AsyncSession):
     async def override_get_current_user_optional():
         return None
 
-    app.dependency_overrides[get_current_user_optional] = (
-        override_get_current_user_optional
-    )
+    app.dependency_overrides[get_current_user_optional] = override_get_current_user_optional
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
 
     # Cleanup overrides
@@ -72,9 +68,7 @@ async def authenticated_client(async_session: AsyncSession, test_user: User):
 
     app.dependency_overrides[get_current_user] = override_get_current_user
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
 
     app.dependency_overrides.clear()
@@ -83,9 +77,7 @@ async def authenticated_client(async_session: AsyncSession, test_user: User):
 @pytest.fixture(autouse=True)
 def use_test_settings():
     """Use test settings for all tests"""
-    with patch(
-        "backend.core.config.settings.SECRET_KEY", "test-secret-key-for-testing-only"
-    ):
+    with patch("backend.core.config.settings.SECRET_KEY", "test-secret-key-for-testing-only"):
         with patch("backend.core.config.settings.ALGORITHM", "HS256"):
             with patch("backend.core.config.settings.DATABASE_URL", TEST_DATABASE_URL):
                 yield
@@ -146,9 +138,7 @@ async def test_user(async_session: AsyncSession) -> User:
 @pytest_asyncio.fixture(scope="function")
 async def test_session(async_session: AsyncSession, test_user: User) -> Session:
     """Create a test session fixture"""
-    session = Session(
-        id="session_test_123", user_id=test_user.id, working_dir="/tmp/test_session"
-    )
+    session = Session(id="session_test_123", user_id=test_user.id, working_dir="/tmp/test_session")
     async_session.add(session)
     await async_session.commit()
     await async_session.refresh(session)
