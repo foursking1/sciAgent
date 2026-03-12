@@ -54,9 +54,7 @@ class SessionEvent(Base):
         nullable=False,
         index=True,
     )
-    event_type: Mapped[str] = mapped_column(
-        String(50), nullable=False, index=True
-    )
+    event_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     event_data: Mapped[dict] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
@@ -66,9 +64,7 @@ class SessionEvent(Base):
     session: Mapped["Session"] = relationship("Session", back_populates="events")
 
     def __repr__(self) -> str:
-        return (
-            f"<SessionEvent(id={self.id}, session_id={self.session_id}, event_type={self.event_type})>"
-        )
+        return f"<SessionEvent(id={self.id}, session_id={self.session_id}, event_type={self.event_type})>"
 
     def to_event_dict(self) -> dict:
         """

@@ -112,9 +112,7 @@ async def list_public_sessions(
     Returns sessions with preview image and PDF paths.
     """
     result = await db.execute(
-        select(Session)
-        .where(Session.is_public.is_(True))
-        .order_by(Session.created_at.desc())
+        select(Session).where(Session.is_public.is_(True)).order_by(Session.created_at.desc())
     )
     sessions = result.scalars().all()
 
@@ -441,24 +439,34 @@ async def get_session_events(
 
         # If no events found in session_events, fall back to messages table
         if len(event_dicts) == 0:
-            logger.info(f"No events in session_events for session {session_id}, falling back to messages")
+            logger.info(
+                f"No events in session_events for session {session_id}, falling back to messages"
+            )
             messages = await session_manager.get_messages(session_id=session_id, db=db)
 
             # Convert messages to event format
             for msg in messages:
                 if msg.role == MessageRole.USER:
-                    event_dicts.append({
-                        "type": "user_message",
-                        "content": msg.content,
-                        "timestamp": msg.created_at.isoformat() if msg.created_at else datetime.now().isoformat(),
-                    })
+                    event_dicts.append(
+                        {
+                            "type": "user_message",
+                            "content": msg.content,
+                            "timestamp": msg.created_at.isoformat()
+                            if msg.created_at
+                            else datetime.now().isoformat(),
+                        }
+                    )
                 else:
-                    event_dicts.append({
-                        "type": "message",
-                        "content": msg.content,
-                        "timestamp": msg.created_at.isoformat() if msg.created_at else datetime.now().isoformat(),
-                        "is_stopped": msg.is_stopped,
-                    })
+                    event_dicts.append(
+                        {
+                            "type": "message",
+                            "content": msg.content,
+                            "timestamp": msg.created_at.isoformat()
+                            if msg.created_at
+                            else datetime.now().isoformat(),
+                            "is_stopped": msg.is_stopped,
+                        }
+                    )
 
         logger.info(f"Returning {len(event_dicts)} events for session {session_id}")
         return {
@@ -467,25 +475,35 @@ async def get_session_events(
         }
     except Exception as e:
         # Table might not exist (migration not run), fall back to messages
-        logger.warning(f"Error getting session_events for session {session_id}, falling back to messages: {e}")
+        logger.warning(
+            f"Error getting session_events for session {session_id}, falling back to messages: {e}"
+        )
         messages = await session_manager.get_messages(session_id=session_id, db=db)
 
         # Convert messages to event format
         event_dicts = []
         for msg in messages:
             if msg.role == MessageRole.USER:
-                event_dicts.append({
-                    "type": "user_message",
-                    "content": msg.content,
-                    "timestamp": msg.created_at.isoformat() if msg.created_at else datetime.now().isoformat(),
-                })
+                event_dicts.append(
+                    {
+                        "type": "user_message",
+                        "content": msg.content,
+                        "timestamp": msg.created_at.isoformat()
+                        if msg.created_at
+                        else datetime.now().isoformat(),
+                    }
+                )
             else:
-                event_dicts.append({
-                    "type": "message",
-                    "content": msg.content,
-                    "timestamp": msg.created_at.isoformat() if msg.created_at else datetime.now().isoformat(),
-                    "is_stopped": msg.is_stopped,
-                })
+                event_dicts.append(
+                    {
+                        "type": "message",
+                        "content": msg.content,
+                        "timestamp": msg.created_at.isoformat()
+                        if msg.created_at
+                        else datetime.now().isoformat(),
+                        "is_stopped": msg.is_stopped,
+                    }
+                )
 
         logger.info(f"Returning {len(event_dicts)} message-based events for session {session_id}")
         return {
@@ -737,9 +755,7 @@ async def toggle_session_public(
     """
     # Query session directly from database
     result = await db.execute(
-        select(Session).where(
-            Session.id == session_id, Session.user_id == current_user.id
-        )
+        select(Session).where(Session.id == session_id, Session.user_id == current_user.id)
     )
     session = result.scalar_one_or_none()
 
