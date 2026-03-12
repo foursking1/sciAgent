@@ -725,7 +725,7 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
 
     // Connect to stream
     await connectToStream(sessionId, content)
-  }, [sessions, token, loadHistoricalEvents, addEvent, updateSessionState, connectToStream])
+  }, [sessions, token, loadHistoricalEvents, updateSessionState, connectToStream])
 
   // Get current state for a session
   // Note: This function reads from the current sessions Map
