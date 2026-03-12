@@ -26,7 +26,7 @@ from backend.schemas.sessions import (
     TaskResponse,
     TaskStatusResponse,
 )
-from backend.services.cleanup import run_session_events_cleanup, get_cleanup_service
+from backend.services.cleanup import get_cleanup_service, run_session_events_cleanup
 from backend.services.session_manager import session_manager
 from backend.services.task_queue import task_queue
 from fastapi import APIRouter, Depends, HTTPException, status
