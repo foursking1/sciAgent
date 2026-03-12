@@ -5,12 +5,12 @@ Tests for SessionEvent model and cleanup functionality.
 import pytest
 from datetime import datetime, timedelta
 
-from sqlalchemy import select, func
+from sqlalchemy import delete, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.models.session import Session
 from backend.db.models.session_event import SessionEvent, SessionEventType
-from backend.services.cleanup import SessionEventsCleanup
+from backend.services.cleanup import SessionEventsCleanup, get_cleanup_service, _cleanup_service
 
 
 @pytest.mark.asyncio
@@ -295,8 +295,6 @@ async def test_get_cleanup_stats(db: AsyncSession, test_session: Session):
 @pytest.mark.asyncio
 async def test_get_cleanup_service_singleton(db: AsyncSession):
     """Test that get_cleanup_service returns a singleton."""
-    from backend.services.cleanup import get_cleanup_service, _cleanup_service
-
     # First call
     service1 = get_cleanup_service(retention_days=30)
     assert service1.retention_days == 30
