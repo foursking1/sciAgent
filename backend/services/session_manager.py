@@ -617,6 +617,7 @@ class SessionManager:
         session_id: str,
         event: dict,
         db: Optional[AsyncSession] = None,
+        commit: bool = True,
     ) -> Optional[SessionEvent]:
         """
         Save an SSE event to the session_events table.
@@ -625,6 +626,8 @@ class SessionManager:
             session_id: Session ID
             event: Event dictionary (must contain 'type' field)
             db: Database session
+            commit: Whether to commit the transaction (default: True).
+                   Set to False if this is part of a larger transaction.
 
         Returns:
             Created SessionEvent or None if db is None
@@ -655,19 +658,27 @@ class SessionManager:
             logger.debug(f"Skipping event type not stored in DB: {event_type}")
             return None
 
-        session_event = SessionEvent(
-            session_id=session_id,
-            event_type=event_type,
-            event_data=event,
-        )
+        try:
+            session_event = SessionEvent(
+                session_id=session_id,
+                event_type=event_type,
+                event_data=event,
+            )
 
-        db.add(session_event)
-        await db.commit()
-        await db.refresh(session_event)
+            db.add(session_event)
 
-        logger.debug(f"事件已保存：session_id={session_id}, event_type={event_type}")
+            if commit:
+                await db.commit()
+                await db.refresh(session_event)
 
-        return session_event
+            logger.debug(f"事件已保存：session_id={session_id}, event_type={event_type}")
+
+            return session_event
+        except Exception as e:
+            logger.error(f"Failed to save event: {e}")
+            if commit:
+                await db.rollback()
+            raise
 
     async def get_events(
         self,

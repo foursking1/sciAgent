@@ -4,6 +4,9 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import { useRouter } from 'next/navigation'
 import { useSSE, type StreamEvent, type FileItem } from '@/hooks/useSSE'
 import { sessionsApi, filesApi, type Session } from '@/lib/api'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('sessionStore')
 
 interface SessionState {
   events: StreamEvent[]
@@ -72,17 +75,17 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
 
   // Update session state
   const updateSessionState = useCallback((sessionId: string, updates: Partial<SessionState>) => {
-    console.log('[sessionStore] updateSessionState for', sessionId.slice(0, 8), ':', updates)
+    logger.debug('updateSessionState for', sessionId.slice(0, 8), ':', updates)
     setSessions(prev => {
       const newMap = new Map(prev)
       const currentState = newMap.get(sessionId)
       if (currentState) {
         const newState = { ...currentState, ...updates }
-        console.log('[sessionStore] - Before update: events.length =', currentState.events.length, ', isSending =', currentState.isSending)
-        console.log('[sessionStore] - After update: events.length =', newState.events.length, ', isSending =', newState.isSending)
+        logger.debug('- Before update: events.length =', currentState.events.length, ', isSending =', currentState.isSending)
+        logger.debug('- After update: events.length =', newState.events.length, ', isSending =', newState.isSending)
         newMap.set(sessionId, newState)
       } else {
-        console.log('[sessionStore] - No current state, skipping update')
+        logger.debug('- No current state, skipping update')
       }
       return newMap
     })
@@ -102,16 +105,16 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
 
   // Add event to session
   const addEvent = useCallback((sessionId: string, event: StreamEvent) => {
-    console.log('[sessionStore] addEvent for', sessionId.slice(0, 8), ': type =', event.type)
+    logger.debug('addEvent for', sessionId.slice(0, 8), ': type =', event.type)
     setSessions(prev => {
       const newMap = new Map(prev)
       const state = newMap.get(sessionId)
       if (state) {
         const newEvents = [...state.events, event]
-        console.log('[sessionStore] - Adding event, new total events:', newEvents.length)
+        logger.debug('- Adding event, new total events:', newEvents.length)
         newMap.set(sessionId, { ...state, events: newEvents })
       } else {
-        console.log('[sessionStore] - No state found, creating new state with this event')
+        logger.debug('- No state found, creating new state with this event')
         // Create minimal state if none exists
         newMap.set(sessionId, {
           events: [event],
@@ -178,14 +181,14 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
       eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data) as StreamEvent
-          console.log(`[SSE ${sessionId.slice(0, 8)}] Received:`, data.type, data)
+          logger.debug(`SSE ${sessionId.slice(0, 8)}] Received:`, data.type, data)
 
           // Update thinking state and add event in a single setSessions call
           setSessions(prev => {
             const newMap = new Map(prev)
             const currentState = newMap.get(sessionId)
             if (!currentState) {
-              console.log(`[SSE ${sessionId.slice(0, 8)}] No state found, skipping event`)
+              logger.debug(`SSE ${sessionId.slice(0, 8)}] No state found, skipping event`)
               return prev
             }
 
@@ -231,7 +234,7 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
                   thinkingState: 'idle',
                   activeToolName: undefined,
                 }
-                console.log(`[SSE ${sessionId.slice(0, 8)}] Task ${data.type}, total events:`, updatedState.events.length)
+                logger.debug(`SSE ${sessionId.slice(0, 8)}] Task ${data.type}, total events:`, updatedState.events.length)
                 newMap.set(sessionId, updatedState)
 
                 // Dispatch event to notify other components (sidebar, chat page)
@@ -259,7 +262,7 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
 
       eventSource.onerror = (err) => {
         const readyState = eventSource.readyState
-        console.error(`[SSE ${sessionId.slice(0, 8)}] Error:`, err, `readyState: ${readyState}`)
+        logger.error(`SSE ${sessionId.slice(0, 8)}] Error:`, err, `readyState: ${readyState}`)
 
         // readyState: 0=CONNECTING, 1=OPEN, 2=CLOSED
         if (readyState === EventSource.CLOSED) {
@@ -282,11 +285,11 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
         connectionError: err instanceof Error ? err : new Error('Connection failed'),
       })
     }
-  }, [token, apiBaseUrl, updateSessionState, addEvent])
+  }, [token, apiBaseUrl, updateSessionState])
 
   // Reconnect to an existing SSE stream (for page refresh recovery)
   const reconnectToStream = useCallback(async (sessionId: string, taskId: string) => {
-    console.log('[sessionStore] reconnectToStream:', sessionId.slice(0, 8), 'taskId:', taskId)
+    logger.debug('reconnectToStream:', sessionId.slice(0, 8), 'taskId:', taskId)
 
     // Close existing connection for this session
     const existingSource = eventSourcesRef.current.get(sessionId)
@@ -310,20 +313,20 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
       const eventSource = new EventSource(eventsUrl)
       eventSourcesRef.current.set(sessionId, eventSource)
 
-      console.log('[sessionStore] Reconnected to SSE stream for task:', taskId)
+      logger.debug('Reconnected to SSE stream for task:', taskId)
 
       // Handle incoming events (same logic as connectToStream)
       eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data) as StreamEvent
-          console.log(`[SSE ${sessionId.slice(0, 8)}] Received:`, data.type, data)
+          logger.debug(`SSE ${sessionId.slice(0, 8)}] Received:`, data.type, data)
 
           // Update thinking state and add event in a single setSessions call
           setSessions(prev => {
             const newMap = new Map(prev)
             const currentState = newMap.get(sessionId)
             if (!currentState) {
-              console.log(`[SSE ${sessionId.slice(0, 8)}] No state found, skipping event`)
+              logger.debug(`SSE ${sessionId.slice(0, 8)}] No state found, skipping event`)
               return prev
             }
 
@@ -369,7 +372,7 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
                   thinkingState: 'idle',
                   activeToolName: undefined,
                 }
-                console.log(`[SSE ${sessionId.slice(0, 8)}] Task ${data.type}, total events:`, updatedState.events.length)
+                logger.debug(`SSE ${sessionId.slice(0, 8)}] Task ${data.type}, total events:`, updatedState.events.length)
                 newMap.set(sessionId, updatedState)
 
                 // Dispatch event to notify other components (sidebar, chat page)
@@ -397,7 +400,7 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
 
       eventSource.onerror = (err) => {
         const readyState = eventSource.readyState
-        console.error(`[SSE ${sessionId.slice(0, 8)}] Error:`, err, `readyState: ${readyState}`)
+        logger.error(`SSE ${sessionId.slice(0, 8)}] Error:`, err, `readyState: ${readyState}`)
 
         // readyState: 0=CONNECTING, 1=OPEN, 2=CLOSED
         if (readyState === EventSource.CLOSED) {
@@ -444,7 +447,7 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
         thinkingState: 'idle',
       })
     } catch (err) {
-      console.error('Error cancelling task:', err)
+      logger.error('Error cancelling task:', err)
     }
   }, [token, sessions, updateSessionState])
 
@@ -469,15 +472,15 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
   // Load historical events for a session (all event types, not just messages)
   const loadHistoricalEvents = useCallback(async (sessionId: string): Promise<StreamEvent[]> => {
     try {
-      console.log('[sessionStore] Loading historical events for:', sessionId)
+      logger.debug('Loading historical events for:', sessionId)
       const { events } = await sessionsApi.getEvents(token, sessionId)
-      console.log('[sessionStore] Historical events loaded:', events.length)
+      logger.debug('Historical events loaded:', events.length)
       // The API already returns events in the correct format (StreamEvent)
       return events as StreamEvent[]
     } catch (err) {
-      console.error('[sessionStore] Failed to load historical events:', err)
+      logger.error('Failed to load historical events:', err)
       // Fallback to loading just messages if events API fails
-      console.log('[sessionStore] Falling back to loading messages only')
+      logger.info('Falling back to loading messages only')
       const messages = await sessionsApi.getMessages(token, sessionId)
       return messages.map(convertMessageToEvent)
     }
@@ -485,27 +488,27 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
 
   // Refresh session info
   const refreshSession = useCallback(async (sessionId: string) => {
-    console.log('[sessionStore] ===== refreshSession START =====')
-    console.log('[sessionStore] sessionId:', sessionId)
+    logger.debug('===== refreshSession START =====')
+    logger.debug('sessionId:', sessionId)
 
     try {
       const sessionData = await sessionsApi.get(token, sessionId)
-      console.log('[sessionStore] API returned session data')
+      logger.debug('API returned session data')
 
       // Load historical events (all event types, not just messages)
       const historicalEvents = await loadHistoricalEvents(sessionId)
-      console.log('[sessionStore] Historical events from DB:', historicalEvents.length)
+      logger.debug('Historical events from DB:', historicalEvents.length)
 
       // Check for active task (for page refresh recovery)
       // Use try-catch specifically for getActiveTask to avoid breaking entire refresh
       let activeTask = null
       try {
         activeTask = await sessionsApi.getActiveTask(token, sessionId)
-        console.log('[sessionStore] Active task check:', activeTask ? `task_id=${activeTask.task_id}, status=${activeTask.status}` : 'No active task')
+        logger.debug('Active task check:', activeTask ? `task_id=${activeTask.task_id}, status=${activeTask.status}` : 'No active task')
       } catch (taskErr) {
         // getActiveTask failed (404 is expected for sessions without active tasks)
         // Log but don't fail the entire refresh
-        console.log('[sessionStore] getActiveTask failed (expected for sessions without active tasks):', taskErr instanceof Error ? taskErr.message : taskErr)
+        logger.debug('getActiveTask failed (expected for sessions without active tasks):', taskErr instanceof Error ? taskErr.message : taskErr)
         activeTask = null
       }
 
@@ -515,24 +518,24 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
         const newMap = new Map(prev)
         const existing = newMap.get(sessionId)
 
-        console.log('[sessionStore] Inside setSessions - existing:', existing ? 'YES' : 'NO')
+        logger.debug('Inside setSessions - existing:', existing ? 'YES' : 'NO')
         if (existing) {
-          console.log('[sessionStore] - existing.events.length:', existing.events.length)
-          console.log('[sessionStore] - historicalEvents.length:', historicalEvents.length)
+          logger.debug('- existing.events.length:', existing.events.length)
+          logger.debug('- historicalEvents.length:', historicalEvents.length)
 
           if (existing.events.length > 0) {
             // IMPORTANT: Always preserve current events, don't replace with DB messages
             // Current events include: user_message, function_call, function_response, message, etc.
             // DB messages only include: user_message, message
-            console.log('[sessionStore] ✓ PRESERVING', existing.events.length, 'current events')
-            console.log('[sessionStore] Current event types:', [...new Set(existing.events.map(e => e.type))])
+            logger.debug('✓ PRESERVING', existing.events.length, 'current events')
+            logger.debug('Current event types:', [...new Set(existing.events.map(e => e.type))])
             newMap.set(sessionId, {
               ...existing,
               session: sessionData,
             })
           } else {
             // No current events - use historical events from DB
-            console.log('[sessionStore] Using', historicalEvents.length, 'historical events from DB')
+            logger.debug('Using', historicalEvents.length, 'historical events from DB')
             newMap.set(sessionId, {
               ...existing,
               session: sessionData,
@@ -541,7 +544,7 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
           }
         } else {
           // No existing state at all - create with historical events
-          console.log('[sessionStore] Creating new state with', historicalEvents.length, 'historical events')
+          logger.debug('Creating new state with', historicalEvents.length, 'historical events')
           newMap.set(sessionId, {
             events: historicalEvents,
             isConnected: false,
@@ -560,14 +563,14 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
 
       // If there's an active task, reconnect to the SSE stream
       if (activeTask && (activeTask.status === 'pending' || activeTask.status === 'running')) {
-        console.log('[sessionStore] Found active task, reconnecting to SSE stream...')
+        logger.debug('Found active task, reconnecting to SSE stream...')
         await reconnectToStream(sessionId, activeTask.task_id)
       }
 
-      console.log('[sessionStore] ===== refreshSession END =====')
+      logger.debug('===== refreshSession END =====')
     } catch (err) {
-      console.error('[sessionStore] Failed to refresh session:', err)
-      console.log('[sessionStore] ===== refreshSession END (ERROR) =====')
+      logger.error('Failed to refresh session:', err)
+      logger.debug('===== refreshSession END (ERROR) =====')
 
       // Even on error, try to get session data to create a minimal working state
       // This prevents the "Session not found" UI when there's a transient error
@@ -577,7 +580,7 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
         setSessions(prev => {
           const newMap = new Map(prev)
           if (!newMap.has(sessionId)) {
-            console.log('[sessionStore] Creating minimal state with session data after error')
+            logger.debug('Creating minimal state with session data after error')
             newMap.set(sessionId, {
               events: [],
               isConnected: false,
@@ -595,11 +598,11 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
         })
       } catch (getSessionErr) {
         // If even getting session data fails, create state without session
-        console.error('[sessionStore] Failed to get session data after error:', getSessionErr)
+        logger.error('Failed to get session data after error:', getSessionErr)
         setSessions(prev => {
           const newMap = new Map(prev)
           if (!newMap.has(sessionId)) {
-            console.log('[sessionStore] Creating minimal state without session data')
+            logger.debug('Creating minimal state without session data')
             newMap.set(sessionId, {
               events: [],
               isConnected: false,
@@ -622,7 +625,7 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
   // Refresh files for a session
   const refreshFiles = useCallback(async (sessionId: string, path: string = '') => {
     try {
-      console.log('[sessionStore] refreshFiles called for:', sessionId, 'path:', path)
+      logger.debug('refreshFiles called for:', sessionId, 'path:', path)
       const fileRecords = await filesApi.list(token, sessionId, path)
 
       // Convert FileRecord[] to FileItem[]
@@ -635,7 +638,7 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
         itemCount: record.item_count,
       }))
 
-      console.log('[sessionStore] Processed file items:', fileItems.map(f => ({
+      logger.debug('Processed file items:', fileItems.map(f => ({
         name: f.name,
         type: f.type,
         itemCount: f.itemCount
@@ -646,14 +649,14 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
         const newMap = new Map(prev)
         const existing = newMap.get(sessionId)
         if (existing) {
-          console.log('[sessionStore] Updating files in session state, count:', fileItems.length)
+          logger.debug('Updating files in session state, count:', fileItems.length)
           newMap.set(sessionId, {
             ...existing,
             files: fileItems,
             currentPath: path,
           })
         } else {
-          console.log('[sessionStore] Session not found, creating with files')
+          logger.debug('Session not found, creating with files')
           // Create session state if it doesn't exist
           newMap.set(sessionId, {
             events: [],
@@ -671,7 +674,7 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
         return newMap
       })
     } catch (err) {
-      console.error('[sessionStore] Failed to refresh files:', err)
+      logger.error('Failed to refresh files:', err)
     }
   }, [token])
 
@@ -682,7 +685,7 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
     // Ensure session state exists (load session data if not already loaded)
     const currentState = sessions.get(sessionId)
     if (!currentState || !currentState.session) {
-      console.log('[sessionStore] sendMessage: Session state not found, loading session data')
+      logger.debug('sendMessage: Session state not found, loading session data')
       try {
         const sessionData = await sessionsApi.get(token, sessionId)
         const historicalEvents = await loadHistoricalEvents(sessionId)
@@ -704,7 +707,7 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
           return newMap
         })
       } catch (err) {
-        console.error('[sessionStore] Failed to load session data:', err)
+        logger.error('Failed to load session data:', err)
         return
       }
     }
@@ -741,23 +744,23 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('[sessionStore] Page became visible, checking SSE connections')
+        logger.debug('Page became visible, checking SSE connections')
         // Check all active sessions with EventSource connections
         eventSourcesRef.current.forEach((eventSource, sessionId) => {
           const state = sessions.get(sessionId)
           if (state && state.isSending) {
             // Check if EventSource is still open
             if (eventSource.readyState === EventSource.CLOSED) {
-              console.log(`[sessionStore] EventSource for ${sessionId.slice(0, 8)} is closed, updating state`)
+              logger.debug(`EventSource for ${sessionId.slice(0, 8)} is closed, updating state`)
               updateSessionState(sessionId, {
                 isConnected: false,
                 isSending: false,
                 connectionError: new Error('Connection was closed'),
               })
             } else if (eventSource.readyState === EventSource.CONNECTING) {
-              console.log(`[sessionStore] EventSource for ${sessionId.slice(0, 8)} is connecting`)
+              logger.debug(`EventSource for ${sessionId.slice(0, 8)} is connecting`)
             } else {
-              console.log(`[sessionStore] EventSource for ${sessionId.slice(0, 8)} is still open`)
+              logger.debug(`EventSource for ${sessionId.slice(0, 8)} is still open`)
             }
           }
         })
@@ -780,7 +783,7 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
       eventSourcesRef.current.forEach((eventSource, sessionId) => {
         const state = sessions.get(sessionId)
         if (state && state.isSending && eventSource.readyState === EventSource.CLOSED) {
-          console.log(`[sessionStore] Health check: EventSource for ${sessionId.slice(0, 8)} is closed, updating state`)
+          logger.debug(`Health check: EventSource for ${sessionId.slice(0, 8)} is closed, updating state`)
           updateSessionState(sessionId, {
             isConnected: false,
             isSending: false,

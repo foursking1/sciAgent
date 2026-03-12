@@ -15,6 +15,9 @@ import { useSessionStore } from '@/stores/sessionStore'
 import { sessionsApi, filesApi, type Session } from '@/lib/api'
 import type { FileItem } from '@/components/chat/FileBrowser'
 import { PanelRightClose, PanelRightOpen, PanelLeftOpen, Globe, Lock, Copy, Check } from 'lucide-react'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('SessionChat')
 
 export interface SessionPageProps {
   sessionId: string
@@ -120,7 +123,7 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
     const handleSessionUpdate = (event: CustomEvent) => {
       const updatedSessionId = event.detail?.sessionId
       if (updatedSessionId === sessionId) {
-        console.log('[SessionChat] Session updated, refreshing session data')
+        logger.debug('Session updated, refreshing session data')
         refreshSession(sessionId)
       }
     }
@@ -175,7 +178,7 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
 
   // Handle file navigate
   const handleNavigate = useCallback(async (path: string) => {
-    console.log('[SessionChat] Navigating to:', path)
+    logger.debug('Navigating to:', path)
     await refreshFiles(sessionId, path)
   }, [refreshFiles, sessionId])
 
@@ -183,22 +186,22 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
   const handleFileUpload = useCallback(async (uploadedFiles: FileList) => {
     if (!token) return
 
-    console.log('[SessionChat] Uploading files:', uploadedFiles.length)
+    logger.debug('Uploading files:', uploadedFiles.length)
 
     try {
       const result = await filesApi.upload(token, sessionId, uploadedFiles)
-      console.log('[SessionChat] Upload successful:', result)
+      logger.debug('Upload successful:', result)
 
       // Check if any files failed to upload
       const failedFiles = result.files.filter(f => !f.success)
       if (failedFiles.length > 0) {
-        console.error('[SessionChat] Some files failed to upload:', failedFiles)
+        logger.error('Some files failed to upload:', failedFiles)
       }
 
       // Refresh file list after upload to show new files
-      console.log('[SessionChat] Refreshing file list...')
+      logger.debug('Refreshing file list...')
       await refreshFiles(sessionId, sessionState?.currentPath || '')
-      console.log('[SessionChat] File list refreshed')
+      logger.debug('File list refreshed')
     } catch (err) {
       console.error('Failed to upload files:', err)
     }
@@ -217,7 +220,7 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
 
   // Handle mode change
   const handleModeChange = useCallback(async (mode: SessionMode) => {
-    console.log('Mode change:', mode)
+    logger.debug('Mode change:', mode)
   }, [])
 
   // Handle toggle public
@@ -227,28 +230,28 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
     const oldIsPublic = sessionState.session.is_public
     const newIsPublic = !oldIsPublic
 
-    console.log('[SessionChat] Toggling public status from', oldIsPublic, 'to', newIsPublic)
+    logger.debug('Toggling public status from', oldIsPublic, 'to', newIsPublic)
     setIsTogglingPublic(true)
 
     // Optimistic update - immediately update UI
     const updatedSession = { ...sessionState.session, is_public: newIsPublic }
     updateSessionData(sessionId, updatedSession)
-    console.log('[SessionChat] Optimistic update done, current state:', updatedSession.is_public)
+    logger.debug('Optimistic update done, current state:', updatedSession.is_public)
 
     try {
       // Call API to update server state
       const result = await sessionsApi.setPublic(token, sessionId, newIsPublic)
-      console.log('[SessionChat] API call successful, server returned is_public:', result.is_public)
+      logger.debug('API call successful, server returned is_public:', result.is_public)
       // Update with the confirmed server response
       updateSessionData(sessionId, result)
-      console.log('[SessionChat] State updated with server response:', result.is_public)
+      logger.debug('State updated with server response:', result.is_public)
 
       // Don't trigger session-updated event - sidebar will update on its own refresh cycle
     } catch (err) {
       console.error('[SessionChat] Failed to toggle public:', err)
       // Revert optimistic update on error
       updateSessionData(sessionId, sessionState.session)
-      console.log('[SessionChat] Reverted to original state:', oldIsPublic)
+      logger.debug('Reverted to original state:', oldIsPublic)
       // Show error notification
       alert('Failed to update visibility. Please try again.')
     } finally {

@@ -7,6 +7,9 @@ import { cn, formatDateTime } from '@/lib/utils'
 import { sessionsApi, type Session } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useSessionStore } from '@/stores/sessionStore'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('SessionSidebar')
 
 interface SessionSidebarProps {
   token: string
@@ -48,7 +51,7 @@ export function SessionSidebar({
   // Get current session state from store - must be memoized to update when activeSessionId changes
   const currentSessionState = React.useMemo(() => {
     const state = getCurrentState(activeSessionId || '')
-    console.log('[SessionSidebar] getCurrentState for', activeSessionId?.slice(0, 8) || 'null', ':', state ? `${state.events.length} events` : 'null')
+    logger.debug('getCurrentState for', activeSessionId?.slice(0, 8) || 'null', ':', state ? `${state.events.length} events` : 'null')
     return state
   }, [activeSessionId, getCurrentState])
 
@@ -92,9 +95,9 @@ export function SessionSidebar({
       setIsLoading(true)
       setError(null)
       const data = await sessionsApi.list(token)
-      console.log('[SessionSidebar] Loaded sessions from API:', data.length)
+      logger.debug('Loaded sessions from API:', data.length)
       data.forEach(s => {
-        console.log(`[SessionSidebar] Session ${s.id.slice(0, 8)}: title="${s.title}", created_at="${s.created_at}", updated_at="${s.updated_at}"`)
+        logger.debug(`Session ${s.id.slice(0, 8)}: title="${s.title}", created_at="${s.created_at}", updated_at="${s.updated_at}"`)
       })
       setSessions(data)
     } catch (err) {
@@ -118,7 +121,7 @@ export function SessionSidebar({
   // Listen for session update events to refresh the list
   useEffect(() => {
     const handleSessionUpdate = () => {
-      console.log('[SessionSidebar] Session updated, refreshing list')
+      logger.debug('Session updated, refreshing list')
       loadSessions()
     }
 
@@ -171,8 +174,8 @@ export function SessionSidebar({
   const sessionDisplayTimes = React.useMemo(() => {
     const times: Record<string, string> = {}
 
-    console.log('[SessionSidebar] ===== Calculating session times =====')
-    console.log('[SessionSidebar] sessions count:', sessions.length)
+    logger.debug('===== Calculating session times =====')
+    logger.debug('sessions count:', sessions.length)
 
     sessions.forEach(session => {
       // All sessions use the same logic: updated_at if available and different from created_at, otherwise created_at
@@ -182,10 +185,10 @@ export function SessionSidebar({
       const formatted = formatDateTime(timeToUse)
       times[session.id] = formatted
 
-      console.log(`[SessionSidebar] Session ${session.id.slice(0, 8)}: ${timeToUse} -> ${formatted}`)
+      logger.debug(`Session ${session.id.slice(0, 8)}: ${timeToUse} -> ${formatted}`)
     })
 
-    console.log('[SessionSidebar] ===== Final times:', times)
+    logger.debug('===== Final times:', times)
     return times
   }, [sessions])
 

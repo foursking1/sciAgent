@@ -4,6 +4,9 @@ import React, { memo, useImperativeHandle, forwardRef } from 'react'
 import { cn, formatDateTime } from '@/lib/utils'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Button } from '@/components/ui/Button'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('EventStream')
 import type {
   StreamEvent,
   UserMessageEvent,
@@ -511,7 +514,7 @@ export const EventStream = forwardRef<EventStreamRef, EventStreamProps>(({ event
         return null
       default:
         // Log unknown events for debugging but don't render them
-        console.log('[EventStream] Skipping unknown event type:', eventWith_type.type)
+        logger.debug('Skipping unknown event type:', eventWith_type.type)
         return null
     }
   }

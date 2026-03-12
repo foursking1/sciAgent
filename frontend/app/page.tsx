@@ -6,6 +6,9 @@ import { useRouter } from 'next/navigation';
 import { publicApi, PublicSession, filesApi, sessionsApi } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { LogOut } from 'lucide-react';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('LandingPage');
 
 export default function LandingPage() {
   const { isAuthenticated, token, user, logout } = useAuth();
@@ -32,16 +35,16 @@ export default function LandingPage() {
       if (existingSessions.length > 0) {
         // Navigate to the most recent session
         const mostRecentSession = existingSessions[0];
-        console.log('[LandingPage] Navigating to existing session:', mostRecentSession.id);
+        logger.debug('Navigating to existing session:', mostRecentSession.id);
         router.push(`/session/${mostRecentSession.id}`);
       } else {
         // No existing sessions, create a new one
         const session = await sessionsApi.create(token);
-        console.log('[LandingPage] Created new session:', session.id);
+        logger.debug('Created new session:', session.id);
         router.push(`/session/${session.id}`);
       }
     } catch (err) {
-      console.error('Failed to get/create session:', err);
+      logger.error('Failed to get/create session:', err);
     }
   };
 
@@ -74,7 +77,7 @@ export default function LandingPage() {
         const data = await publicApi.listSessions();
         setSessions(data);
       } catch (err) {
-        console.error('Failed to load public sessions:', err);
+        logger.error('Failed to load public sessions:', err);
       } finally {
         setIsLoading(false);
       }

@@ -353,10 +353,6 @@ export const sessionsApi = {
       if (error instanceof APIError && error.isStatus(404)) {
         return null;
       }
-      // Also check for string-based error message (backwards compatibility)
-      if (error instanceof Error && error.message.includes('404')) {
-        return null;
-      }
       throw error;
     }
   },

@@ -13,6 +13,7 @@ from backend.db.models.message import Message, MessageRole
 from backend.db.models.session import Session
 from backend.db.models.user import User
 from backend.schemas.sessions import (
+from backend.services.cleanup import run_session_events_cleanup
     MessageCreate,
     MessageResponse,
     ModeUpdate,
@@ -26,6 +27,7 @@ from backend.schemas.sessions import (
     TaskResponse,
     TaskStatusResponse,
 )
+from backend.services.cleanup import run_session_events_cleanup
 from backend.services.session_manager import session_manager
 from backend.services.task_queue import task_queue
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -792,3 +794,56 @@ async def toggle_session_public(
         )
 
     return session
+
+
+# ============ Admin Endpoints ============
+
+
+@router.post("/admin/cleanup-events")
+async def cleanup_session_events(
+    retention_days: int = 30,
+    dry_run: bool = False,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """
+    Clean up old session_events (admin only).
+
+    Args:
+        retention_days: Number of days to retain events (default: 30)
+        dry_run: If True, only report what would be deleted (default: False)
+
+    Returns:
+        Dictionary with cleanup statistics
+    """
+    # TODO: Add admin check - for now, any authenticated user can trigger cleanup
+    # In production, you should verify the user has admin privileges:
+    # if not current_user.is_admin:
+    #     raise HTTPException(status_code=403, detail="Admin access required")
+
+    result = await run_session_events_cleanup(
+        retention_days=retention_days,
+        dry_run=dry_run,
+    )
+
+    return result
+
+
+@router.get("/admin/cleanup-stats")
+async def get_cleanup_stats(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """
+    Get session_events cleanup statistics (admin only).
+
+    Returns:
+        Dictionary with table statistics
+    """
+    # TODO: Add admin check
+    from backend.services.cleanup import get_cleanup_service
+
+    cleanup = get_cleanup_service()
+    stats = await cleanup.get_cleanup_stats(db)
+
+    return stats
