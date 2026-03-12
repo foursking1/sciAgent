@@ -1,0 +1,63 @@
+[project]
+name = "sciagent-backend"
+version = "0.1.0"
+description = "SciAgent Backend - AI-driven scientific research automation"
+requires-python = ">=3.12"
+dependencies = [
+    # Core Framework
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+    "python-multipart>=0.0.20",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.6.0",
+    "email-validator>=2.0.0",
+    # Database
+    "sqlalchemy[asyncio]>=2.0.36",
+    "aiomysql>=0.2.0",
+    "pymysql>=1.1.0",
+    "cryptography>=44.0.0",
+    # Redis
+    "redis>=5.2.0",
+    # Authentication
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "bcrypt>=4.2.0",
+    # HTTP Client
+    "httpx>=0.27.2",
+    "aiohttp>=3.11.0",
+    # Testing
+    "pytest>=8.3.4",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
+    "pytest-mock>=3.14.0",
+    # Development
+    "ruff>=0.8.0",
+    "black>=24.10.0",
+    "aiosqlite>=0.22.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.4",
+    "pytest-asyncio>=0.24.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# SQLAlchemy forward references are resolved at runtime
+"db/models/*.py" = ["F821"]
+# Alembic migration environment
+"db/migrations/env.py" = ["F821"]
+# Standalone test script
+"test_data_scientist.py" = ["E402"]

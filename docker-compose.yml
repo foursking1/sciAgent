@@ -1,0 +1,113 @@
+version: "3.9"
+
+services:
+  # MySQL 8.0 Database
+  mysql:
+    image: docker.1ms.run/library/mysql:8.0
+    container_name: sciagent-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: sciagent
+      MYSQL_USER: sciagent
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-changeme}
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - sciagent
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Redis Cache
+  redis:
+    image: docker.1ms.run/library/redis:7-alpine
+    container_name: sciagent-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - sciagent
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 3s
+      retries: 5
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: sciagent-backend
+    restart: unless-stopped
+    env_file:
+      # 使用 path/.env 文件，不受系统环境变量影响
+      - path: .env
+        required: true
+    environment:
+      # 固定配置（不使用变量替换）
+      ENVIRONMENT: production
+      DEBUG: "false"
+      DATABASE_URL: mysql+aiomysql://sciagent:${MYSQL_PASSWORD:-changeme}@mysql:3306/sciagent?charset=utf8mb4
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-changeme}
+      WORKSPACE_BASE: /workspaces
+      # 禁用 Claude Code 嵌套会话检查
+      CLAUDECODE: ""
+    volumes:
+      - workspaces:/workspaces
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - sciagent
+    ports:
+      - "8000:8000"
+    command: ["bash", "./backend/start.sh"]
+
+  # Next.js Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sciagent-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_ENVIRONMENT: production
+      # API URL - set in .env for production, or auto-detected if empty
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - sciagent
+
+networks:
+  sciagent:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  redis_data:
+  workspaces:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./workspaces
