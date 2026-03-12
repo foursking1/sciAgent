@@ -38,7 +38,7 @@ class Logger {
     return messageLevelIndex >= currentLevelIndex
   }
 
-  private formatMessage(level: LogLevel, args: unknown[]): string[] {
+  private formatMessage(level: LogLevel, args: unknown[]): unknown[] {
     const prefix = this.config.prefix ? `[${this.config.prefix}]` : ''
     const timestamp = new Date().toISOString().split('T')[1].split('.')[0]
     return [`${timestamp} ${prefix} ${level.toUpperCase()}:`, ...args]
