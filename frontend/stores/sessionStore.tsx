@@ -192,7 +192,7 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
               return prev
             }
 
-            let newThinkingState = currentState.thinkingState
+            let newThinkingState: SessionState['thinkingState'] = currentState.thinkingState
             let newActiveToolName = currentState.activeToolName
 
             switch (data.type) {
@@ -330,7 +330,7 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
               return prev
             }
 
-            let newThinkingState = currentState.thinkingState
+            let newThinkingState: SessionState['thinkingState'] = currentState.thinkingState
             let newActiveToolName = currentState.activeToolName
 
             switch (data.type) {
