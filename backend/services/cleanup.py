@@ -13,7 +13,6 @@ from sqlalchemy import delete, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.models.session_event import SessionEvent
-from backend.db.database import get_db_session
 
 logger = logging.getLogger(__name__)
 

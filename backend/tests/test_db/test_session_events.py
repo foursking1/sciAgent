@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.models.session import Session
 from backend.db.models.session_event import SessionEvent, SessionEventType
-from backend.services.cleanup import SessionEventsCleanup, get_cleanup_service
+from backend.services.cleanup import SessionEventsCleanup
 
 
 @pytest.mark.asyncio
