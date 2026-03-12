@@ -13,7 +13,6 @@ from backend.db.models.message import Message, MessageRole
 from backend.db.models.session import Session
 from backend.db.models.user import User
 from backend.schemas.sessions import (
-from backend.services.cleanup import run_session_events_cleanup
     MessageCreate,
     MessageResponse,
     ModeUpdate,
@@ -27,7 +26,7 @@ from backend.services.cleanup import run_session_events_cleanup
     TaskResponse,
     TaskStatusResponse,
 )
-from backend.services.cleanup import run_session_events_cleanup
+from backend.services.cleanup import run_session_events_cleanup, get_cleanup_service
 from backend.services.session_manager import session_manager
 from backend.services.task_queue import task_queue
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -69,7 +68,7 @@ async def get_current_user_optional(
 
 
 async def _find_preview_image(working_dir: str) -> str | None:
-    """Find the first image file in workspace for preview"""
+    """Find first image file in workspace for preview"""
     workspace = Path(working_dir)
     if not workspace.exists():
         return None
@@ -212,7 +211,7 @@ async def list_sessions(
     db: AsyncSession = Depends(get_db_session),
 ) -> dict:
     """
-    List all sessions for the current user.
+    List all sessions for current user.
     """
     sessions = await session_manager.list_sessions(
         user_id=current_user.id,
@@ -266,7 +265,7 @@ async def delete_session(
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found",
+            detail="Session not found,
         )
 
 
@@ -284,7 +283,7 @@ async def switch_session_mode(
     - data-question: 数据问题 - 数据查询与分析
     - scientific-experiment: 科学实验 - 实验设计与分析
     - data-extraction: 数据抽取 - 数据提取与清洗
-    - paper-writing: 论文写作 - 学术写作助手
+    - paper-writing: 论文写作 - - 学术写作助手
     """
     try:
         session = await session_manager.switch_mode(
@@ -338,7 +337,7 @@ async def get_messages(
     return messages
 
 
-# SSE Stream endpoint - MUST be defined before the history endpoint
+# SSE Stream endpoint - MUST be defined before /history endpoint
 # to ensure requests with task_id parameter are routed correctly
 @router.get("/{session_id}/events")
 async def stream_events(
@@ -353,7 +352,7 @@ async def stream_events(
     Query parameters:
     - **task_id**: The task ID returned from /chat endpoint
 
-    This endpoint streams real-time events from the agent execution.
+    This endpoint streams real-time events from agent execution.
     """
     # Verify session ownership
     session = await session_manager.get_session(
@@ -435,13 +434,14 @@ async def get_session_events(
         )
 
     # Try to get all events from session_events table
-    # If the table doesn't exist or is empty (migration not run or old sessions), fall back to messages
+    # If the table doesn't exist (migration not run), fall back to messages
     try:
         events = await session_manager.get_events(session_id=session_id, db=db)
+
         # Convert SessionEvent objects to event dictionaries
         event_dicts = [event.to_event_dict() for event in events]
 
-        # If no events found in session_events, fall back to messages table
+        # If no events found in session_events, fall back to messages
         if len(event_dicts) == 0:
             logger.info(
                 f"No events in session_events for session {session_id}, falling back to messages"
@@ -476,7 +476,9 @@ async def get_session_events(
                         }
                     )
 
-        logger.info(f"Returning {len(event_dicts)} events for session {session_id}")
+        logger.info(
+            f"Returning {len(event_dicts)} message-based events for session {session_id}"
+        )
         return {
             "events": event_dicts,
             "total": len(event_dicts),
@@ -602,7 +604,6 @@ async def chat(
     )
 
     logger.info(f"Chat task submitted: {task.task_id}")
-
     return {
         "task_id": task.task_id,
         "session_id": task.session_id,
@@ -668,7 +669,7 @@ async def get_active_task(
     """
     Get the currently active task for a session.
 
-    Returns the most recent task with status PENDING or RUNNING for the session.
+    Returns the most recent task with status PENDING or RUNNING for session.
     Returns 404 if no active task exists.
 
     Returns:
@@ -697,7 +698,7 @@ async def get_active_task(
     if not task:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No active task found for this session",
+            detail="No active task task found for this session",
         )
 
     return task.to_dict()
@@ -744,7 +745,7 @@ async def cancel_task(
             detail="Task does not belong to this session",
         )
 
-    # Cancel the task
+    # Cancel task
     cancelled = await task_queue.cancel(task_id)
     if not cancelled:
         raise HTTPException(
@@ -817,7 +818,7 @@ async def cleanup_session_events(
         Dictionary with cleanup statistics
     """
     # TODO: Add admin check - for now, any authenticated user can trigger cleanup
-    # In production, you should verify the user has admin privileges:
+    # In production, you should verify that user has admin privileges:
     # if not current_user.is_admin:
     #     raise HTTPException(status_code=403, detail="Admin access required")
 
@@ -841,7 +842,6 @@ async def get_cleanup_stats(
         Dictionary with table statistics
     """
     # TODO: Add admin check
-    from backend.services.cleanup import get_cleanup_service
 
     cleanup = get_cleanup_service()
     stats = await cleanup.get_cleanup_stats(db)
