@@ -12,6 +12,7 @@ Usage:
 from tdc.single_pred import ADME
 from tdc.multi_pred import DTI
 from tdc import Evaluator
+import pandas as pd
 
 
 def load_single_pred_example():
@@ -24,7 +25,7 @@ def load_single_pred_example():
 
     # Load Caco2 dataset (intestinal permeability)
     print("\nLoading Caco2_Wang dataset...")
-    data = ADME(name="Caco2_Wang")
+    data = ADME(name='Caco2_Wang')
 
     # Get basic dataset info
     print(f"\nDataset size: {len(data.get_data())} molecules")
@@ -32,11 +33,11 @@ def load_single_pred_example():
 
     # Method 1: Scaffold split (default, recommended)
     print("\n--- Scaffold Split ---")
-    split = data.get_split(method="scaffold", seed=42, frac=[0.7, 0.1, 0.2])
+    split = data.get_split(method='scaffold', seed=42, frac=[0.7, 0.1, 0.2])
 
-    train = split["train"]
-    valid = split["valid"]
-    test = split["test"]
+    train = split['train']
+    valid = split['valid']
+    test = split['test']
 
     print(f"Train: {len(train)} molecules")
     print(f"Valid: {len(valid)} molecules")
@@ -48,7 +49,7 @@ def load_single_pred_example():
 
     # Method 2: Random split
     print("\n--- Random Split ---")
-    split_random = data.get_split(method="random", seed=42, frac=[0.8, 0.1, 0.1])
+    split_random = data.get_split(method='random', seed=42, frac=[0.8, 0.1, 0.1])
     print(f"Train: {len(split_random['train'])} molecules")
     print(f"Valid: {len(split_random['valid'])} molecules")
     print(f"Test: {len(split_random['test'])} molecules")
@@ -66,7 +67,7 @@ def load_multi_pred_example():
 
     # Load BindingDB Kd dataset (drug-target interactions)
     print("\nLoading BindingDB_Kd dataset...")
-    data = DTI(name="BindingDB_Kd")
+    data = DTI(name='BindingDB_Kd')
 
     # Get basic dataset info
     full_data = data.get_data()
@@ -76,21 +77,21 @@ def load_multi_pred_example():
 
     # Method 1: Random split
     print("\n--- Random Split ---")
-    split_random = data.get_split(method="random", seed=42)
+    split_random = data.get_split(method='random', seed=42)
     print(f"Train: {len(split_random['train'])} pairs")
     print(f"Valid: {len(split_random['valid'])} pairs")
     print(f"Test: {len(split_random['test'])} pairs")
 
     # Method 2: Cold drug split (unseen drugs in test)
     print("\n--- Cold Drug Split ---")
-    split_cold_drug = data.get_split(method="cold_drug", seed=42)
+    split_cold_drug = data.get_split(method='cold_drug', seed=42)
 
-    train = split_cold_drug["train"]
-    test = split_cold_drug["test"]
+    train = split_cold_drug['train']
+    test = split_cold_drug['test']
 
     # Verify no drug overlap
-    train_drugs = set(train["Drug_ID"])
-    test_drugs = set(test["Drug_ID"])
+    train_drugs = set(train['Drug_ID'])
+    test_drugs = set(test['Drug_ID'])
     overlap = train_drugs & test_drugs
 
     print(f"Train: {len(train)} pairs, {len(train_drugs)} unique drugs")
@@ -99,13 +100,13 @@ def load_multi_pred_example():
 
     # Method 3: Cold target split (unseen targets in test)
     print("\n--- Cold Target Split ---")
-    split_cold_target = data.get_split(method="cold_target", seed=42)
+    split_cold_target = data.get_split(method='cold_target', seed=42)
 
-    train = split_cold_target["train"]
-    test = split_cold_target["test"]
+    train = split_cold_target['train']
+    test = split_cold_target['test']
 
-    train_targets = set(train["Target_ID"])
-    test_targets = set(test["Target_ID"])
+    train_targets = set(train['Target_ID'])
+    test_targets = set(test['Target_ID'])
     overlap = train_targets & test_targets
 
     print(f"Train: {len(train)} pairs, {len(train_targets)} unique targets")
@@ -127,35 +128,34 @@ def evaluation_example(split):
     print("Example 3: Model Evaluation")
     print("=" * 60)
 
-    test = split["test"]
+    test = split['test']
 
     # For demonstration, create dummy predictions
     # In practice, replace with your model's predictions
     import numpy as np
-
     np.random.seed(42)
 
     # Simulate predictions (replace with model.predict(test['Drug']))
-    y_true = test["Y"].values
+    y_true = test['Y'].values
     y_pred = y_true + np.random.normal(0, 0.5, len(y_true))  # Add noise
 
     # Evaluate with different metrics
     print("\nEvaluating predictions...")
 
     # Regression metrics
-    mae_evaluator = Evaluator(name="MAE")
+    mae_evaluator = Evaluator(name='MAE')
     mae = mae_evaluator(y_true, y_pred)
     print(f"MAE: {mae:.4f}")
 
-    rmse_evaluator = Evaluator(name="RMSE")
+    rmse_evaluator = Evaluator(name='RMSE')
     rmse = rmse_evaluator(y_true, y_pred)
     print(f"RMSE: {rmse:.4f}")
 
-    r2_evaluator = Evaluator(name="R2")
+    r2_evaluator = Evaluator(name='R2')
     r2 = r2_evaluator(y_true, y_pred)
     print(f"R²: {r2:.4f}")
 
-    spearman_evaluator = Evaluator(name="Spearman")
+    spearman_evaluator = Evaluator(name='Spearman')
     spearman = spearman_evaluator(y_true, y_pred)
     print(f"Spearman: {spearman:.4f}")
 
@@ -168,17 +168,17 @@ def custom_split_example():
     print("Example 4: Custom Split Fractions")
     print("=" * 60)
 
-    data = ADME(name="HIA_Hou")
+    data = ADME(name='HIA_Hou')
 
     # Custom split fractions
     custom_fracs = [
         ([0.6, 0.2, 0.2], "60/20/20 split"),
         ([0.8, 0.1, 0.1], "80/10/10 split"),
-        ([0.7, 0.15, 0.15], "70/15/15 split"),
+        ([0.7, 0.15, 0.15], "70/15/15 split")
     ]
 
     for frac, description in custom_fracs:
-        split = data.get_split(method="scaffold", seed=42, frac=frac)
+        split = data.get_split(method='scaffold', seed=42, frac=frac)
         print(f"\n{description}:")
         print(f"  Train: {len(split['train'])} ({frac[0]*100:.0f}%)")
         print(f"  Valid: {len(split['valid'])} ({frac[1]*100:.0f}%)")

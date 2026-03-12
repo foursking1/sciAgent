@@ -18,7 +18,6 @@ from backend.schemas.files import (
 from backend.schemas.sessions import (
     MessageCreate,
     MessageResponse,
-    SessionCreate,
     SessionListResponse,
     SessionResponse,
 )
@@ -32,7 +31,6 @@ __all__ = [
     "UserLogin",
     "UserResponse",
     # Sessions
-    "SessionCreate",
     "SessionResponse",
     "SessionListResponse",
     "MessageCreate",

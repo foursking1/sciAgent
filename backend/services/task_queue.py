@@ -423,6 +423,34 @@ class TaskQueue:
         r = await self._get_redis()
         return await r.llen(self.QUEUE_KEY)
 
+    async def get_active_task(self, session_id: str) -> Optional[Task]:
+        """
+        Get the currently active (non-completed) task for a session.
+
+        Searches Redis for tasks with status PENDING or RUNNING for the given session.
+
+        Args:
+            session_id: Session ID to find active task for
+
+        Returns:
+            Task object if found, None otherwise
+        """
+        r = await self._get_redis()
+
+        # Scan for task keys
+        async for key in r.scan_iter(f"{self.TASK_PREFIX}*"):
+            data = await r.hgetall(key)
+            if not data:
+                continue
+
+            # Check if this task belongs to the session and is still active
+            if data.get("session_id") == session_id:
+                status = data.get("status")
+                if status in (TaskStatus.PENDING.value, TaskStatus.RUNNING.value):
+                    return Task.from_dict(data)
+
+        return None
+
 
 # Global instance
 task_queue = TaskQueue()

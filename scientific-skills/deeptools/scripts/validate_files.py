@@ -9,6 +9,7 @@ Checks for file existence, proper indexing, and basic format requirements.
 import os
 import sys
 import argparse
+from pathlib import Path
 
 
 def check_file_exists(filepath):
@@ -30,10 +31,7 @@ def check_bam_index(bam_file):
     elif os.path.exists(bai_file2):
         return True, f"✓ BAM index found: {bai_file2}"
     else:
-        return (
-            False,
-            f"✗ BAM index missing for: {bam_file}\n  Run: samtools index {bam_file}",
-        )
+        return False, f"✗ BAM index missing for: {bam_file}\n  Run: samtools index {bam_file}"
 
 
 def check_bigwig_file(bw_file):
@@ -48,42 +46,28 @@ def check_bigwig_file(bw_file):
 def check_bed_file(bed_file):
     """Basic validation of BED file format."""
     try:
-        with open(bed_file, "r") as f:
-            lines = [
-                line.strip() for line in f if line.strip() and not line.startswith("#")
-            ]
+        with open(bed_file, 'r') as f:
+            lines = [line.strip() for line in f if line.strip() and not line.startswith('#')]
 
         if len(lines) == 0:
             return False, f"✗ BED file is empty: {bed_file}"
 
         # Check first few lines for basic format
         for i, line in enumerate(lines[:10], 1):
-            fields = line.split("\t")
+            fields = line.split('\t')
             if len(fields) < 3:
-                return (
-                    False,
-                    f"✗ BED file format error at line {i}: expected at least 3 columns\n  Line: {line}",
-                )
+                return False, f"✗ BED file format error at line {i}: expected at least 3 columns\n  Line: {line}"
 
             # Check if start and end are integers
             try:
                 start = int(fields[1])
                 end = int(fields[2])
                 if start >= end:
-                    return (
-                        False,
-                        f"✗ BED file error at line {i}: start >= end ({start} >= {end})",
-                    )
+                    return False, f"✗ BED file error at line {i}: start >= end ({start} >= {end})"
             except ValueError:
-                return (
-                    False,
-                    f"✗ BED file format error at line {i}: start and end must be integers\n  Line: {line}",
-                )
+                return False, f"✗ BED file format error at line {i}: start and end must be integers\n  Line: {line}"
 
-        return (
-            True,
-            f"✓ BED file format appears valid: {bed_file} ({len(lines)} regions)",
-        )
+        return True, f"✓ BED file format appears valid: {bed_file} ({len(lines)} regions)"
 
     except Exception as e:
         return False, f"✗ Error reading BED file: {bed_file}\n  Error: {str(e)}"
@@ -172,12 +156,12 @@ Examples:
 
   # Validate from a directory
   python validate_files.py --bam *.bam --bed *.bed
-        """,
+        """
     )
 
-    parser.add_argument("--bam", nargs="+", help="BAM files to validate")
-    parser.add_argument("--bigwig", "--bw", nargs="+", help="bigWig files to validate")
-    parser.add_argument("--bed", nargs="+", help="BED files to validate")
+    parser.add_argument('--bam', nargs='+', help='BAM files to validate')
+    parser.add_argument('--bigwig', '--bw', nargs='+', help='bigWig files to validate')
+    parser.add_argument('--bed', nargs='+', help='BED files to validate')
 
     args = parser.parse_args()
 
@@ -188,7 +172,9 @@ Examples:
 
     # Run validation
     success, messages = validate_files(
-        bam_files=args.bam, bigwig_files=args.bigwig, bed_files=args.bed
+        bam_files=args.bam,
+        bigwig_files=args.bigwig,
+        bed_files=args.bed
     )
 
     # Print results
@@ -196,7 +182,7 @@ Examples:
         print(msg)
 
     # Summary
-    print("\n" + "=" * 50)
+    print("\n" + "="*50)
     if success:
         print("✓ All validations passed!")
         sys.exit(0)

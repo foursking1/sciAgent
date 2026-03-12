@@ -35,7 +35,7 @@ def kegg_info(database: str) -> str:
     url = f"{KEGG_BASE_URL}/info/{database}"
     try:
         with urllib.request.urlopen(url) as response:
-            return response.read().decode("utf-8")
+            return response.read().decode('utf-8')
     except urllib.error.HTTPError as e:
         return f"Error: {e.code} - {e.reason}"
 
@@ -63,7 +63,7 @@ def kegg_list(database: str, org: Optional[str] = None) -> str:
 
     try:
         with urllib.request.urlopen(url) as response:
-            return response.read().decode("utf-8")
+            return response.read().decode('utf-8')
     except urllib.error.HTTPError as e:
         return f"Error: {e.code} - {e.reason}"
 
@@ -102,7 +102,7 @@ def kegg_find(database: str, query: str, option: Optional[str] = None) -> str:
 
     try:
         with urllib.request.urlopen(url) as response:
-            return response.read().decode("utf-8")
+            return response.read().decode('utf-8')
     except urllib.error.HTTPError as e:
         return f"Error: {e.code} - {e.reason}"
 
@@ -138,7 +138,7 @@ def kegg_get(entries: Union[str, List[str]], option: Optional[str] = None) -> st
         pathway_json = kegg_get('hsa05130', 'json')
     """
     if isinstance(entries, list):
-        entries_str = "+".join(entries[:10])  # Max 10 entries
+        entries_str = '+'.join(entries[:10])  # Max 10 entries
     else:
         entries_str = entries
 
@@ -149,7 +149,7 @@ def kegg_get(entries: Union[str, List[str]], option: Optional[str] = None) -> st
 
     try:
         with urllib.request.urlopen(url) as response:
-            return response.read().decode("utf-8")
+            return response.read().decode('utf-8')
     except urllib.error.HTTPError as e:
         return f"Error: {e.code} - {e.reason}"
 
@@ -178,7 +178,7 @@ def kegg_conv(target_db: str, source_db: str) -> str:
     url = f"{KEGG_BASE_URL}/conv/{target_db}/{source_db}"
     try:
         with urllib.request.urlopen(url) as response:
-            return response.read().decode("utf-8")
+            return response.read().decode('utf-8')
     except urllib.error.HTTPError as e:
         return f"Error: {e.code} - {e.reason}"
 
@@ -207,7 +207,7 @@ def kegg_link(target_db: str, source_db: str) -> str:
     url = f"{KEGG_BASE_URL}/link/{target_db}/{source_db}"
     try:
         with urllib.request.urlopen(url) as response:
-            return response.read().decode("utf-8")
+            return response.read().decode('utf-8')
     except urllib.error.HTTPError as e:
         return f"Error: {e.code} - {e.reason}"
 
@@ -226,14 +226,14 @@ def kegg_ddi(drug_entries: Union[str, List[str]]) -> str:
         interactions = kegg_ddi(['D00001', 'D00002'])
     """
     if isinstance(drug_entries, list):
-        entries_str = "+".join(drug_entries[:10])  # Max 10 entries
+        entries_str = '+'.join(drug_entries[:10])  # Max 10 entries
     else:
         entries_str = drug_entries
 
     url = f"{KEGG_BASE_URL}/ddi/{entries_str}"
     try:
         with urllib.request.urlopen(url) as response:
-            return response.read().decode("utf-8")
+            return response.read().decode('utf-8')
     except urllib.error.HTTPError as e:
         return f"Error: {e.code} - {e.reason}"
 
@@ -241,11 +241,11 @@ def kegg_ddi(drug_entries: Union[str, List[str]]) -> str:
 if __name__ == "__main__":
     # Example usage
     print("KEGG Info Example:")
-    print(kegg_info("pathway")[:200] + "...\n")
+    print(kegg_info('pathway')[:200] + "...\n")
 
     print("KEGG List Example (first 3 pathways):")
-    pathways = kegg_list("pathway")
-    print("\n".join(pathways.split("\n")[:3]) + "\n")
+    pathways = kegg_list('pathway')
+    print('\n'.join(pathways.split('\n')[:3]) + "\n")
 
     print("KEGG Find Example:")
-    print(kegg_find("genes", "p53")[:200] + "...")
+    print(kegg_find('genes', 'p53')[:200] + "...")

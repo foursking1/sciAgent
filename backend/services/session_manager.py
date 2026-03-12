@@ -23,7 +23,8 @@ from typing import Any, AsyncGenerator, Dict, Optional
 from backend.core.config import settings
 from backend.db.models.message import Message, MessageRole
 from backend.db.models.session import Session
-from sqlalchemy import select
+from backend.db.models.session_event import SessionEvent, SessionEventType
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # 配置日志
@@ -550,6 +551,7 @@ class SessionManager:
     ) -> Optional[Message]:
         """
         Add a message to a session.
+        Also updates the session's updated_at timestamp.
         """
         if db is None:
             return None
@@ -561,6 +563,18 @@ class SessionManager:
         )
 
         db.add(message)
+
+        # Update session's updated_at timestamp
+        result = await db.execute(select(Session).where(Session.id == session_id))
+        session = result.scalar_one_or_none()
+        if session:
+            # Explicitly update the timestamp to trigger onupdate
+            await db.execute(
+                update(Session)
+                .where(Session.id == session_id)
+                .values(updated_at=datetime.utcnow())
+            )
+
         await db.commit()
         await db.refresh(message)
 
@@ -597,6 +611,110 @@ class SessionManager:
 
         logger.debug(f"找到 {len(messages)} 条消息")
         return messages
+
+    async def save_event(
+        self,
+        session_id: str,
+        event: dict,
+        db: Optional[AsyncSession] = None,
+        commit: bool = True,
+    ) -> Optional[SessionEvent]:
+        """
+        Save an SSE event to the session_events table.
+
+        Args:
+            session_id: Session ID
+            event: Event dictionary (must contain 'type' field)
+            db: Database session
+            commit: Whether to commit the transaction (default: True).
+                   Set to False if this is part of a larger transaction.
+
+        Returns:
+            Created SessionEvent or None if db is None
+        """
+        if db is None:
+            return None
+
+        event_type = event.get("type", "unknown")
+        if event_type == "unknown":
+            logger.warning(f"Cannot save event without type: {event}")
+            return None
+
+        # Validate event_type
+        valid_types = [
+            SessionEventType.USER_MESSAGE,
+            SessionEventType.MESSAGE,
+            SessionEventType.FUNCTION_CALL,
+            SessionEventType.FUNCTION_RESPONSE,
+            SessionEventType.STARTED,
+            SessionEventType.STATUS,
+            SessionEventType.USAGE,
+            SessionEventType.COMPLETED,
+            SessionEventType.ERROR,
+            SessionEventType.CANCELLED,
+        ]
+
+        if event_type not in valid_types:
+            logger.debug(f"Skipping event type not stored in DB: {event_type}")
+            return None
+
+        try:
+            session_event = SessionEvent(
+                session_id=session_id,
+                event_type=event_type,
+                event_data=event,
+            )
+
+            db.add(session_event)
+
+            if commit:
+                await db.commit()
+                await db.refresh(session_event)
+
+            logger.debug(
+                f"事件已保存：session_id={session_id}, event_type={event_type}"
+            )
+
+            return session_event
+        except Exception as e:
+            logger.error(f"Failed to save event: {e}")
+            if commit:
+                await db.rollback()
+            raise
+
+    async def get_events(
+        self,
+        session_id: str,
+        db: AsyncSession,
+        event_types: list[str] | None = None,
+    ) -> list[SessionEvent]:
+        """
+        Get events for a session.
+
+        Args:
+            session_id: Session ID
+            db: Database session
+            event_types: Optional list of event types to filter by
+
+        Returns:
+            List of SessionEvent objects ordered by created_at
+        """
+        logger.debug(f"获取会话 {session_id} 的事件")
+
+        query = (
+            select(SessionEvent)
+            .where(SessionEvent.session_id == session_id)
+            .order_by(SessionEvent.created_at.asc())
+        )
+
+        if event_types:
+            query = query.where(SessionEvent.event_type.in_(event_types))
+
+        result = await db.execute(query)
+        events = list(result.scalars().all())
+
+        logger.debug(f"找到 {len(events)} 个事件")
+        return events
 
     async def run_data_scientist(
         self,
@@ -666,6 +784,10 @@ class SessionManager:
                     else:
                         event_dict = {"type": "message", "content": str(event)}
 
+                    # Add timestamp to all events (critical for frontend time display)
+                    if "timestamp" not in event_dict:
+                        event_dict["timestamp"] = datetime.now().isoformat()
+
                     # 日志记录事件详情
                     event_type = event_dict.get("type", "unknown")
                     content = event_dict.get("content", "")
@@ -673,7 +795,9 @@ class SessionManager:
                         content = content[:100] + "..."
 
                     # 记录完整的事件结构（调试用）
-                    logger.debug(f"  事件 {event_count}: type={event_type}")
+                    logger.debug(
+                        f"  事件 {event_count}: type={event_type}, timestamp={event_dict.get('timestamp')}"
+                    )
 
                     yield event_dict
 
@@ -693,6 +817,10 @@ class SessionManager:
                     result_dict = result.__dict__
                 else:
                     result_dict = {"type": "result", "content": str(result)}
+
+                # Add timestamp to all events
+                if "timestamp" not in result_dict:
+                    result_dict["timestamp"] = datetime.now().isoformat()
 
                 logger.debug(
                     f"结果：{json.dumps(result_dict, ensure_ascii=False)[:200]}..."

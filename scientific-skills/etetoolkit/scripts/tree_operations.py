@@ -34,9 +34,7 @@ def convert_format(tree_file, output, in_format=0, out_format=1):
     """Convert tree between Newick formats."""
     tree = load_tree(tree_file, in_format)
     tree.write(outfile=str(output), format=out_format)
-    print(
-        f"Converted {tree_file} (format {in_format}) → {output} (format {out_format})"
-    )
+    print(f"Converted {tree_file} (format {in_format}) → {output} (format {out_format})")
 
 
 def reroot_tree(tree_file, output, outgroup=None, midpoint=False, format_num=0):
@@ -46,7 +44,7 @@ def reroot_tree(tree_file, output, outgroup=None, midpoint=False, format_num=0):
     if midpoint:
         midpoint_node = tree.get_midpoint_outgroup()
         tree.set_outgroup(midpoint_node)
-        print("Rerooted tree using midpoint method")
+        print(f"Rerooted tree using midpoint method")
     elif outgroup:
         try:
             outgroup_node = tree & outgroup
@@ -91,7 +89,7 @@ def tree_stats(tree_file, format_num=0):
     """Display tree statistics."""
     tree = load_tree(tree_file, format_num)
 
-    print("\n=== Tree Statistics ===")
+    print(f"\n=== Tree Statistics ===")
     print(f"File: {tree_file}")
     print(f"Number of leaves: {len(tree)}")
     print(f"Total nodes: {len(list(tree.traverse()))}")
@@ -103,19 +101,15 @@ def tree_stats(tree_file, format_num=0):
     # Branch length statistics
     branch_lengths = [node.dist for node in tree.traverse() if not node.is_root()]
     if branch_lengths:
-        print("\nBranch length statistics:")
+        print(f"\nBranch length statistics:")
         print(f"  Mean: {sum(branch_lengths)/len(branch_lengths):.4f}")
         print(f"  Min: {min(branch_lengths):.4f}")
         print(f"  Max: {max(branch_lengths):.4f}")
 
     # Support values
-    supports = [
-        node.support
-        for node in tree.traverse()
-        if not node.is_leaf() and hasattr(node, "support")
-    ]
+    supports = [node.support for node in tree.traverse() if not node.is_leaf() and hasattr(node, 'support')]
     if supports:
-        print("\nSupport value statistics:")
+        print(f"\nSupport value statistics:")
         print(f"  Mean: {sum(supports)/len(supports):.2f}")
         print(f"  Min: {min(supports):.2f}")
         print(f"  Max: {max(supports):.2f}")
@@ -162,7 +156,7 @@ Examples:
 
   # List all leaves
   %(prog)s leaves input.nw
-        """,
+        """
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
@@ -171,64 +165,43 @@ Examples:
     convert_parser = subparsers.add_parser("convert", help="Convert tree format")
     convert_parser.add_argument("input", help="Input tree file")
     convert_parser.add_argument("output", help="Output tree file")
-    convert_parser.add_argument(
-        "--in-format", type=int, default=0, help="Input format (default: 0)"
-    )
-    convert_parser.add_argument(
-        "--out-format", type=int, default=1, help="Output format (default: 1)"
-    )
+    convert_parser.add_argument("--in-format", type=int, default=0, help="Input format (default: 0)")
+    convert_parser.add_argument("--out-format", type=int, default=1, help="Output format (default: 1)")
 
     # Reroot command
     reroot_parser = subparsers.add_parser("reroot", help="Reroot tree")
     reroot_parser.add_argument("input", help="Input tree file")
     reroot_parser.add_argument("output", help="Output tree file")
     reroot_parser.add_argument("--outgroup", help="Outgroup taxon name")
-    reroot_parser.add_argument(
-        "--midpoint", action="store_true", help="Use midpoint rooting"
-    )
-    reroot_parser.add_argument(
-        "--format", type=int, default=0, help="Newick format (default: 0)"
-    )
+    reroot_parser.add_argument("--midpoint", action="store_true", help="Use midpoint rooting")
+    reroot_parser.add_argument("--format", type=int, default=0, help="Newick format (default: 0)")
 
     # Prune command
     prune_parser = subparsers.add_parser("prune", help="Prune tree to specified taxa")
     prune_parser.add_argument("input", help="Input tree file")
     prune_parser.add_argument("output", help="Output tree file")
-    prune_parser.add_argument(
-        "--keep-taxa", required=True, help="Taxa to keep (comma-separated or file path)"
-    )
-    prune_parser.add_argument(
-        "--no-preserve-length",
-        action="store_true",
-        help="Don't preserve branch lengths",
-    )
-    prune_parser.add_argument(
-        "--format", type=int, default=0, help="Newick format (default: 0)"
-    )
+    prune_parser.add_argument("--keep-taxa", required=True,
+                              help="Taxa to keep (comma-separated or file path)")
+    prune_parser.add_argument("--no-preserve-length", action="store_true",
+                              help="Don't preserve branch lengths")
+    prune_parser.add_argument("--format", type=int, default=0, help="Newick format (default: 0)")
 
     # Stats command
     stats_parser = subparsers.add_parser("stats", help="Display tree statistics")
     stats_parser.add_argument("input", help="Input tree file")
-    stats_parser.add_argument(
-        "--format", type=int, default=0, help="Newick format (default: 0)"
-    )
+    stats_parser.add_argument("--format", type=int, default=0, help="Newick format (default: 0)")
 
     # ASCII command
     ascii_parser = subparsers.add_parser("ascii", help="Display tree as ASCII art")
     ascii_parser.add_argument("input", help="Input tree file")
-    ascii_parser.add_argument(
-        "--format", type=int, default=0, help="Newick format (default: 0)"
-    )
-    ascii_parser.add_argument(
-        "--no-internal", action="store_true", help="Don't show internal node names"
-    )
+    ascii_parser.add_argument("--format", type=int, default=0, help="Newick format (default: 0)")
+    ascii_parser.add_argument("--no-internal", action="store_true",
+                              help="Don't show internal node names")
 
     # Leaves command
     leaves_parser = subparsers.add_parser("leaves", help="List all leaf names")
     leaves_parser.add_argument("input", help="Input tree file")
-    leaves_parser.add_argument(
-        "--format", type=int, default=0, help="Newick format (default: 0)"
-    )
+    leaves_parser.add_argument("--format", type=int, default=0, help="Newick format (default: 0)")
 
     args = parser.parse_args()
 
@@ -242,13 +215,8 @@ Examples:
     elif args.command == "reroot":
         reroot_tree(args.input, args.output, args.outgroup, args.midpoint, args.format)
     elif args.command == "prune":
-        prune_tree(
-            args.input,
-            args.output,
-            args.keep_taxa,
-            not args.no_preserve_length,
-            args.format,
-        )
+        prune_tree(args.input, args.output, args.keep_taxa,
+                   not args.no_preserve_length, args.format)
     elif args.command == "stats":
         tree_stats(args.input, args.format)
     elif args.command == "ascii":

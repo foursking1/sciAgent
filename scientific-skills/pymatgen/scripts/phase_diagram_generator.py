@@ -93,7 +93,7 @@ def generate_phase_diagram(chemsys: str, args):
 
             # Find closest entry
             closest_entry = None
-            min_distance = float("inf")
+            min_distance = float('inf')
 
             for entry in entries:
                 if entry.composition.reduced_formula == comp.reduced_formula:
@@ -106,15 +106,15 @@ def generate_phase_diagram(chemsys: str, args):
                 print(f"Energy above hull:    {e_above_hull:.4f} eV/atom")
 
                 if e_above_hull < 0.001:
-                    print("Status:               STABLE (on convex hull)")
+                    print(f"Status:               STABLE (on convex hull)")
                 elif e_above_hull < 0.05:
-                    print("Status:               METASTABLE (nearly stable)")
+                    print(f"Status:               METASTABLE (nearly stable)")
                 else:
-                    print("Status:               UNSTABLE")
+                    print(f"Status:               UNSTABLE")
 
                     # Get decomposition
                     decomp = pd.get_decomposition(comp)
-                    print("\nDecomposes to:")
+                    print(f"\nDecomposes to:")
                     for entry, fraction in decomp.items():
                         formula = entry.composition.reduced_formula
                         print(f"  {fraction:.3f} × {formula}")
@@ -129,7 +129,7 @@ def generate_phase_diagram(chemsys: str, args):
 
                 # Analyze hypothetical composition
                 decomp = pd.get_decomposition(comp)
-                print("\nWould decompose to:")
+                print(f"\nWould decompose to:")
                 for entry, fraction in decomp.items():
                     formula = entry.composition.reduced_formula
                     print(f"  {fraction:.3f} × {formula}")
@@ -180,33 +180,40 @@ Examples:
   %(prog)s Li-Fe-O --output li_fe_o_phase_diagram.png
   %(prog)s Fe-O --show --analyze "Fe2O3"
   %(prog)s Li-Fe-O --analyze "LiFeO2" --show-unstable
-        """,
-    )
-
-    parser.add_argument("chemsys", help="Chemical system (e.g., Li-Fe-O, Fe-O)")
-
-    parser.add_argument(
-        "--output", "-o", help="Output file for phase diagram plot (PNG, PDF, SVG)"
+        """
     )
 
     parser.add_argument(
-        "--show", "-s", action="store_true", help="Show interactive plot"
+        "chemsys",
+        help="Chemical system (e.g., Li-Fe-O, Fe-O)"
     )
 
     parser.add_argument(
-        "--analyze",
-        "-a",
-        help="Analyze stability of specific composition (e.g., LiFeO2)",
+        "--output", "-o",
+        help="Output file for phase diagram plot (PNG, PDF, SVG)"
     )
 
     parser.add_argument(
-        "--show-unstable", action="store_true", help="Include unstable phases in plot"
+        "--show", "-s",
+        action="store_true",
+        help="Show interactive plot"
+    )
+
+    parser.add_argument(
+        "--analyze", "-a",
+        help="Analyze stability of specific composition (e.g., LiFeO2)"
+    )
+
+    parser.add_argument(
+        "--show-unstable",
+        action="store_true",
+        help="Include unstable phases in plot"
     )
 
     parser.add_argument(
         "--chemical-potentials",
         action="store_true",
-        help="Calculate chemical potentials",
+        help="Calculate chemical potentials"
     )
 
     args = parser.parse_args()

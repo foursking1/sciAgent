@@ -400,12 +400,8 @@ def main() -> None:
 
     context_values = df["anomaly_c"].values.astype(np.float32)
     context_dates = [pd.Timestamp(d) for d in df["date"].tolist()]
-    start_str = (
-        context_dates[0].strftime("%Y-%m") if not pd.isnull(context_dates[0]) else "?"
-    )
-    end_str = (
-        context_dates[-1].strftime("%Y-%m") if not pd.isnull(context_dates[-1]) else "?"
-    )
+    start_str = context_dates[0].strftime('%Y-%m') if not pd.isnull(context_dates[0]) else '?'
+    end_str   = context_dates[-1].strftime('%Y-%m') if not pd.isnull(context_dates[-1]) else '?'
     print(f"\n  Context: {len(context_values)} months  ({start_str} - {end_str})")
 
     # --- Phase 1: context anomaly detection ----------------------------------

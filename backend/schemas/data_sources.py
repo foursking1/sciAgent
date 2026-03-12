@@ -5,7 +5,7 @@ Pydantic schemas for DataSource API.
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DataSourceBase(BaseModel):
@@ -43,8 +43,7 @@ class DataSourceResponse(DataSourceBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DataSourceListResponse(BaseModel):

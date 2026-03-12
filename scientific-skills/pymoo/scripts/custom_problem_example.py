@@ -27,21 +27,21 @@ class MyBiObjectiveProblem(ElementwiseProblem):
 
     def __init__(self):
         super().__init__(
-            n_var=2,  # Number of decision variables
-            n_obj=2,  # Number of objectives
-            n_ieq_constr=0,  # Number of inequality constraints
-            n_eq_constr=0,  # Number of equality constraints
-            xl=np.array([0, 0]),  # Lower bounds
-            xu=np.array([5, 5]),  # Upper bounds
+            n_var=2,                    # Number of decision variables
+            n_obj=2,                    # Number of objectives
+            n_ieq_constr=0,            # Number of inequality constraints
+            n_eq_constr=0,             # Number of equality constraints
+            xl=np.array([0, 0]),       # Lower bounds
+            xu=np.array([5, 5])        # Upper bounds
         )
 
     def _evaluate(self, x, out, *args, **kwargs):
         """Evaluate objectives for a single solution."""
         # Objective 1: Distance from origin
-        f1 = x[0] ** 2 + x[1] ** 2
+        f1 = x[0]**2 + x[1]**2
 
         # Objective 2: Distance from (1, 1)
-        f2 = (x[0] - 1) ** 2 + (x[1] - 1) ** 2
+        f2 = (x[0] - 1)**2 + (x[1] - 1)**2
 
         # Return objectives
         out["F"] = [f1, f2]
@@ -66,9 +66,9 @@ class ConstrainedProblem(ElementwiseProblem):
         super().__init__(
             n_var=2,
             n_obj=2,
-            n_ieq_constr=2,  # Two inequality constraints
+            n_ieq_constr=2,            # Two inequality constraints
             xl=np.array([0.1, 0.0]),
-            xu=np.array([1.0, 5.0]),
+            xu=np.array([1.0, 5.0])
         )
 
     def _evaluate(self, x, out, *args, **kwargs):
@@ -92,9 +92,9 @@ class ConstrainedProblem(ElementwiseProblem):
 def solve_custom_problem():
     """Solve custom bi-objective problem."""
 
-    print("=" * 60)
+    print("="*60)
     print("CUSTOM PROBLEM - UNCONSTRAINED")
-    print("=" * 60)
+    print("="*60)
 
     # Define custom problem
     problem = MyBiObjectiveProblem()
@@ -103,10 +103,16 @@ def solve_custom_problem():
     algorithm = NSGA2(pop_size=100)
 
     # Solve
-    result = minimize(problem, algorithm, ("n_gen", 200), seed=1, verbose=False)
+    result = minimize(
+        problem,
+        algorithm,
+        ('n_gen', 200),
+        seed=1,
+        verbose=False
+    )
 
     print(f"Number of solutions: {len(result.F)}")
-    print("Objective space range:")
+    print(f"Objective space range:")
     print(f"  f1: [{result.F[:, 0].min():.3f}, {result.F[:, 0].max():.3f}]")
     print(f"  f2: [{result.F[:, 1].min():.3f}, {result.F[:, 1].max():.3f}]")
 
@@ -121,9 +127,9 @@ def solve_custom_problem():
 def solve_constrained_problem():
     """Solve custom constrained problem."""
 
-    print("\n" + "=" * 60)
+    print("\n" + "="*60)
     print("CUSTOM PROBLEM - CONSTRAINED")
-    print("=" * 60)
+    print("="*60)
 
     # Define constrained problem
     problem = ConstrainedProblem()
@@ -132,7 +138,13 @@ def solve_constrained_problem():
     algorithm = NSGA2(pop_size=100)
 
     # Solve
-    result = minimize(problem, algorithm, ("n_gen", 200), seed=1, verbose=False)
+    result = minimize(
+        problem,
+        algorithm,
+        ('n_gen', 200),
+        seed=1,
+        verbose=False
+    )
 
     # Check feasibility
     feasible = result.CV[:, 0] == 0  # Constraint violation = 0
@@ -143,7 +155,7 @@ def solve_constrained_problem():
 
     if np.any(feasible):
         F_feasible = result.F[feasible]
-        print("\nFeasible objective space range:")
+        print(f"\nFeasible objective space range:")
         print(f"  f1: [{F_feasible[:, 0].min():.3f}, {F_feasible[:, 0].max():.3f}]")
         print(f"  f2: [{F_feasible[:, 1].min():.3f}, {F_feasible[:, 1].max():.3f}]")
 
@@ -152,9 +164,7 @@ def solve_constrained_problem():
         plot.add(F_feasible, color="green", alpha=0.7, label="Feasible")
 
         if np.any(~feasible):
-            plot.add(
-                result.F[~feasible], color="red", alpha=0.3, s=10, label="Infeasible"
-            )
+            plot.add(result.F[~feasible], color="red", alpha=0.3, s=10, label="Infeasible")
 
         plot.show()
 
@@ -166,6 +176,6 @@ if __name__ == "__main__":
     result1 = solve_custom_problem()
     result2 = solve_constrained_problem()
 
-    print("\n" + "=" * 60)
+    print("\n" + "="*60)
     print("EXAMPLES COMPLETED")
-    print("=" * 60)
+    print("="*60)

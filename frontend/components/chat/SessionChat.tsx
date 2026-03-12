@@ -9,12 +9,15 @@ import { FilePreview } from '@/components/chat/FilePreview'
 import { SessionSidebar } from '@/components/chat/SessionSidebar'
 import { ThinkingIndicator } from '@/components/chat/ThinkingIndicator'
 import { DataSourceModal } from '@/components/data-sources/DataSourceModal'
-import { cn } from '@/lib/utils'
+import { cn, formatDateTime } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { useSessionStore } from '@/stores/sessionStore'
 import { sessionsApi, filesApi, type Session } from '@/lib/api'
 import type { FileItem } from '@/components/chat/FileBrowser'
 import { PanelRightClose, PanelRightOpen, PanelLeftOpen, Globe, Lock, Copy, Check } from 'lucide-react'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('SessionChat')
 
 export interface SessionPageProps {
   sessionId: string
@@ -37,7 +40,8 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
     stopGeneration,
     refreshSession,
     refreshFiles,
-    getCurrentState
+    getCurrentState,
+    updateSessionData
   } = useSessionStore()
 
   // Local UI state
@@ -48,21 +52,41 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
   const [copied, setCopied] = useState(false)
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isTogglingPublic, setIsTogglingPublic] = useState(false)
 
   const eventStreamRef = useRef<EventStreamRef>(null)
 
-  // Get current session state from store
-  const sessionState = getCurrentState(sessionId)
+  // Get current session state from store - memoized to update when store changes
+  const sessionState = React.useMemo(() => getCurrentState(sessionId), [sessionId, getCurrentState])
 
-  // Set active session and load session data on mount
+  // Calculate the header time (always creation time, doesn't change)
+  const { lastCompletionTime, timeLabel } = React.useMemo(() => {
+    if (!sessionState) {
+      return { lastCompletionTime: '', timeLabel: '' }
+    }
+
+    // Always show creation time in header
+    if (sessionState.session?.created_at) {
+      const formatted = formatDateTime(sessionState.session.created_at)
+      return {
+        lastCompletionTime: formatted,
+        timeLabel: '创建时间: '
+      }
+    }
+
+    return { lastCompletionTime: '', timeLabel: '' }
+  }, [sessionState])
+
+  // Set active session and load session data on mount and when sessionId changes
   useEffect(() => {
     setActiveSession(sessionId)
 
     // Load session data
     const loadSession = async () => {
       try {
+        // First, refresh session to ensure session state is created with proper session data
         await refreshSession(sessionId)
-        // Also load file list
+        // Then, load file list (after session state is properly initialized)
         await refreshFiles(sessionId, '')
       } catch (err) {
         console.error('Failed to load session:', err)
@@ -73,7 +97,8 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
     }
 
     loadSession()
-  }, [sessionId, refreshSession, refreshFiles])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]) // Only depend on sessionId, not the functions
 
   // Watch for session state to be actually created
   useEffect(() => {
@@ -92,6 +117,24 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
       }, 100)
     }
   }, [sessionState?.events, activeSessionId, sessionId])
+
+  // Listen for session update events to refresh session data (title, etc.)
+  useEffect(() => {
+    const handleSessionUpdate = (event: CustomEvent) => {
+      const updatedSessionId = event.detail?.sessionId
+      if (updatedSessionId === sessionId) {
+        logger.debug('Session updated, refreshing session data')
+        refreshSession(sessionId)
+      }
+    }
+
+    // Listen for session-updated event
+    window.addEventListener('session-updated', handleSessionUpdate as EventListener)
+
+    return () => {
+      window.removeEventListener('session-updated', handleSessionUpdate as EventListener)
+    }
+  }, [sessionId, refreshSession])
 
   // Handle file download
   const handleDownload = useCallback(async (file: any) => {
@@ -135,7 +178,7 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
 
   // Handle file navigate
   const handleNavigate = useCallback(async (path: string) => {
-    console.log('[SessionChat] Navigating to:', path)
+    logger.debug('Navigating to:', path)
     await refreshFiles(sessionId, path)
   }, [refreshFiles, sessionId])
 
@@ -143,22 +186,22 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
   const handleFileUpload = useCallback(async (uploadedFiles: FileList) => {
     if (!token) return
 
-    console.log('[SessionChat] Uploading files:', uploadedFiles.length)
+    logger.debug('Uploading files:', uploadedFiles.length)
 
     try {
       const result = await filesApi.upload(token, sessionId, uploadedFiles)
-      console.log('[SessionChat] Upload successful:', result)
+      logger.debug('Upload successful:', result)
 
       // Check if any files failed to upload
       const failedFiles = result.files.filter(f => !f.success)
       if (failedFiles.length > 0) {
-        console.error('[SessionChat] Some files failed to upload:', failedFiles)
+        logger.error('Some files failed to upload:', failedFiles)
       }
 
       // Refresh file list after upload to show new files
-      console.log('[SessionChat] Refreshing file list...')
+      logger.debug('Refreshing file list...')
       await refreshFiles(sessionId, sessionState?.currentPath || '')
-      console.log('[SessionChat] File list refreshed')
+      logger.debug('File list refreshed')
     } catch (err) {
       console.error('Failed to upload files:', err)
     }
@@ -177,20 +220,44 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
 
   // Handle mode change
   const handleModeChange = useCallback(async (mode: SessionMode) => {
-    console.log('Mode change:', mode)
+    logger.debug('Mode change:', mode)
   }, [])
 
   // Handle toggle public
   const handleTogglePublic = useCallback(async () => {
-    if (!sessionState?.session || !token) return
+    if (!sessionState?.session || !token || isTogglingPublic) return
+
+    const oldIsPublic = sessionState.session.is_public
+    const newIsPublic = !oldIsPublic
+
+    logger.debug('Toggling public status from', oldIsPublic, 'to', newIsPublic)
+    setIsTogglingPublic(true)
+
+    // Optimistic update - immediately update UI
+    const updatedSession = { ...sessionState.session, is_public: newIsPublic }
+    updateSessionData(sessionId, updatedSession)
+    logger.debug('Optimistic update done, current state:', updatedSession.is_public)
 
     try {
-      await sessionsApi.setPublic(token, sessionId, !sessionState.session.is_public)
-      await refreshSession(sessionId)
+      // Call API to update server state
+      const result = await sessionsApi.setPublic(token, sessionId, newIsPublic)
+      logger.debug('API call successful, server returned is_public:', result.is_public)
+      // Update with the confirmed server response
+      updateSessionData(sessionId, result)
+      logger.debug('State updated with server response:', result.is_public)
+
+      // Don't trigger session-updated event - sidebar will update on its own refresh cycle
     } catch (err) {
-      console.error('Failed to toggle public:', err)
+      console.error('[SessionChat] Failed to toggle public:', err)
+      // Revert optimistic update on error
+      updateSessionData(sessionId, sessionState.session)
+      logger.debug('Reverted to original state:', oldIsPublic)
+      // Show error notification
+      alert('Failed to update visibility. Please try again.')
+    } finally {
+      setIsTogglingPublic(false)
     }
-  }, [token, sessionId, sessionState?.session, refreshSession])
+  }, [token, sessionId, sessionState?.session, updateSessionData, isTogglingPublic])
 
   // Handle copy link
   const handleCopyLink = useCallback(async () => {
@@ -235,7 +302,6 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
       {/* Left sidebar - Session list (collapsible) */}
       <SessionSidebar
         token={token || ''}
-        currentSessionId={sessionId}
         isCollapsed={isSidebarCollapsed}
         onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         onOpenDataSourceMarket={() => setIsDataSourceModalOpen(true)}
@@ -281,6 +347,11 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
                   )}>
                     {MODE_CONFIGS[sessionState.currentMode]?.label || sessionState.currentMode}
                   </span>
+                  {lastCompletionTime && (
+                    <span className="text-xs text-gray-500">
+                      {timeLabel}{lastCompletionTime}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -294,14 +365,16 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
               {/* Toggle public button */}
               <button
                 onClick={handleTogglePublic}
+                disabled={isTogglingPublic}
                 className={cn(
                   'p-2 transition-colors',
                   sessionState.session?.is_public
                     ? 'text-primary-400 hover:text-primary-300'
-                    : 'text-gray-500 hover:text-white'
+                    : 'text-gray-500 hover:text-white',
+                  isTogglingPublic && 'opacity-50 cursor-not-allowed'
                 )}
                 aria-label={sessionState.session?.is_public ? '设为私有' : '设为公开'}
-                title={sessionState.session?.is_public ? '设为私有' : '设为公开'}
+                title={isTogglingPublic ? '更新中...' : (sessionState.session?.is_public ? '设为私有' : '设为公开')}
               >
                 {sessionState.session?.is_public ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
               </button>

@@ -53,7 +53,7 @@ def analyze_sequences(
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True)
 
-    print("Batch Sequence Analysis")
+    print(f"Batch Sequence Analysis")
     print("=" * 60)
     print(f"Input file: {fasta_file}")
     print(f"Output directory: {output_dir}")
@@ -129,11 +129,11 @@ def analyze_sequences(
     print("\n" + "=" * 60)
     print("Batch analysis complete!")
     print(f"\nResults saved to: {output_dir}/")
-    print("  - BLAST results: *_blast.csv")
+    print(f"  - BLAST results: *_blast.csv")
     if align and len(sequences) > 1:
-        print("  - Alignment: alignment.afa")
+        print(f"  - Alignment: alignment.afa")
     if predict_structure:
-        print("  - Structures: structure_*/")
+        print(f"  - Structures: structure_*/")
 
     return True
 

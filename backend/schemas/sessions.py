@@ -16,12 +16,8 @@ SessionMode = Literal[
 class SessionCreate(BaseModel):
     """Schema for creating a new session"""
 
-    agent_type: Optional[str] = Field(
-        default="claude_code", description="Type of agent to use"
-    )
-    mode: Optional[SessionMode] = Field(
-        default="data-question", description="Session mode"
-    )
+    agent_type: Optional[str] = None
+    mode: Optional[SessionMode] = None
 
 
 class SessionResponse(BaseModel):
@@ -34,9 +30,9 @@ class SessionResponse(BaseModel):
     agent_type: Optional[str] = None
     current_mode: str = "data-question"
     is_public: bool = False
-    created_at: datetime
+    created_at: datetime  # Return as datetime, will be serialized as ISO format
     updated_at: Optional[datetime] = None
-    preview: Optional[str] = None  # Last message preview
+    preview: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -48,8 +44,8 @@ class PublicSessionResponse(BaseModel):
     title: Optional[str] = None
     current_mode: str = "data-question"
     created_at: datetime
-    preview_image: Optional[str] = None  # Path to preview image
-    pdf_path: Optional[str] = None  # Path to generated PDF
+    preview_image: Optional[str] = None
+    pdf_path: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -69,7 +65,7 @@ class PublicSessionDetail(BaseModel):
     current_mode: str = "data-question"
     created_at: datetime
     messages: list["MessageResponse"]
-    is_owner: bool = False  # True if current user owns this session
+    is_owner: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 

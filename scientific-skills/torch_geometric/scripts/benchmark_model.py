@@ -13,7 +13,7 @@ Usage:
 import argparse
 import torch
 import torch.nn.functional as F
-from torch_geometric.nn import GCNConv, GATConv, SAGEConv
+from torch_geometric.nn import GCNConv, GATConv, SAGEConv, GINConv
 from torch_geometric.datasets import Planetoid, TUDataset
 from torch_geometric.loader import DataLoader
 from torch_geometric.nn import global_mean_pool
@@ -39,16 +39,11 @@ class GCN(torch.nn.Module):
 
 
 class GAT(torch.nn.Module):
-    def __init__(
-        self, num_features, hidden_channels, num_classes, heads=8, dropout=0.6
-    ):
+    def __init__(self, num_features, hidden_channels, num_classes, heads=8, dropout=0.6):
         super().__init__()
-        self.conv1 = GATConv(
-            num_features, hidden_channels, heads=heads, dropout=dropout
-        )
-        self.conv2 = GATConv(
-            hidden_channels * heads, num_classes, heads=1, concat=False, dropout=dropout
-        )
+        self.conv1 = GATConv(num_features, hidden_channels, heads=heads, dropout=dropout)
+        self.conv2 = GATConv(hidden_channels * heads, num_classes, heads=1,
+                             concat=False, dropout=dropout)
         self.dropout = dropout
 
     def forward(self, x, edge_index, batch=None):
@@ -79,9 +74,9 @@ class GraphSAGE(torch.nn.Module):
 
 
 MODELS = {
-    "gcn": GCN,
-    "gat": GAT,
-    "graphsage": GraphSAGE,
+    'gcn': GCN,
+    'gat': GAT,
+    'graphsage': GraphSAGE,
 }
 
 
@@ -143,12 +138,10 @@ def test_graph_classification(model, loader, device):
     return correct / len(loader.dataset)
 
 
-def benchmark_node_classification(
-    model_name, dataset_name, epochs, lr, weight_decay, device
-):
+def benchmark_node_classification(model_name, dataset_name, epochs, lr, weight_decay, device):
     """Benchmark a model on node classification."""
     # Load dataset
-    dataset = Planetoid(root=f"/tmp/{dataset_name}", name=dataset_name)
+    dataset = Planetoid(root=f'/tmp/{dataset_name}', name=dataset_name)
     data = dataset[0].to(device)
 
     # Create model
@@ -156,7 +149,7 @@ def benchmark_node_classification(
     model = model_class(
         num_features=dataset.num_features,
         hidden_channels=64,
-        num_classes=dataset.num_classes,
+        num_classes=dataset.num_classes
     ).to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -177,22 +170,22 @@ def benchmark_node_classification(
     train_time = time.time() - start_time
 
     return {
-        "train_acc": train_acc,
-        "val_acc": best_val_acc,
-        "test_acc": best_test_acc,
-        "train_time": train_time,
+        'train_acc': train_acc,
+        'val_acc': best_val_acc,
+        'test_acc': best_test_acc,
+        'train_time': train_time,
     }
 
 
 def benchmark_graph_classification(model_name, dataset_name, epochs, lr, device):
     """Benchmark a model on graph classification."""
     # Load dataset
-    dataset = TUDataset(root=f"/tmp/{dataset_name}", name=dataset_name)
+    dataset = TUDataset(root=f'/tmp/{dataset_name}', name=dataset_name)
 
     # Split dataset
     dataset = dataset.shuffle()
-    train_dataset = dataset[: int(len(dataset) * 0.8)]
-    test_dataset = dataset[int(len(dataset) * 0.8) :]
+    train_dataset = dataset[:int(len(dataset) * 0.8)]
+    test_dataset = dataset[int(len(dataset) * 0.8):]
 
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=32)
@@ -202,7 +195,7 @@ def benchmark_graph_classification(model_name, dataset_name, epochs, lr, device)
     model = model_class(
         num_features=dataset.num_features,
         hidden_channels=64,
-        num_classes=dataset.num_classes,
+        num_classes=dataset.num_classes
     ).to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -219,22 +212,22 @@ def benchmark_graph_classification(model_name, dataset_name, epochs, lr, device)
     train_time = time.time() - start_time
 
     return {
-        "train_acc": train_acc,
-        "test_acc": test_acc,
-        "train_time": train_time,
+        'train_acc': train_acc,
+        'test_acc': test_acc,
+        'train_time': train_time,
     }
 
 
 def run_benchmark(args):
     """Run benchmark experiments."""
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
 
     # Determine task type
-    if args.dataset in ["Cora", "CiteSeer", "PubMed"]:
-        task = "node_classification"
+    if args.dataset in ['Cora', 'CiteSeer', 'PubMed']:
+        task = 'node_classification'
     else:
-        task = "graph_classification"
+        task = 'graph_classification'
 
     print(f"\\nDataset: {args.dataset}")
     print(f"Task: {task}")
@@ -258,27 +251,19 @@ def run_benchmark(args):
             print(f"  Training {model_name.upper()}...", end=" ")
 
             try:
-                if task == "node_classification":
+                if task == 'node_classification':
                     result = benchmark_node_classification(
-                        model_name,
-                        args.dataset,
-                        args.epochs,
-                        args.lr,
-                        args.weight_decay,
-                        device,
+                        model_name, args.dataset, args.epochs,
+                        args.lr, args.weight_decay, device
                     )
-                    print(
-                        f"Test Acc: {result['test_acc']:.4f}, "
-                        f"Time: {result['train_time']:.2f}s"
-                    )
+                    print(f"Test Acc: {result['test_acc']:.4f}, "
+                          f"Time: {result['train_time']:.2f}s")
                 else:
                     result = benchmark_graph_classification(
                         model_name, args.dataset, args.epochs, args.lr, device
                     )
-                    print(
-                        f"Test Acc: {result['test_acc']:.4f}, "
-                        f"Time: {result['train_time']:.2f}s"
-                    )
+                    print(f"Test Acc: {result['test_acc']:.4f}, "
+                          f"Time: {result['train_time']:.2f}s")
 
                 results[model_name].append(result)
             except Exception as e:
@@ -293,8 +278,8 @@ def run_benchmark(args):
         if not results[model_name]:
             continue
 
-        test_accs = [r["test_acc"] for r in results[model_name]]
-        times = [r["train_time"] for r in results[model_name]]
+        test_accs = [r['test_acc'] for r in results[model_name]]
+        times = [r['train_time'] for r in results[model_name]]
 
         print(f"\\n{model_name.upper()}")
         print(f"  Test Accuracy: {np.mean(test_accs):.4f} ± {np.std(test_accs):.4f}")
@@ -303,35 +288,22 @@ def run_benchmark(args):
 
 def main():
     parser = argparse.ArgumentParser(description="Benchmark GNN models")
-    parser.add_argument(
-        "--models",
-        nargs="+",
-        default=["gcn"],
-        help="Model types to benchmark (gcn, gat, graphsage)",
-    )
-    parser.add_argument(
-        "--dataset",
-        type=str,
-        default="Cora",
-        help="Dataset name (Cora, CiteSeer, PubMed, ENZYMES, PROTEINS)",
-    )
-    parser.add_argument(
-        "--epochs", type=int, default=200, help="Number of training epochs"
-    )
-    parser.add_argument(
-        "--runs", type=int, default=5, help="Number of runs to average over"
-    )
-    parser.add_argument("--lr", type=float, default=0.01, help="Learning rate")
-    parser.add_argument(
-        "--weight-decay",
-        type=float,
-        default=5e-4,
-        help="Weight decay for node classification",
-    )
+    parser.add_argument('--models', nargs='+', default=['gcn'],
+                        help='Model types to benchmark (gcn, gat, graphsage)')
+    parser.add_argument('--dataset', type=str, default='Cora',
+                        help='Dataset name (Cora, CiteSeer, PubMed, ENZYMES, PROTEINS)')
+    parser.add_argument('--epochs', type=int, default=200,
+                        help='Number of training epochs')
+    parser.add_argument('--runs', type=int, default=5,
+                        help='Number of runs to average over')
+    parser.add_argument('--lr', type=float, default=0.01,
+                        help='Learning rate')
+    parser.add_argument('--weight-decay', type=float, default=5e-4,
+                        help='Weight decay for node classification')
 
     args = parser.parse_args()
     run_benchmark(args)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

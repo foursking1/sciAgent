@@ -8,13 +8,31 @@ interface SessionPageProps {
   }
 }
 
+// Helper function to get API base URL (same as in api.ts)
+function getApiBaseUrl(): string {
+  // 1. Check environment variable
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL
+  }
+
+  // 2. In browser, use current hostname with port 8000
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol
+    const hostname = window.location.hostname
+    return `${protocol}//${hostname}:8000`
+  }
+
+  // 3. Server-side fallback
+  return 'http://localhost:8000'
+}
+
 /**
  * Session page wrapper
  * Renders the SessionChat component with the session ID from params
  */
 export default function SessionPage({ params }: SessionPageProps) {
-  // Use backend URL directly since frontend and backend are on different ports
-  const apiBaseUrl = 'http://localhost:8000'
+  // Use backend URL dynamically based on current hostname
+  const apiBaseUrl = getApiBaseUrl()
 
   return <SessionChat sessionId={params.id} apiBaseUrl={apiBaseUrl} />
 }

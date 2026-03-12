@@ -80,7 +80,7 @@ def enrichment_pipeline(
                 print(f"Results saved to: {output_file}")
 
                 # Show top 5 results
-                print("\nTop 5 enriched terms:")
+                print(f"\nTop 5 enriched terms:")
                 for i, row in enrichment.head(5).iterrows():
                     term = row.get("name", row.get("term", "Unknown"))
                     p_val = row.get(
@@ -108,9 +108,9 @@ def enrichment_pipeline(
                 {
                     "Database": db_name,
                     "Total Terms": len(results[db_key]),
-                    "Top Term": results[db_key]
-                    .iloc[0]
-                    .get("name", results[db_key].iloc[0].get("term", "N/A")),
+                    "Top Term": results[db_key].iloc[0].get(
+                        "name", results[db_key].iloc[0].get("term", "N/A")
+                    ),
                 }
             )
 
@@ -184,12 +184,11 @@ def main():
         "-b", "--background", help="Background gene list file (optional)"
     )
     parser.add_argument(
-        "-o",
-        "--output",
-        default="enrichment",
-        help="Output prefix (default: enrichment)",
+        "-o", "--output", default="enrichment", help="Output prefix (default: enrichment)"
     )
-    parser.add_argument("--no-plot", action="store_true", help="Disable plotting")
+    parser.add_argument(
+        "--no-plot", action="store_true", help="Disable plotting"
+    )
 
     args = parser.parse_args()
 

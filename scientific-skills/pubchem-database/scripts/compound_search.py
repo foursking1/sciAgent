@@ -29,7 +29,7 @@ def search_by_name(name: str, max_results: int = 10) -> List[pcp.Compound]:
         List of Compound objects
     """
     try:
-        compounds = pcp.get_compounds(name, "name")
+        compounds = pcp.get_compounds(name, 'name')
         return compounds[:max_results]
     except Exception as e:
         print(f"Error searching for '{name}': {e}")
@@ -47,7 +47,7 @@ def search_by_smiles(smiles: str) -> Optional[pcp.Compound]:
         Compound object or None if not found
     """
     try:
-        compounds = pcp.get_compounds(smiles, "smiles")
+        compounds = pcp.get_compounds(smiles, 'smiles')
         return compounds[0] if compounds else None
     except Exception as e:
         print(f"Error searching for SMILES '{smiles}': {e}")
@@ -73,8 +73,8 @@ def get_compound_by_cid(cid: int) -> Optional[pcp.Compound]:
 
 def get_compound_properties(
     identifier: Union[str, int],
-    namespace: str = "name",
-    properties: Optional[List[str]] = None,
+    namespace: str = 'name',
+    properties: Optional[List[str]] = None
 ) -> Dict:
     """
     Get specific properties for a compound.
@@ -89,14 +89,14 @@ def get_compound_properties(
     """
     if properties is None:
         properties = [
-            "MolecularFormula",
-            "MolecularWeight",
-            "CanonicalSMILES",
-            "IUPACName",
-            "XLogP",
-            "TPSA",
-            "HBondDonorCount",
-            "HBondAcceptorCount",
+            'MolecularFormula',
+            'MolecularWeight',
+            'CanonicalSMILES',
+            'IUPACName',
+            'XLogP',
+            'TPSA',
+            'HBondDonorCount',
+            'HBondAcceptorCount'
         ]
 
     try:
@@ -108,7 +108,9 @@ def get_compound_properties(
 
 
 def similarity_search(
-    smiles: str, threshold: int = 90, max_records: int = 10
+    smiles: str,
+    threshold: int = 90,
+    max_records: int = 10
 ) -> List[pcp.Compound]:
     """
     Perform similarity search for compounds similar to the query structure.
@@ -124,10 +126,10 @@ def similarity_search(
     try:
         compounds = pcp.get_compounds(
             smiles,
-            "smiles",
-            searchtype="similarity",
+            'smiles',
+            searchtype='similarity',
             Threshold=threshold,
-            MaxRecords=max_records,
+            MaxRecords=max_records
         )
         return compounds
     except Exception as e:
@@ -135,7 +137,10 @@ def similarity_search(
         return []
 
 
-def substructure_search(smiles: str, max_records: int = 100) -> List[pcp.Compound]:
+def substructure_search(
+    smiles: str,
+    max_records: int = 100
+) -> List[pcp.Compound]:
     """
     Perform substructure search for compounds containing the query structure.
 
@@ -148,7 +153,10 @@ def substructure_search(smiles: str, max_records: int = 100) -> List[pcp.Compoun
     """
     try:
         compounds = pcp.get_compounds(
-            smiles, "smiles", searchtype="substructure", MaxRecords=max_records
+            smiles,
+            'smiles',
+            searchtype='substructure',
+            MaxRecords=max_records
         )
         return compounds
     except Exception as e:
@@ -156,7 +164,7 @@ def substructure_search(smiles: str, max_records: int = 100) -> List[pcp.Compoun
         return []
 
 
-def get_synonyms(identifier: Union[str, int], namespace: str = "name") -> List[str]:
+def get_synonyms(identifier: Union[str, int], namespace: str = 'name') -> List[str]:
     """
     Get all synonyms for a compound.
 
@@ -170,7 +178,7 @@ def get_synonyms(identifier: Union[str, int], namespace: str = "name") -> List[s
     try:
         results = pcp.get_synonyms(identifier, namespace)
         if results:
-            return results[0].get("Synonym", [])
+            return results[0].get('Synonym', [])
         return []
     except Exception as e:
         print(f"Error getting synonyms: {e}")
@@ -179,8 +187,8 @@ def get_synonyms(identifier: Union[str, int], namespace: str = "name") -> List[s
 
 def batch_search(
     identifiers: List[str],
-    namespace: str = "name",
-    properties: Optional[List[str]] = None,
+    namespace: str = 'name',
+    properties: Optional[List[str]] = None
 ) -> List[Dict]:
     """
     Batch search for multiple compounds.
@@ -197,16 +205,16 @@ def batch_search(
     for identifier in identifiers:
         props = get_compound_properties(identifier, namespace, properties)
         if props:
-            props["query"] = identifier
+            props['query'] = identifier
             results.append(props)
     return results
 
 
 def download_structure(
     identifier: Union[str, int],
-    namespace: str = "name",
-    format: str = "SDF",
-    filename: Optional[str] = None,
+    namespace: str = 'name',
+    format: str = 'SDF',
+    filename: Optional[str] = None
 ) -> Optional[str]:
     """
     Download compound structure in specified format.
@@ -259,18 +267,18 @@ def main():
 
     # Example 1: Search by name
     print("Example 1: Searching for 'aspirin'...")
-    compounds = search_by_name("aspirin", max_results=1)
+    compounds = search_by_name('aspirin', max_results=1)
     if compounds:
         print_compound_info(compounds[0])
 
     # Example 2: Get properties
     print("\nExample 2: Getting properties for caffeine...")
-    props = get_compound_properties("caffeine", "name")
+    props = get_compound_properties('caffeine', 'name')
     print(json.dumps(props, indent=2))
 
     # Example 3: Similarity search
     print("\nExample 3: Finding compounds similar to benzene...")
-    benzene_smiles = "c1ccccc1"
+    benzene_smiles = 'c1ccccc1'
     similar = similarity_search(benzene_smiles, threshold=95, max_records=5)
     print(f"Found {len(similar)} similar compounds:")
     for comp in similar:
@@ -278,14 +286,12 @@ def main():
 
     # Example 4: Batch search
     print("\nExample 4: Batch search for multiple compounds...")
-    names = ["aspirin", "ibuprofen", "paracetamol"]
-    results = batch_search(names, properties=["MolecularFormula", "MolecularWeight"])
+    names = ['aspirin', 'ibuprofen', 'paracetamol']
+    results = batch_search(names, properties=['MolecularFormula', 'MolecularWeight'])
     for result in results:
-        print(
-            f"  {result.get('query')}: {result.get('MolecularFormula')} "
-            f"({result.get('MolecularWeight')} g/mol)"
-        )
+        print(f"  {result.get('query')}: {result.get('MolecularFormula')} "
+              f"({result.get('MolecularWeight')} g/mol)")
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

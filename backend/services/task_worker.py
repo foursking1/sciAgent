@@ -6,6 +6,7 @@ Background worker that processes tasks from the queue.
 Features:
 - Concurrent task processing
 - Event streaming to Redis
+- Event persistence to database (all event types)
 - Error handling and retry logic
 - Graceful shutdown
 - Real-time message saving (saves every message event)
@@ -135,19 +136,29 @@ class TaskWorker:
         if task.status == TaskStatus.CANCELLED:
             return
 
+        # Helper function to save event to database (defined early for use throughout)
+        async def save_event_to_db(event: dict):
+            """Save event to session_events table for history reconstruction"""
+            try:
+                async with async_session_maker() as db:
+                    await session_manager.save_event(task.session_id, event, db)
+            except Exception as e:
+                logger.error(f"Error saving event to database: {e}")
+
         # Update status to running
         await self._task_queue.update_status(task_id, TaskStatus.RUNNING)
 
         # Publish start event
-        await self._task_queue.publish_event(
-            task_id,
-            {
-                "type": "started",
-                "task_id": task_id,
-                "session_id": task.session_id,
-                "timestamp": datetime.now().isoformat(),
-            },
-        )
+        start_event = {
+            "type": "started",
+            "task_id": task_id,
+            "session_id": task.session_id,
+            "timestamp": datetime.now().isoformat(),
+        }
+        await self._task_queue.publish_event(task_id, start_event)
+
+        # Save start event to database
+        await save_event_to_db(start_event)
 
         logger.info(f"Processing task {task_id} for session {task.session_id}")
 
@@ -187,14 +198,14 @@ class TaskWorker:
                 await self._task_queue.update_status(
                     task_id, TaskStatus.FAILED, error=str(e)
                 )
-                await self._task_queue.publish_event(
-                    task_id,
-                    {
-                        "type": "error",
-                        "message": str(e),
-                        "timestamp": datetime.now().isoformat(),
-                    },
-                )
+                error_event = {
+                    "type": "error",
+                    "message": str(e),
+                    "timestamp": datetime.now().isoformat(),
+                }
+                await self._task_queue.publish_event(task_id, error_event)
+                # Save error event to database
+                await save_event_to_db(error_event)
                 return
 
         # Track AI response content and message ID for real-time saving
@@ -224,12 +235,28 @@ class TaskWorker:
                         await db.refresh(message)
                         ai_message_id = message.id
                         logger.debug(f"Created AI message {ai_message_id}")
+
+                        # Update session's updated_at timestamp
+                        await db.execute(
+                            update(Session)
+                            .where(Session.id == task.session_id)
+                            .values(updated_at=datetime.utcnow())
+                        )
+                        await db.commit()
                     else:
                         # Update existing message
                         await db.execute(
                             update(Message)
                             .where(Message.id == ai_message_id)
                             .values(content=content, is_stopped=is_stopped)
+                        )
+                        await db.commit()
+
+                        # Update session's updated_at timestamp
+                        await db.execute(
+                            update(Session)
+                            .where(Session.id == task.session_id)
+                            .values(updated_at=datetime.utcnow())
                         )
                         await db.commit()
                         logger.debug(f"Updated AI message {ai_message_id}")
@@ -253,14 +280,14 @@ class TaskWorker:
                     # Save current progress with is_stopped=True before returning
                     await save_response(is_stopped=True)
                     # Publish cancelled event
-                    await self._task_queue.publish_event(
-                        task_id,
-                        {
-                            "type": "cancelled",
-                            "message": "Generation stopped by user",
-                            "timestamp": datetime.now().isoformat(),
-                        },
-                    )
+                    cancelled_event = {
+                        "type": "cancelled",
+                        "message": "Generation stopped by user",
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                    await self._task_queue.publish_event(task_id, cancelled_event)
+                    # Save cancelled event to database
+                    await save_event_to_db(cancelled_event)
                     return
 
                 # Filter out initialization messages
@@ -306,18 +333,22 @@ class TaskWorker:
                 )
                 await self._task_queue.publish_event(task_id, event)
 
+                # Save event to database for history reconstruction
+                await save_event_to_db(event)
+
             # Update status to completed
             await self._task_queue.update_status(task_id, TaskStatus.COMPLETED)
 
             # Publish completion event
-            await self._task_queue.publish_event(
-                task_id,
-                {
-                    "type": "completed",
-                    "task_id": task_id,
-                    "timestamp": datetime.now().isoformat(),
-                },
-            )
+            completed_event = {
+                "type": "completed",
+                "task_id": task_id,
+                "timestamp": datetime.now().isoformat(),
+            }
+            await self._task_queue.publish_event(task_id, completed_event)
+
+            # Save completed event to database
+            await save_event_to_db(completed_event)
 
             logger.info(f"Task {task_id} completed successfully")
 
@@ -333,14 +364,15 @@ class TaskWorker:
             )
 
             # Publish error event
-            await self._task_queue.publish_event(
-                task_id,
-                {
-                    "type": "error",
-                    "message": str(e),
-                    "timestamp": datetime.now().isoformat(),
-                },
-            )
+            error_event = {
+                "type": "error",
+                "message": str(e),
+                "timestamp": datetime.now().isoformat(),
+            }
+            await self._task_queue.publish_event(task_id, error_event)
+
+            # Save error event to database
+            await save_event_to_db(error_event)
 
 
 # Global worker instance

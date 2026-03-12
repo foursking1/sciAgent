@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import platform
 import shutil
 import struct
 import sys
@@ -473,7 +474,7 @@ def run_checks(model_version: str = "v2.5") -> SystemReport:
 def print_report(report: SystemReport) -> None:
     """Print a human-readable report to stdout."""
     print(f"\n{'=' * 50}")
-    print("  TimesFM System Requirements Check")
+    print(f"  TimesFM System Requirements Check")
     print(f"  Model: {report.model}")
     print(f"{'=' * 50}\n")
 

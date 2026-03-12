@@ -24,22 +24,22 @@ COMPLIANCE_CHECKS = {
     "fda": {
         "study_id": r"(?i)(IND|IDE|protocol)\s+(number|#)[:]\s*\S+",
         "safety_reporting": r"(?i)(adverse\s+event|SAE)",
-    },
+    }
 }
 
 
 def check_compliance(filename: str) -> dict:
     """Check regulatory compliance."""
-    with open(filename, "r", encoding="utf-8") as f:
+    with open(filename, 'r', encoding='utf-8') as f:
         content = f.read()
-
+    
     results = {}
     for regulation, checks in COMPLIANCE_CHECKS.items():
         reg_results = {}
         for check_name, pattern in checks.items():
             reg_results[check_name] = bool(re.search(pattern, content))
         results[regulation] = reg_results
-
+    
     return {"filename": filename, "compliance": results}
 
 
@@ -48,12 +48,12 @@ def main():
     parser = argparse.ArgumentParser(description="Check regulatory compliance")
     parser.add_argument("input_file", help="Path to clinical report")
     parser.add_argument("--json", action="store_true")
-
+    
     args = parser.parse_args()
-
+    
     try:
         report = check_compliance(args.input_file)
-
+        
         if args.json:
             print(json.dumps(report, indent=2))
         else:
@@ -64,9 +64,9 @@ def main():
                     symbol = "✓" if passed else "✗"
                     print(f"  {symbol} {check}")
                 print()
-
+        
         return 0
-
+        
     except Exception as e:
         print(f"Error: {e}")
         return 1
@@ -74,5 +74,5 @@ def main():
 
 if __name__ == "__main__":
     import sys
-
     sys.exit(main())
+

@@ -20,6 +20,30 @@ export default function PublicSessionPage({ params }: PublicSessionPageProps) {
   const [session, setSession] = useState<PublicSessionDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  // Handle create new session
+  const handleCreateSession = async () => {
+    if (!token) return;
+    setIsCreating(true);
+    try {
+      const sessionsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/sessions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (sessionsResponse.ok) {
+        const newSession = await sessionsResponse.json();
+        router.push(`/session/${newSession.id}`);
+      }
+    } catch (err) {
+      console.error('Failed to create session:', err);
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   useEffect(() => {
     const loadSession = async () => {
@@ -90,9 +114,13 @@ export default function PublicSessionPage({ params }: PublicSessionPageProps) {
                 Open in Editor
               </Link>
             ) : isAuthenticated ? (
-              <Link href="/dashboard" className="btn-secondary">
-                Dashboard
-              </Link>
+              <button
+                onClick={handleCreateSession}
+                disabled={isCreating}
+                className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isCreating ? 'Creating...' : 'New Session'}
+              </button>
             ) : (
               <Link href="/register" className="btn-primary">
                 Get Started
