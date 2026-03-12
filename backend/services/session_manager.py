@@ -569,8 +569,6 @@ class SessionManager:
         session = result.scalar_one_or_none()
         if session:
             # Explicitly update the timestamp to trigger onupdate
-            from datetime import datetime
-            from sqlalchemy import update
             await db.execute(
                 update(Session)
                 .where(Session.id == session_id)

@@ -11,7 +11,6 @@ from backend.api.routes.auth import get_current_user, get_current_user_for_sse
 from backend.db.database import get_db_session
 from backend.db.models.message import Message, MessageRole
 from backend.db.models.session import Session
-from backend.db.models.session_event import SessionEvent
 from backend.db.models.user import User
 from backend.schemas.sessions import (
     MessageCreate,
@@ -530,63 +529,6 @@ async def send_message(
     )
 
     return user_message
-
-
-@router.get("/{session_id}/events")
-async def stream_events(
-    session_id: str,
-    task_id: str,
-    current_user: User = Depends(get_current_user_for_sse),
-    db: AsyncSession = Depends(get_db_session),
-):
-    """
-    Stream events from a task via Server-Sent Events (SSE).
-
-    Query parameters:
-    - **task_id**: The task ID returned from /chat endpoint
-
-    This endpoint streams real-time events from the agent execution.
-    """
-    # Verify session ownership
-    session = await session_manager.get_session(
-        session_id=session_id,
-        user_id=current_user.id,
-        db=db,
-    )
-
-    if session is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found",
-        )
-
-    # Verify task belongs to this session
-    task = await task_queue.get_status(task_id)
-    if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Task not found",
-        )
-
-    if task.session_id != session_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Task does not belong to this session",
-        )
-
-    async def event_generator():
-        """Generate SSE events from Redis pub/sub"""
-        try:
-            async for event in task_queue.stream_events(task_id, timeout=300.0):
-                yield f"data: {json.dumps(event)}\n\n"
-        except Exception as e:
-            logger.error(f"Error streaming events for task {task_id}: {e}")
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
-
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream",
-    )
 
 
 @router.post("/{session_id}/chat", response_model=TaskResponse)
