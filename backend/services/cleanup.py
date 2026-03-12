@@ -9,10 +9,10 @@ import logging
 from datetime import datetime, timedelta
 from typing import Optional
 
-from sqlalchemy import delete, select, func
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from backend.db.database import get_db_session
 from backend.db.models.session_event import SessionEvent
+from sqlalchemy import delete, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -108,11 +108,22 @@ class SessionEventsCleanup:
         batch_count = 0
 
         while True:
-            # Delete one batch
-            result = await db.execute(
-                delete(SessionEvent)
+            # Select IDs of events to delete in this batch
+            from sqlalchemy import select
+
+            batch_ids_result = await db.execute(
+                select(SessionEvent.id)
                 .where(SessionEvent.created_at < self.cutoff_date)
                 .limit(batch_size)
+            )
+            batch_ids = batch_ids_result.scalars().all()
+
+            if not batch_ids:
+                break
+
+            # Delete events by IDs
+            result = await db.execute(
+                delete(SessionEvent).where(SessionEvent.id.in_(batch_ids))
             )
 
             batch_deleted = result.rowcount

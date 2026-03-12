@@ -265,7 +265,7 @@ async def delete_session(
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found,
+            detail="Session not found",
         )
 
 
