@@ -39,7 +39,9 @@ async def test_create_session_event(async_session: AsyncSession, test_session: S
 
 
 @pytest.mark.asyncio
-async def test_session_event_to_event_dict(async_session: AsyncSession, test_session: Session):
+async def test_session_event_to_event_dict(
+    async_session: AsyncSession, test_session: Session
+):
     """Test converting SessionEvent to event dict."""
     event_data = {
         "type": "function_call",
@@ -103,7 +105,9 @@ async def test_session_event_types(async_session: AsyncSession, test_session: Se
 
 
 @pytest.mark.asyncio
-async def test_session_event_with_json_data(async_session: AsyncSession, test_session: Session):
+async def test_session_event_with_json_data(
+    async_session: AsyncSession, test_session: Session
+):
     """Test session event with complex JSON data."""
     complex_data = {
         "type": "usage",

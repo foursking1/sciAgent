@@ -671,7 +671,9 @@ class SessionManager:
                 await db.commit()
                 await db.refresh(session_event)
 
-            logger.debug(f"事件已保存：session_id={session_id}, event_type={event_type}")
+            logger.debug(
+                f"事件已保存：session_id={session_id}, event_type={event_type}"
+            )
 
             return session_event
         except Exception as e:
