@@ -43,16 +43,13 @@ def list_chat_sessions(notebook_id):
     sessions = response.json()
     print(f"Found {len(sessions)} chat session(s):")
     for s in sessions:
-        print(
-            f"  - {s['id']}: {s.get('title', 'Untitled')} "
-            f"({s.get('message_count', 0)} messages)"
-        )
+        print(f"  - {s['id']}: {s.get('title', 'Untitled')} "
+              f"({s.get('message_count', 0)} messages)")
     return sessions
 
 
-def send_chat_message(
-    session_id, message, include_sources=True, include_notes=True, model_override=None
-):
+def send_chat_message(session_id, message, include_sources=True,
+                      include_notes=True, model_override=None):
     """Send a message to a chat session with context from sources and notes."""
     payload = {
         "session_id": session_id,
@@ -96,23 +93,18 @@ def build_context(notebook_id, source_ids=None, note_ids=None):
     response = requests.post(f"{BASE_URL}/chat/context", json=payload)
     response.raise_for_status()
     context = response.json()
-    print(
-        f"Context built: {context.get('token_count', '?')} tokens, "
-        f"{context.get('char_count', '?')} characters"
-    )
+    print(f"Context built: {context.get('token_count', '?')} tokens, "
+          f"{context.get('char_count', '?')} characters")
     return context
 
 
 def search_knowledge_base(query, search_type="vector", limit=5):
     """Search across all materials in the knowledge base."""
-    response = requests.post(
-        f"{BASE_URL}/search",
-        json={
-            "query": query,
-            "search_type": search_type,
-            "limit": limit,
-        },
-    )
+    response = requests.post(f"{BASE_URL}/search", json={
+        "query": query,
+        "search_type": search_type,
+        "limit": limit,
+    })
     response.raise_for_status()
     results = response.json()
     print(f"\nSearch results for '{query}' ({results.get('total', 0)} hits):")
@@ -125,12 +117,9 @@ def search_knowledge_base(query, search_type="vector", limit=5):
 
 def ask_question(query):
     """Ask a question and get an AI-generated answer from the knowledge base."""
-    response = requests.post(
-        f"{BASE_URL}/search/ask/simple",
-        json={
-            "query": query,
-        },
-    )
+    response = requests.post(f"{BASE_URL}/search/ask/simple", json={
+        "query": query,
+    })
     response.raise_for_status()
     result = response.json()
     print(f"\nQ: {query}")
@@ -149,32 +138,26 @@ if __name__ == "__main__":
     print("=== Chat Interaction Demo ===\n")
 
     # Create a notebook with some content first
-    notebook = requests.post(
-        f"{BASE_URL}/notebooks",
-        json={
-            "name": "Chat Demo",
-            "description": "Demonstrating chat interactions",
-        },
-    ).json()
+    notebook = requests.post(f"{BASE_URL}/notebooks", json={
+        "name": "Chat Demo",
+        "description": "Demonstrating chat interactions",
+    }).json()
     notebook_id = notebook["id"]
 
     # Add a text source for context
-    requests.post(
-        f"{BASE_URL}/sources",
-        data={
-            "text": (
-                "Immunotherapy has revolutionized cancer treatment. "
-                "Checkpoint inhibitors targeting PD-1 and PD-L1 have shown "
-                "remarkable efficacy in non-small cell lung cancer, melanoma, "
-                "and several other tumor types. Tumor mutational burden (TMB) "
-                "has emerged as a key biomarker for predicting response to "
-                "immunotherapy. Patients with high TMB tend to generate more "
-                "neoantigens, making their tumors more visible to the immune system."
-            ),
-            "notebook_id": notebook_id,
-            "process_async": "false",
-        },
-    )
+    requests.post(f"{BASE_URL}/sources", data={
+        "text": (
+            "Immunotherapy has revolutionized cancer treatment. "
+            "Checkpoint inhibitors targeting PD-1 and PD-L1 have shown "
+            "remarkable efficacy in non-small cell lung cancer, melanoma, "
+            "and several other tumor types. Tumor mutational burden (TMB) "
+            "has emerged as a key biomarker for predicting response to "
+            "immunotherapy. Patients with high TMB tend to generate more "
+            "neoantigens, making their tumors more visible to the immune system."
+        ),
+        "notebook_id": notebook_id,
+        "process_async": "false",
+    })
 
     # Create a chat session
     session = create_chat_session(notebook_id, "Immunotherapy Discussion")

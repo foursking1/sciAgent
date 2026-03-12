@@ -1,14 +1,75 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { publicApi, PublicSession, filesApi } from '@/lib/api';
+import { useRouter } from 'next/navigation';
+import { publicApi, PublicSession, filesApi, sessionsApi } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
+import { LogOut } from 'lucide-react';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('LandingPage');
 
 export default function LandingPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, token, user, logout } = useAuth();
+  const router = useRouter();
   const [sessions, setSessions] = useState<PublicSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Handle create new session or navigate to existing session
+  const handleGetStarted = async () => {
+    if (!isAuthenticated) {
+      // 未登录，跳转到登录页
+      router.push('/login');
+      return;
+    }
+
+    if (!token) return;
+
+    try {
+      // First, try to get existing sessions
+      const existingSessions = await sessionsApi.list(token);
+
+      if (existingSessions.length > 0) {
+        // Navigate to the most recent session
+        const mostRecentSession = existingSessions[0];
+        logger.debug('Navigating to existing session:', mostRecentSession.id);
+        router.push(`/session/${mostRecentSession.id}`);
+      } else {
+        // No existing sessions, create a new one
+        const session = await sessionsApi.create(token);
+        logger.debug('Created new session:', session.id);
+        router.push(`/session/${session.id}`);
+      }
+    } catch (err) {
+      logger.error('Failed to get/create session:', err);
+    }
+  };
+
+  // Handle logout
+  const handleLogout = () => {
+    logout();
+    setIsUserMenuOpen(false);
+  };
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    if (isUserMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isUserMenuOpen]);
 
   useEffect(() => {
     const loadSessions = async () => {
@@ -16,13 +77,21 @@ export default function LandingPage() {
         const data = await publicApi.listSessions();
         setSessions(data);
       } catch (err) {
-        console.error('Failed to load public sessions:', err);
+        logger.error('Failed to load public sessions:', err);
       } finally {
         setIsLoading(false);
       }
     };
     loadSessions();
   }, []);
+
+  // Get user initials
+  const getUserInitials = () => {
+    if (!user) return '';
+    return user.full_name
+      ? user.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+      : user.email.charAt(0).toUpperCase();
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -38,19 +107,52 @@ export default function LandingPage() {
             <span className="text-xl font-bold gradient-text">SciAgent</span>
           </div>
           <div className="flex items-center gap-4">
-            {isAuthenticated ? (
-              <Link href="/dashboard" className="btn-primary">
-                Dashboard
-              </Link>
-            ) : (
+            {!isAuthenticated ? (
               <>
                 <Link href="/login" className="btn-ghost">
                   Sign in
                 </Link>
-                <Link href="/register" className="btn-primary">
+                <button onClick={handleGetStarted} className="btn-primary">
                   Get Started
-                </Link>
+                </button>
               </>
+            ) : (
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white text-xs font-semibold">
+                    {getUserInitials()}
+                  </div>
+                  <span className="text-sm text-gray-300">
+                    {user?.full_name || user?.email?.split('@')[0] || 'User'}
+                  </span>
+                </button>
+
+                {isUserMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-surface border border-gray-800 rounded-xl shadow-xl py-2 z-50">
+                    {/* User info */}
+                    <div className="px-4 py-3 border-b border-gray-800">
+                      <p className="text-sm font-medium text-white">
+                        {user?.full_name || 'User'}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5 truncate">
+                        {user?.email}
+                      </p>
+                    </div>
+
+                    {/* Logout button */}
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-red-400 hover:text-red-300 hover:bg-gray-700 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>登出</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -70,9 +172,9 @@ export default function LandingPage() {
             accelerate your research workflow.
           </p>
           <div className="flex justify-center gap-4">
-            <Link href={isAuthenticated ? "/dashboard" : "/register"} className="btn-primary text-lg px-8 py-3">
+            <button onClick={handleGetStarted} className="btn-primary text-lg px-8 py-3">
               Get Started Free
-            </Link>
+            </button>
             <Link href="#examples" className="btn-secondary text-lg px-8 py-3">
               View Examples
             </Link>

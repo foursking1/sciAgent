@@ -4,6 +4,7 @@ Session API routes.
 
 import json
 import logging
+from datetime import datetime
 from pathlib import Path
 
 from backend.api.routes.auth import get_current_user, get_current_user_for_sse
@@ -25,6 +26,7 @@ from backend.schemas.sessions import (
     TaskResponse,
     TaskStatusResponse,
 )
+from backend.services.cleanup import get_cleanup_service, run_session_events_cleanup
 from backend.services.session_manager import session_manager
 from backend.services.task_queue import task_queue
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -66,7 +68,7 @@ async def get_current_user_optional(
 
 
 async def _find_preview_image(working_dir: str) -> str | None:
-    """Find the first image file in workspace for preview"""
+    """Find first image file in workspace for preview"""
     workspace = Path(working_dir)
     if not workspace.exists():
         return None
@@ -209,7 +211,7 @@ async def list_sessions(
     db: AsyncSession = Depends(get_db_session),
 ) -> dict:
     """
-    List all sessions for the current user.
+    List all sessions for current user.
     """
     sessions = await session_manager.list_sessions(
         user_id=current_user.id,
@@ -281,7 +283,7 @@ async def switch_session_mode(
     - data-question: 数据问题 - 数据查询与分析
     - scientific-experiment: 科学实验 - 实验设计与分析
     - data-extraction: 数据抽取 - 数据提取与清洗
-    - paper-writing: 论文写作 - 学术写作助手
+    - paper-writing: 论文写作 - - 学术写作助手
     """
     try:
         session = await session_manager.switch_mode(
@@ -335,43 +337,8 @@ async def get_messages(
     return messages
 
 
-@router.post("/{session_id}/messages", response_model=MessageResponse)
-async def send_message(
-    session_id: str,
-    message_data: MessageCreate,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db_session),
-) -> Message:
-    """
-    Send a message to a session (non-streaming).
-
-    This stores the user message and returns it.
-    For streaming responses, use the /events endpoint.
-    """
-    # Verify session ownership
-    session = await session_manager.get_session(
-        session_id=session_id,
-        user_id=current_user.id,
-        db=db,
-    )
-
-    if session is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found",
-        )
-
-    # Store user message
-    user_message = await session_manager.add_message(
-        session_id=session_id,
-        content=message_data.content,
-        role=MessageRole.USER,
-        db=db,
-    )
-
-    return user_message
-
-
+# SSE Stream endpoint - MUST be defined before /history endpoint
+# to ensure requests with task_id parameter are routed correctly
 @router.get("/{session_id}/events")
 async def stream_events(
     session_id: str,
@@ -385,7 +352,7 @@ async def stream_events(
     Query parameters:
     - **task_id**: The task ID returned from /chat endpoint
 
-    This endpoint streams real-time events from the agent execution.
+    This endpoint streams real-time events from agent execution.
     """
     # Verify session ownership
     session = await session_manager.get_session(
@@ -429,6 +396,175 @@ async def stream_events(
     )
 
 
+@router.get("/{session_id}/history")
+async def get_session_events(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """
+    Get all events for a session (for page refresh recovery).
+
+    Returns all stored SSE events including:
+    - user_message
+    - message
+    - function_call
+    - function_response
+    - started
+    - status
+    - usage
+    - completed
+    - error
+    - cancelled
+
+    This enables full session history reconstruction on page refresh.
+    Falls back to messages if session_events table is empty or doesn't exist.
+    """
+    # Verify session ownership
+    session = await session_manager.get_session(
+        session_id=session_id,
+        user_id=current_user.id,
+        db=db,
+    )
+
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
+
+    # Try to get all events from session_events table
+    # If the table doesn't exist (migration not run), fall back to messages
+    try:
+        events = await session_manager.get_events(session_id=session_id, db=db)
+
+        # Convert SessionEvent objects to event dictionaries
+        event_dicts = [event.to_event_dict() for event in events]
+
+        # If no events found in session_events, fall back to messages
+        if len(event_dicts) == 0:
+            logger.info(
+                f"No events in session_events for session {session_id}, falling back to messages"
+            )
+            messages = await session_manager.get_messages(session_id=session_id, db=db)
+
+            # Convert messages to event format
+            for msg in messages:
+                if msg.role == MessageRole.USER:
+                    event_dicts.append(
+                        {
+                            "type": "user_message",
+                            "content": msg.content,
+                            "timestamp": (
+                                msg.created_at.isoformat()
+                                if msg.created_at
+                                else datetime.now().isoformat()
+                            ),
+                        }
+                    )
+                else:
+                    event_dicts.append(
+                        {
+                            "type": "message",
+                            "content": msg.content,
+                            "timestamp": (
+                                msg.created_at.isoformat()
+                                if msg.created_at
+                                else datetime.now().isoformat()
+                            ),
+                            "is_stopped": msg.is_stopped,
+                        }
+                    )
+
+        logger.info(
+            f"Returning {len(event_dicts)} message-based events for session {session_id}"
+        )
+        return {
+            "events": event_dicts,
+            "total": len(event_dicts),
+        }
+    except Exception as e:
+        # Table might not exist (migration not run), fall back to messages
+        logger.warning(
+            f"Error getting session_events for session {session_id}, falling back to messages: {e}"
+        )
+        messages = await session_manager.get_messages(session_id=session_id, db=db)
+
+        # Convert messages to event format
+        event_dicts = []
+        for msg in messages:
+            if msg.role == MessageRole.USER:
+                event_dicts.append(
+                    {
+                        "type": "user_message",
+                        "content": msg.content,
+                        "timestamp": (
+                            msg.created_at.isoformat()
+                            if msg.created_at
+                            else datetime.now().isoformat()
+                        ),
+                    }
+                )
+            else:
+                event_dicts.append(
+                    {
+                        "type": "message",
+                        "content": msg.content,
+                        "timestamp": (
+                            msg.created_at.isoformat()
+                            if msg.created_at
+                            else datetime.now().isoformat()
+                        ),
+                        "is_stopped": msg.is_stopped,
+                    }
+                )
+
+        logger.info(
+            f"Returning {len(event_dicts)} message-based events for session {session_id}"
+        )
+        return {
+            "events": event_dicts,
+            "total": len(event_dicts),
+        }
+
+
+@router.post("/{session_id}/messages", response_model=MessageResponse)
+async def send_message(
+    session_id: str,
+    message_data: MessageCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> Message:
+    """
+    Send a message to a session (non-streaming).
+
+    This stores the user message and returns it.
+    For streaming responses, use the /events endpoint.
+    """
+    # Verify session ownership
+    session = await session_manager.get_session(
+        session_id=session_id,
+        user_id=current_user.id,
+        db=db,
+    )
+
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
+
+    # Store user message
+    user_message = await session_manager.add_message(
+        session_id=session_id,
+        content=message_data.content,
+        role=MessageRole.USER,
+        db=db,
+    )
+
+    return user_message
+
+
 @router.post("/{session_id}/chat", response_model=TaskResponse)
 async def chat(
     session_id: str,
@@ -468,7 +604,6 @@ async def chat(
     )
 
     logger.info(f"Chat task submitted: {task.task_id}")
-
     return {
         "task_id": task.task_id,
         "session_id": task.session_id,
@@ -525,6 +660,50 @@ async def get_task_status(
     return task.to_dict()
 
 
+@router.get("/{session_id}/active-task", response_model=TaskStatusResponse)
+async def get_active_task(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """
+    Get the currently active task for a session.
+
+    Returns the most recent task with status PENDING or RUNNING for session.
+    Returns 404 if no active task exists.
+
+    Returns:
+        task_id: Task ID
+        session_id: Session ID
+        status: Current task status
+        created_at: Task creation time
+        started_at: Task start time (if started)
+        message: User message that triggered the task
+    """
+    # Verify session ownership
+    session = await session_manager.get_session(
+        session_id=session_id,
+        user_id=current_user.id,
+        db=db,
+    )
+
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
+
+    # Get active task
+    task = await task_queue.get_active_task(session_id)
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active task task found for this session",
+        )
+
+    return task.to_dict()
+
+
 @router.post("/{session_id}/tasks/{task_id}/cancel", response_model=TaskStatusResponse)
 async def cancel_task(
     session_id: str,
@@ -566,7 +745,7 @@ async def cancel_task(
             detail="Task does not belong to this session",
         )
 
-    # Cancel the task
+    # Cancel task
     cancelled = await task_queue.cancel(task_id)
     if not cancelled:
         raise HTTPException(
@@ -608,4 +787,63 @@ async def toggle_session_public(
     await db.commit()
     await db.refresh(session)
 
+    # Update cache to reflect the new is_public status
+    if session_id in session_manager._active_sessions:
+        session_manager._active_sessions[session_id]["session"] = session
+        logger.info(
+            f"Updated cache for session {session_id}, is_public={session.is_public}"
+        )
+
     return session
+
+
+# ============ Admin Endpoints ============
+
+
+@router.post("/admin/cleanup-events")
+async def cleanup_session_events(
+    retention_days: int = 30,
+    dry_run: bool = False,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """
+    Clean up old session_events (admin only).
+
+    Args:
+        retention_days: Number of days to retain events (default: 30)
+        dry_run: If True, only report what would be deleted (default: False)
+
+    Returns:
+        Dictionary with cleanup statistics
+    """
+    # TODO: Add admin check - for now, any authenticated user can trigger cleanup
+    # In production, you should verify that user has admin privileges:
+    # if not current_user.is_admin:
+    #     raise HTTPException(status_code=403, detail="Admin access required")
+
+    result = await run_session_events_cleanup(
+        retention_days=retention_days,
+        dry_run=dry_run,
+    )
+
+    return result
+
+
+@router.get("/admin/cleanup-stats")
+async def get_cleanup_stats(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """
+    Get session_events cleanup statistics (admin only).
+
+    Returns:
+        Dictionary with table statistics
+    """
+    # TODO: Add admin check
+
+    cleanup = get_cleanup_service()
+    stats = await cleanup.get_cleanup_stats(db)
+
+    return stats

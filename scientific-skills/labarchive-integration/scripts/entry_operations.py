@@ -8,13 +8,15 @@ Utilities for creating entries, uploading attachments, and managing notebook con
 import argparse
 import sys
 import yaml
+import os
 from pathlib import Path
+from datetime import datetime
 
 
-def load_config(config_path="config.yaml"):
+def load_config(config_path='config.yaml'):
     """Load configuration from YAML file"""
     try:
-        with open(config_path, "r") as f:
+        with open(config_path, 'r') as f:
             return yaml.safe_load(f)
     except FileNotFoundError:
         print(f"❌ Configuration file not found: {config_path}")
@@ -29,15 +31,14 @@ def init_client(config):
     """Initialize LabArchives API client"""
     try:
         from labarchivespy.client import Client
-
         return Client(
-            config["api_url"], config["access_key_id"], config["access_password"]
+            config['api_url'],
+            config['access_key_id'],
+            config['access_password']
         )
     except ImportError:
         print("❌ labarchives-py package not installed")
-        print(
-            "   Install with: pip install git+https://github.com/mcmero/labarchives-py"
-        )
+        print("   Install with: pip install git+https://github.com/mcmero/labarchives-py")
         sys.exit(1)
 
 
@@ -46,12 +47,12 @@ def get_user_id(client, config):
     import xml.etree.ElementTree as ET
 
     login_params = {
-        "login_or_email": config["user_email"],
-        "password": config["user_external_password"],
+        'login_or_email': config['user_email'],
+        'password': config['user_external_password']
     }
 
     try:
-        response = client.make_call("users", "user_access_info", params=login_params)
+        response = client.make_call('users', 'user_access_info', params=login_params)
 
         if response.status_code == 200:
             uid = ET.fromstring(response.content)[0].text
@@ -71,19 +72,23 @@ def create_entry(client, uid, nbid, title, content=None, date=None):
     print(f"\n📝 Creating entry: {title}")
 
     # Prepare parameters
-    params = {"uid": uid, "nbid": nbid, "title": title}
+    params = {
+        'uid': uid,
+        'nbid': nbid,
+        'title': title
+    }
 
     if content:
         # Ensure content is HTML formatted
-        if not content.startswith("<"):
-            content = f"<p>{content}</p>"
-        params["content"] = content
+        if not content.startswith('<'):
+            content = f'<p>{content}</p>'
+        params['content'] = content
 
     if date:
-        params["date"] = date
+        params['date'] = date
 
     try:
-        response = client.make_call("entries", "create_entry", params=params)
+        response = client.make_call('entries', 'create_entry', params=params)
 
         if response.status_code == 200:
             print("✅ Entry created successfully")
@@ -91,9 +96,8 @@ def create_entry(client, uid, nbid, title, content=None, date=None):
             # Try to extract entry ID from response
             try:
                 import xml.etree.ElementTree as ET
-
                 root = ET.fromstring(response.content)
-                entry_id = root.find(".//entry_id")
+                entry_id = root.find('.//entry_id')
                 if entry_id is not None:
                     print(f"   Entry ID: {entry_id.text}")
                     return entry_id.text
@@ -116,10 +120,15 @@ def create_comment(client, uid, nbid, entry_id, comment):
     """Add a comment to an existing entry"""
     print(f"\n💬 Adding comment to entry {entry_id}")
 
-    params = {"uid": uid, "nbid": nbid, "entry_id": entry_id, "comment": comment}
+    params = {
+        'uid': uid,
+        'nbid': nbid,
+        'entry_id': entry_id,
+        'comment': comment
+    }
 
     try:
-        response = client.make_call("entries", "create_comment", params=params)
+        response = client.make_call('entries', 'create_comment', params=params)
 
         if response.status_code == 200:
             print("✅ Comment added successfully")
@@ -149,15 +158,15 @@ def upload_attachment(client, config, uid, nbid, entry_id, file_path):
     url = f"{config['api_url']}/entries/upload_attachment"
 
     try:
-        with open(file_path, "rb") as f:
-            files = {"file": f}
+        with open(file_path, 'rb') as f:
+            files = {'file': f}
             data = {
-                "uid": uid,
-                "nbid": nbid,
-                "entry_id": entry_id,
-                "filename": file_path.name,
-                "access_key_id": config["access_key_id"],
-                "access_password": config["access_password"],
+                'uid': uid,
+                'nbid': nbid,
+                'entry_id': entry_id,
+                'filename': file_path.name,
+                'access_key_id': config['access_key_id'],
+                'access_password': config['access_password']
             }
 
             response = requests.post(url, files=files, data=data)
@@ -183,7 +192,7 @@ def batch_upload(client, config, uid, nbid, entry_id, directory):
         print(f"❌ Directory not found: {directory}")
         return
 
-    files = list(directory.glob("*"))
+    files = list(directory.glob('*'))
     files = [f for f in files if f.is_file()]
 
     if not files:
@@ -201,14 +210,13 @@ def batch_upload(client, config, uid, nbid, entry_id, directory):
         else:
             failed += 1
 
-    print("\n" + "=" * 60)
+    print("\n" + "="*60)
     print(f"Batch upload complete: {successful} successful, {failed} failed")
-    print("=" * 60)
+    print("="*60)
 
 
-def create_entry_with_attachments(
-    client, config, uid, nbid, title, content, attachments
-):
+def create_entry_with_attachments(client, config, uid, nbid, title, content,
+                                  attachments):
     """Create entry and upload multiple attachments"""
     # Create entry
     entry_id = create_entry(client, uid, nbid, title, content)
@@ -227,7 +235,7 @@ def create_entry_with_attachments(
 def main():
     """Main command-line interface"""
     parser = argparse.ArgumentParser(
-        description="LabArchives Entry Operations",
+        description='LabArchives Entry Operations',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -253,45 +261,40 @@ Examples:
   # Add comment to entry
   python3 entry_operations.py comment --nbid 12345 --entry-id 67890 \\
     --text "Follow-up analysis needed"
-        """,
+        """
     )
 
-    parser.add_argument(
-        "--config",
-        default="config.yaml",
-        help="Path to configuration file (default: config.yaml)",
-    )
-    parser.add_argument("--nbid", required=True, help="Notebook ID")
+    parser.add_argument('--config', default='config.yaml',
+                       help='Path to configuration file (default: config.yaml)')
+    parser.add_argument('--nbid', required=True,
+                       help='Notebook ID')
 
-    subparsers = parser.add_subparsers(dest="command", help="Command to execute")
+    subparsers = parser.add_subparsers(dest='command', help='Command to execute')
 
     # Create entry command
-    create_parser = subparsers.add_parser("create", help="Create new entry")
-    create_parser.add_argument("--title", required=True, help="Entry title")
-    create_parser.add_argument("--content", help="Entry content (HTML supported)")
-    create_parser.add_argument("--date", help="Entry date (YYYY-MM-DD)")
-    create_parser.add_argument(
-        "--attachments", nargs="+", help="Files to attach to the new entry"
-    )
+    create_parser = subparsers.add_parser('create', help='Create new entry')
+    create_parser.add_argument('--title', required=True, help='Entry title')
+    create_parser.add_argument('--content', help='Entry content (HTML supported)')
+    create_parser.add_argument('--date', help='Entry date (YYYY-MM-DD)')
+    create_parser.add_argument('--attachments', nargs='+',
+                              help='Files to attach to the new entry')
 
     # Upload attachment command
-    upload_parser = subparsers.add_parser("upload", help="Upload attachment to entry")
-    upload_parser.add_argument("--entry-id", required=True, help="Entry ID")
-    upload_parser.add_argument("--file", required=True, help="File to upload")
+    upload_parser = subparsers.add_parser('upload', help='Upload attachment to entry')
+    upload_parser.add_argument('--entry-id', required=True, help='Entry ID')
+    upload_parser.add_argument('--file', required=True, help='File to upload')
 
     # Batch upload command
-    batch_parser = subparsers.add_parser(
-        "batch-upload", help="Upload all files from directory"
-    )
-    batch_parser.add_argument("--entry-id", required=True, help="Entry ID")
-    batch_parser.add_argument(
-        "--directory", required=True, help="Directory containing files to upload"
-    )
+    batch_parser = subparsers.add_parser('batch-upload',
+                                        help='Upload all files from directory')
+    batch_parser.add_argument('--entry-id', required=True, help='Entry ID')
+    batch_parser.add_argument('--directory', required=True,
+                             help='Directory containing files to upload')
 
     # Comment command
-    comment_parser = subparsers.add_parser("comment", help="Add comment to entry")
-    comment_parser.add_argument("--entry-id", required=True, help="Entry ID")
-    comment_parser.add_argument("--text", required=True, help="Comment text")
+    comment_parser = subparsers.add_parser('comment', help='Add comment to entry')
+    comment_parser.add_argument('--entry-id', required=True, help='Entry ID')
+    comment_parser.add_argument('--text', required=True, help='Comment text')
 
     args = parser.parse_args()
 
@@ -305,29 +308,27 @@ Examples:
     uid = get_user_id(client, config)
 
     # Execute command
-    if args.command == "create":
+    if args.command == 'create':
         if args.attachments:
             create_entry_with_attachments(
-                client,
-                config,
-                uid,
-                args.nbid,
-                args.title,
-                args.content,
-                args.attachments,
+                client, config, uid, args.nbid, args.title,
+                args.content, args.attachments
             )
         else:
-            create_entry(client, uid, args.nbid, args.title, args.content, args.date)
+            create_entry(client, uid, args.nbid, args.title,
+                        args.content, args.date)
 
-    elif args.command == "upload":
-        upload_attachment(client, config, uid, args.nbid, args.entry_id, args.file)
+    elif args.command == 'upload':
+        upload_attachment(client, config, uid, args.nbid,
+                         args.entry_id, args.file)
 
-    elif args.command == "batch-upload":
-        batch_upload(client, config, uid, args.nbid, args.entry_id, args.directory)
+    elif args.command == 'batch-upload':
+        batch_upload(client, config, uid, args.nbid,
+                    args.entry_id, args.directory)
 
-    elif args.command == "comment":
+    elif args.command == 'comment':
         create_comment(client, uid, args.nbid, args.entry_id, args.text)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

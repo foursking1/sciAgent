@@ -5,7 +5,6 @@ Generate animated GIF showing forecast evolution.
 Creates a GIF animation showing how the TimesFM forecast changes
 as more historical data points are added. Shows the full actual data as a background layer.
 """
-
 from __future__ import annotations
 
 import json
@@ -41,10 +40,10 @@ def create_frame(
     # Parse dates
     historical_dates = pd.to_datetime(step_data["historical_dates"])
     forecast_dates = pd.to_datetime(step_data["forecast_dates"])
-
+    
     # Get final forecast dates for full extent
     final_forecast_dates = pd.to_datetime(final_forecast["forecast_dates"])
-
+    
     # All actual dates for full background
     all_actual_dates = pd.to_datetime(actual_data["dates"])
     all_actual_values = np.array(actual_data["values"])
@@ -61,7 +60,7 @@ def create_frame(
         label="All observed data",
         zorder=1,
     )
-
+    
     # ========== BACKGROUND LAYER: Final forecast (faded) ==========
     ax.plot(
         final_forecast_dates,
@@ -98,7 +97,7 @@ def create_frame(
         color="#ef4444",
         zorder=5,
     )
-
+    
     # 80% CI (inner)
     ax.fill_between(
         forecast_dates,
@@ -108,7 +107,7 @@ def create_frame(
         color="#ef4444",
         zorder=6,
     )
-
+    
     # Forecast line
     ax.plot(
         forecast_dates,
@@ -141,14 +140,14 @@ def create_frame(
         fontsize=13,
         fontweight="bold",
     )
-
+    
     ax.grid(True, alpha=0.3, zorder=0)
     ax.legend(loc="upper left", fontsize=8)
-
+    
     # FIXED AXES - same for all frames
     ax.set_xlim(x_min, x_max)
     ax.set_ylim(y_min, y_max)
-
+    
     # Format x-axis
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
     ax.xaxis.set_major_locator(mdates.MonthLocator(interval=4))
@@ -159,55 +158,53 @@ def main() -> None:
     print("=" * 60)
     print("  GENERATING ANIMATED GIF")
     print("=" * 60)
-
+    
     # Load data
     with open(DATA_FILE) as f:
         data = json.load(f)
-
+    
     total_steps = len(data["animation_steps"])
     print(f"\n📊 Total frames: {total_steps}")
-
+    
     # Get the final forecast step for reference
     final_forecast = data["animation_steps"][-1]
-
+    
     # Calculate fixed axis extents from ALL data
     all_actual_dates = pd.to_datetime(data["actual_data"]["dates"])
     all_actual_values = np.array(data["actual_data"]["values"])
-
+    
     final_forecast_dates = pd.to_datetime(final_forecast["forecast_dates"])
     final_forecast_values = np.array(final_forecast["point_forecast"])
-
+    
     # X-axis: from first actual date to last forecast date
     x_min = all_actual_dates[0]
     x_max = final_forecast_dates[-1]
-
+    
     # Y-axis: min/max across all actual + all forecasts with CIs
     all_forecast_q10 = np.array(final_forecast["q10"])
     all_forecast_q90 = np.array(final_forecast["q90"])
-
-    all_values = np.concatenate(
-        [
-            all_actual_values,
-            final_forecast_values,
-            all_forecast_q10,
-            all_forecast_q90,
-        ]
-    )
+    
+    all_values = np.concatenate([
+        all_actual_values,
+        final_forecast_values,
+        all_forecast_q10,
+        all_forecast_q90,
+    ])
     y_min = all_values.min() - 0.05
     y_max = all_values.max() + 0.05
-
+    
     print(f"   X-axis: {x_min.strftime('%Y-%m')} to {x_max.strftime('%Y-%m')}")
     print(f"   Y-axis: {y_min:.2f}°C to {y_max:.2f}°C")
-
+    
     # Create figure
     fig, ax = plt.subplots(figsize=(12, 6))
-
+    
     # Generate frames
     frames = []
-
+    
     for i, step in enumerate(data["animation_steps"]):
         print(f"   Frame {i + 1}/{total_steps}...")
-
+        
         create_frame(
             ax,
             step,
@@ -219,18 +216,18 @@ def main() -> None:
             y_min,
             y_max,
         )
-
+        
         # Save frame to buffer
         fig.canvas.draw()
-
+        
         # Convert to PIL Image
         buf = fig.canvas.buffer_rgba()
         width, height = fig.canvas.get_width_height()
         img = Image.frombytes("RGBA", (width, height), buf)
         frames.append(img.convert("RGB"))
-
+    
     plt.close()
-
+    
     # Save as GIF
     print(f"\n💾 Saving GIF: {OUTPUT_FILE}")
     frames[0].save(
@@ -240,11 +237,11 @@ def main() -> None:
         duration=DURATION_MS,
         loop=0,  # Loop forever
     )
-
+    
     # Get file size
     size_kb = OUTPUT_FILE.stat().st_size / 1024
     print(f"   File size: {size_kb:.1f} KB")
-    print("\n✅ Done!")
+    print(f"\n✅ Done!")
 
 
 if __name__ == "__main__":

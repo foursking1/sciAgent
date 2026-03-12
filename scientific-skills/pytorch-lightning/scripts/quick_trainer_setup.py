@@ -10,6 +10,8 @@ from lightning.pytorch.callbacks import (
     ModelCheckpoint,
     EarlyStopping,
     LearningRateMonitor,
+    DeviceStatsMonitor,
+    RichProgressBar,
 )
 from lightning.pytorch import loggers as pl_loggers
 from lightning.pytorch.strategies import DDPStrategy, FSDPStrategy
@@ -19,7 +21,6 @@ from lightning.pytorch.strategies import DDPStrategy, FSDPStrategy
 # 1. BASIC TRAINING (Single GPU/CPU)
 # =============================================================================
 
-
 def basic_trainer():
     """
     Simple trainer for quick prototyping.
@@ -28,7 +29,7 @@ def basic_trainer():
     trainer = L.Trainer(
         max_epochs=10,
         accelerator="auto",  # Automatically select GPU/CPU
-        devices="auto",  # Use all available devices
+        devices="auto",      # Use all available devices
         enable_progress_bar=True,
         logger=True,
     )
@@ -39,17 +40,16 @@ def basic_trainer():
 # 2. DEBUGGING CONFIGURATION
 # =============================================================================
 
-
 def debug_trainer():
     """
     Trainer for debugging with fast dev run and anomaly detection.
     Use for: Finding bugs, testing code quickly
     """
     trainer = L.Trainer(
-        fast_dev_run=True,  # Run 1 batch through train/val/test
-        accelerator="cpu",  # Use CPU for easier debugging
-        detect_anomaly=True,  # Detect NaN/Inf in gradients
-        log_every_n_steps=1,  # Log every step
+        fast_dev_run=True,           # Run 1 batch through train/val/test
+        accelerator="cpu",            # Use CPU for easier debugging
+        detect_anomaly=True,          # Detect NaN/Inf in gradients
+        log_every_n_steps=1,         # Log every step
         enable_progress_bar=True,
     )
     return trainer
@@ -59,9 +59,10 @@ def debug_trainer():
 # 3. PRODUCTION TRAINING (Single GPU)
 # =============================================================================
 
-
 def production_single_gpu_trainer(
-    max_epochs=100, log_dir="logs", checkpoint_dir="checkpoints"
+    max_epochs=100,
+    log_dir="logs",
+    checkpoint_dir="checkpoints"
 ):
     """
     Production-ready trainer for single GPU with checkpointing and logging.
@@ -98,7 +99,7 @@ def production_single_gpu_trainer(
         max_epochs=max_epochs,
         accelerator="gpu",
         devices=1,
-        precision="16-mixed",  # Mixed precision for speed
+        precision="16-mixed",        # Mixed precision for speed
         callbacks=[
             checkpoint_callback,
             early_stop_callback,
@@ -106,7 +107,7 @@ def production_single_gpu_trainer(
         ],
         logger=tb_logger,
         log_every_n_steps=50,
-        gradient_clip_val=1.0,  # Clip gradients
+        gradient_clip_val=1.0,       # Clip gradients
         enable_progress_bar=True,
     )
 
@@ -117,9 +118,11 @@ def production_single_gpu_trainer(
 # 4. MULTI-GPU TRAINING (DDP)
 # =============================================================================
 
-
 def multi_gpu_ddp_trainer(
-    max_epochs=100, num_gpus=4, log_dir="logs", checkpoint_dir="checkpoints"
+    max_epochs=100,
+    num_gpus=4,
+    log_dir="logs",
+    checkpoint_dir="checkpoints"
 ):
     """
     Multi-GPU training with Distributed Data Parallel.
@@ -167,7 +170,7 @@ def multi_gpu_ddp_trainer(
         logger=wandb_logger,
         log_every_n_steps=50,
         gradient_clip_val=1.0,
-        sync_batchnorm=True,  # Sync batch norm across GPUs
+        sync_batchnorm=True,         # Sync batch norm across GPUs
     )
 
     return trainer
@@ -177,9 +180,11 @@ def multi_gpu_ddp_trainer(
 # 5. LARGE MODEL TRAINING (FSDP)
 # =============================================================================
 
-
 def large_model_fsdp_trainer(
-    max_epochs=100, num_gpus=8, log_dir="logs", checkpoint_dir="checkpoints"
+    max_epochs=100,
+    num_gpus=8,
+    log_dir="logs",
+    checkpoint_dir="checkpoints"
 ):
     """
     Training for large models (500M+ parameters) with FSDP.
@@ -216,9 +221,9 @@ def large_model_fsdp_trainer(
                 nn.TransformerEncoderLayer,
                 nn.TransformerDecoderLayer,
             },
-            cpu_offload=False,  # Set True if GPU memory insufficient
+            cpu_offload=False,       # Set True if GPU memory insufficient
         ),
-        precision="bf16-mixed",  # BFloat16 for A100/H100
+        precision="bf16-mixed",      # BFloat16 for A100/H100
         callbacks=[
             checkpoint_callback,
             lr_monitor,
@@ -226,7 +231,7 @@ def large_model_fsdp_trainer(
         logger=wandb_logger,
         log_every_n_steps=10,
         gradient_clip_val=1.0,
-        accumulate_grad_batches=4,  # Gradient accumulation
+        accumulate_grad_batches=4,   # Gradient accumulation
     )
 
     return trainer
@@ -236,9 +241,12 @@ def large_model_fsdp_trainer(
 # 6. VERY LARGE MODEL TRAINING (DeepSpeed)
 # =============================================================================
 
-
 def deepspeed_trainer(
-    max_epochs=100, num_gpus=8, stage=3, log_dir="logs", checkpoint_dir="checkpoints"
+    max_epochs=100,
+    num_gpus=8,
+    stage=3,
+    log_dir="logs",
+    checkpoint_dir="checkpoints"
 ):
     """
     Training for very large models with DeepSpeed.
@@ -250,7 +258,7 @@ def deepspeed_trainer(
         filename="{epoch:02d}-{step:06d}",
         save_top_k=3,
         save_last=True,
-        every_n_train_steps=1000,  # Save every N steps
+        every_n_train_steps=1000,    # Save every N steps
     )
 
     lr_monitor = LearningRateMonitor(logging_interval="step")
@@ -288,7 +296,6 @@ def deepspeed_trainer(
 # 7. HYPERPARAMETER TUNING
 # =============================================================================
 
-
 def hyperparameter_tuning_trainer(max_epochs=50):
     """
     Lightweight trainer for hyperparameter search.
@@ -299,10 +306,10 @@ def hyperparameter_tuning_trainer(max_epochs=50):
         accelerator="auto",
         devices=1,
         enable_checkpointing=False,  # Don't save checkpoints
-        logger=False,  # Disable logging
+        logger=False,                 # Disable logging
         enable_progress_bar=False,
-        limit_train_batches=0.5,  # Use 50% of training data
-        limit_val_batches=0.5,  # Use 50% of validation data
+        limit_train_batches=0.5,     # Use 50% of training data
+        limit_val_batches=0.5,       # Use 50% of validation data
     )
     return trainer
 
@@ -310,7 +317,6 @@ def hyperparameter_tuning_trainer(max_epochs=50):
 # =============================================================================
 # 8. OVERFITTING TEST
 # =============================================================================
-
 
 def overfit_test_trainer(num_batches=10):
     """
@@ -332,9 +338,10 @@ def overfit_test_trainer(num_batches=10):
 # 9. TIME-LIMITED TRAINING (SLURM)
 # =============================================================================
 
-
 def time_limited_trainer(
-    max_time_hours=23.5, max_epochs=1000, checkpoint_dir="checkpoints"
+    max_time_hours=23.5,
+    max_epochs=1000,
+    checkpoint_dir="checkpoints"
 ):
     """
     Training with time limit for SLURM clusters.
@@ -345,7 +352,7 @@ def time_limited_trainer(
     checkpoint_callback = ModelCheckpoint(
         dirpath=checkpoint_dir,
         save_top_k=3,
-        save_last=True,  # Important for resuming
+        save_last=True,              # Important for resuming
         every_n_epochs=5,
     )
 
@@ -364,7 +371,6 @@ def time_limited_trainer(
 # =============================================================================
 # 10. REPRODUCIBLE RESEARCH
 # =============================================================================
-
 
 def reproducible_trainer(seed=42, max_epochs=100):
     """
@@ -389,9 +395,9 @@ def reproducible_trainer(seed=42, max_epochs=100):
         max_epochs=max_epochs,
         accelerator="gpu",
         devices=1,
-        precision="32-true",  # Full precision for reproducibility
-        deterministic=True,  # Use deterministic algorithms
-        benchmark=False,  # Disable cudnn benchmarking
+        precision="32-true",         # Full precision for reproducibility
+        deterministic=True,          # Use deterministic algorithms
+        benchmark=False,             # Disable cudnn benchmarking
         callbacks=[checkpoint_callback],
         log_every_n_steps=50,
     )

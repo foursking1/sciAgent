@@ -29,7 +29,7 @@ AMBIGUOUS = ["cc", "hs", "TIW", "SC", "SQ", "D/C", "AS", "AD", "AU", "OS", "OD",
 def check_do_not_use_abbreviations(content: str) -> dict:
     """Check for prohibited abbreviations."""
     violations = {}
-
+    
     for abbrev, meaning in DO_NOT_USE.items():
         # Word boundary pattern to avoid false positives
         pattern = rf"\b{re.escape(abbrev)}\b"
@@ -38,22 +38,25 @@ def check_do_not_use_abbreviations(content: str) -> dict:
             violations[abbrev] = {
                 "count": len(matches),
                 "should_use": meaning,
-                "severity": "HIGH",
+                "severity": "HIGH"
             }
-
+    
     return violations
 
 
 def check_ambiguous_abbreviations(content: str) -> dict:
     """Check for ambiguous abbreviations."""
     found = {}
-
+    
     for abbrev in AMBIGUOUS:
         pattern = rf"\b{re.escape(abbrev)}\b"
         matches = re.findall(pattern, content, re.IGNORECASE)
         if matches:
-            found[abbrev] = {"count": len(matches), "severity": "MEDIUM"}
-
+            found[abbrev] = {
+                "count": len(matches),
+                "severity": "MEDIUM"
+            }
+    
     return found
 
 
@@ -70,30 +73,30 @@ def main():
     parser = argparse.ArgumentParser(description="Validate medical terminology")
     parser.add_argument("input_file", help="Path to clinical report")
     parser.add_argument("--json", action="store_true")
-
+    
     args = parser.parse_args()
-
+    
     try:
-        with open(args.input_file, "r", encoding="utf-8") as f:
+        with open(args.input_file, 'r', encoding='utf-8') as f:
             content = f.read()
-
+        
         do_not_use = check_do_not_use_abbreviations(content)
         ambiguous = check_ambiguous_abbreviations(content)
         icd10_codes = validate_icd10_format(content)
-
+        
         report = {
             "filename": args.input_file,
             "do_not_use_violations": do_not_use,
             "ambiguous_abbreviations": ambiguous,
             "icd10_codes_found": icd10_codes,
-            "total_issues": len(do_not_use) + len(ambiguous),
+            "total_issues": len(do_not_use) + len(ambiguous)
         }
-
+        
         if args.json:
             print(json.dumps(report, indent=2))
         else:
             print("\nTerminology Validation Report:\n")
-
+            
             if do_not_use:
                 print("❌ DO NOT USE Abbreviations Found:")
                 for abbrev, details in do_not_use.items():
@@ -102,13 +105,13 @@ def main():
                 print()
             else:
                 print("✓ No prohibited abbreviations found\n")
-
+            
             if ambiguous:
                 print("⚠  Ambiguous Abbreviations Found:")
                 for abbrev, details in ambiguous.items():
                     print(f"  {abbrev}: {details['count']} occurrence(s)")
                 print("  Consider spelling out for clarity\n")
-
+            
             if icd10_codes:
                 print(f"ℹ  ICD-10 codes detected: {len(icd10_codes)}")
                 for code in icd10_codes[:5]:
@@ -116,9 +119,9 @@ def main():
                 if len(icd10_codes) > 5:
                     print(f"  ... and {len(icd10_codes) - 5} more")
             print()
-
+        
         return 0 if not do_not_use else 1
-
+        
     except Exception as e:
         print(f"Error: {e}")
         return 1
@@ -126,5 +129,5 @@ def main():
 
 if __name__ == "__main__":
     import sys
-
     sys.exit(main())
+

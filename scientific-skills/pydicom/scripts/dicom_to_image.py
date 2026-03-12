@@ -26,7 +26,6 @@ def apply_windowing(pixel_array, ds):
     """Apply VOI LUT windowing if available."""
     try:
         from pydicom.pixel_data_handlers.util import apply_voi_lut
-
         return apply_voi_lut(pixel_array, ds)
     except (ImportError, AttributeError):
         return pixel_array
@@ -50,9 +49,8 @@ def normalize_to_uint8(pixel_array):
     return (normalized * 255).astype(np.uint8)
 
 
-def convert_dicom_to_image(
-    input_path, output_path, image_format="PNG", apply_window=False, frame=0
-):
+def convert_dicom_to_image(input_path, output_path, image_format='PNG',
+                          apply_window=False, frame=0):
     """
     Convert DICOM file to standard image format.
 
@@ -78,20 +76,18 @@ def convert_dicom_to_image(
             print(f"Extracting frame {frame} of {ds.NumberOfFrames}")
 
         # Apply windowing if requested
-        if apply_window and hasattr(ds, "WindowCenter"):
+        if apply_window and hasattr(ds, 'WindowCenter'):
             pixel_array = apply_windowing(pixel_array, ds)
 
         # Handle color images
         if len(pixel_array.shape) == 3 and pixel_array.shape[2] in [3, 4]:
             # RGB or RGBA image
-            if ds.PhotometricInterpretation in ["YBR_FULL", "YBR_FULL_422"]:
+            if ds.PhotometricInterpretation in ['YBR_FULL', 'YBR_FULL_422']:
                 # Convert from YBR to RGB
                 try:
                     from pydicom.pixel_data_handlers.util import convert_color_space
-
-                    pixel_array = convert_color_space(
-                        pixel_array, ds.PhotometricInterpretation, "RGB"
-                    )
+                    pixel_array = convert_color_space(pixel_array,
+                                                     ds.PhotometricInterpretation, 'RGB')
                 except ImportError:
                     print("Warning: Could not convert color space, using as-is")
 
@@ -99,17 +95,15 @@ def convert_dicom_to_image(
         else:
             # Grayscale image - normalize to uint8
             pixel_array = normalize_to_uint8(pixel_array)
-            image = Image.fromarray(pixel_array, mode="L")
+            image = Image.fromarray(pixel_array, mode='L')
 
         # Save image
         image.save(output_path, format=image_format)
 
         return True, {
-            "shape": ds.pixel_array.shape,
-            "modality": ds.Modality if hasattr(ds, "Modality") else "Unknown",
-            "bits_allocated": ds.BitsAllocated
-            if hasattr(ds, "BitsAllocated")
-            else "Unknown",
+            'shape': ds.pixel_array.shape,
+            'modality': ds.Modality if hasattr(ds, 'Modality') else 'Unknown',
+            'bits_allocated': ds.BitsAllocated if hasattr(ds, 'BitsAllocated') else 'Unknown',
         }
 
     except Exception as e:
@@ -118,7 +112,7 @@ def convert_dicom_to_image(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Convert DICOM files to common image formats",
+        description='Convert DICOM files to common image formats',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -126,34 +120,19 @@ Examples:
   python dicom_to_image.py input.dcm output.jpg --format JPEG
   python dicom_to_image.py input.dcm output.tiff --apply-windowing
   python dicom_to_image.py multiframe.dcm frame5.png --frame 5
-        """,
+        """
     )
 
-    parser.add_argument("input", type=str, help="Input DICOM file")
-    parser.add_argument("output", type=str, help="Output image file")
-    parser.add_argument(
-        "--format",
-        type=str,
-        choices=["PNG", "JPEG", "TIFF", "BMP"],
-        help="Output image format (default: inferred from extension)",
-    )
-    parser.add_argument(
-        "--apply-windowing",
-        action="store_true",
-        help="Apply VOI LUT windowing if available",
-    )
-    parser.add_argument(
-        "--frame",
-        type=int,
-        default=0,
-        help="Frame number for multi-frame DICOM files (default: 0)",
-    )
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help="Show detailed conversion information",
-    )
+    parser.add_argument('input', type=str, help='Input DICOM file')
+    parser.add_argument('output', type=str, help='Output image file')
+    parser.add_argument('--format', type=str, choices=['PNG', 'JPEG', 'TIFF', 'BMP'],
+                       help='Output image format (default: inferred from extension)')
+    parser.add_argument('--apply-windowing', action='store_true',
+                       help='Apply VOI LUT windowing if available')
+    parser.add_argument('--frame', type=int, default=0,
+                       help='Frame number for multi-frame DICOM files (default: 0)')
+    parser.add_argument('-v', '--verbose', action='store_true',
+                       help='Show detailed conversion information')
 
     args = parser.parse_args()
 
@@ -168,19 +147,19 @@ Examples:
         image_format = args.format
     else:
         # Infer from extension
-        ext = Path(args.output).suffix.upper().lstrip(".")
-        image_format = ext if ext in ["PNG", "JPEG", "JPG", "TIFF", "BMP"] else "PNG"
+        ext = Path(args.output).suffix.upper().lstrip('.')
+        image_format = ext if ext in ['PNG', 'JPEG', 'JPG', 'TIFF', 'BMP'] else 'PNG'
 
     # Convert the file
     print(f"Converting: {args.input} -> {args.output}")
-    success, result = convert_dicom_to_image(
-        args.input, args.output, image_format, args.apply_windowing, args.frame
-    )
+    success, result = convert_dicom_to_image(args.input, args.output,
+                                            image_format, args.apply_windowing,
+                                            args.frame)
 
     if success:
         print(f"✓ Successfully converted to {image_format}")
         if args.verbose:
-            print("\nImage information:")
+            print(f"\nImage information:")
             print(f"  - Shape: {result['shape']}")
             print(f"  - Modality: {result['modality']}")
             print(f"  - Bits Allocated: {result['bits_allocated']}")
@@ -189,5 +168,5 @@ Examples:
         sys.exit(1)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

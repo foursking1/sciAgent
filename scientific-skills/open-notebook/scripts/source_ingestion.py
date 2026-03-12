@@ -21,14 +21,11 @@ BASE_URL = os.getenv("OPEN_NOTEBOOK_URL", "http://localhost:5055") + "/api"
 
 def add_url_source(notebook_id, url, process_async=True):
     """Add a web URL as a source to a notebook."""
-    response = requests.post(
-        f"{BASE_URL}/sources",
-        data={
-            "url": url,
-            "notebook_id": notebook_id,
-            "process_async": str(process_async).lower(),
-        },
-    )
+    response = requests.post(f"{BASE_URL}/sources", data={
+        "url": url,
+        "notebook_id": notebook_id,
+        "process_async": str(process_async).lower(),
+    })
     response.raise_for_status()
     source = response.json()
     print(f"Added URL source: {source['id']} - {url}")
@@ -37,14 +34,11 @@ def add_url_source(notebook_id, url, process_async=True):
 
 def add_text_source(notebook_id, title, text):
     """Add raw text as a source."""
-    response = requests.post(
-        f"{BASE_URL}/sources",
-        data={
-            "text": text,
-            "notebook_id": notebook_id,
-            "process_async": "false",
-        },
-    )
+    response = requests.post(f"{BASE_URL}/sources", data={
+        "text": text,
+        "notebook_id": notebook_id,
+        "process_async": "false",
+    })
     response.raise_for_status()
     source = response.json()
     print(f"Added text source: {source['id']} - {title}")
@@ -128,13 +122,10 @@ if __name__ == "__main__":
     print("=== Source Ingestion Demo ===\n")
 
     # Create a notebook first
-    notebook = requests.post(
-        f"{BASE_URL}/notebooks",
-        json={
-            "name": "Source Ingestion Demo",
-            "description": "Testing various source types",
-        },
-    ).json()
+    notebook = requests.post(f"{BASE_URL}/notebooks", json={
+        "name": "Source Ingestion Demo",
+        "description": "Testing various source types",
+    }).json()
     notebook_id = notebook["id"]
     print(f"Created notebook: {notebook_id}\n")
 

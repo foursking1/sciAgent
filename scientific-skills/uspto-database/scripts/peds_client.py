@@ -19,7 +19,6 @@ from datetime import datetime
 
 try:
     from uspto.peds import PEDSClient as OriginalPEDSClient
-
     HAS_USPTO_LIB = True
 except ImportError:
     HAS_USPTO_LIB = False
@@ -56,10 +55,7 @@ class PEDSHelper:
             result = self.client.get_application(application_number)
             return self._format_application_data(result)
         except Exception as e:
-            print(
-                f"Error retrieving application {application_number}: {e}",
-                file=sys.stderr,
-            )
+            print(f"Error retrieving application {application_number}: {e}", file=sys.stderr)
             return None
 
     def get_patent(self, patent_number: str) -> Optional[Dict]:
@@ -90,8 +86,8 @@ class PEDSHelper:
             List of transactions with date, code, and description
         """
         app_data = self.get_application(application_number)
-        if app_data and "transactions" in app_data:
-            return app_data["transactions"]
+        if app_data and 'transactions' in app_data:
+            return app_data['transactions']
         return []
 
     def get_office_actions(self, application_number: str) -> List[Dict]:
@@ -107,10 +103,11 @@ class PEDSHelper:
         transactions = self.get_transaction_history(application_number)
 
         # Filter for office action transaction codes
-        oa_codes = ["CTNF", "CTFR", "AOPF", "NOA"]
+        oa_codes = ['CTNF', 'CTFR', 'AOPF', 'NOA']
 
         office_actions = [
-            trans for trans in transactions if trans.get("code") in oa_codes
+            trans for trans in transactions
+            if trans.get('code') in oa_codes
         ]
 
         return office_actions
@@ -135,24 +132,24 @@ class PEDSHelper:
         if not app_data:
             return {}
 
-        filing_date = app_data.get("filing_date")
+        filing_date = app_data.get('filing_date')
         if filing_date:
-            filing_dt = datetime.strptime(filing_date, "%Y-%m-%d")
+            filing_dt = datetime.strptime(filing_date, '%Y-%m-%d')
             pendency_days = (datetime.now() - filing_dt).days
         else:
             pendency_days = None
 
         return {
-            "current_status": app_data.get("app_status"),
-            "filing_date": filing_date,
-            "status_date": app_data.get("app_status_date"),
-            "is_patented": app_data.get("patent_number") is not None,
-            "patent_number": app_data.get("patent_number"),
-            "issue_date": app_data.get("patent_issue_date"),
-            "pendency_days": pendency_days,
-            "title": app_data.get("title"),
-            "inventors": app_data.get("inventors", []),
-            "assignees": app_data.get("assignees", []),
+            'current_status': app_data.get('app_status'),
+            'filing_date': filing_date,
+            'status_date': app_data.get('app_status_date'),
+            'is_patented': app_data.get('patent_number') is not None,
+            'patent_number': app_data.get('patent_number'),
+            'issue_date': app_data.get('patent_issue_date'),
+            'pendency_days': pendency_days,
+            'title': app_data.get('title'),
+            'inventors': app_data.get('inventors', []),
+            'assignees': app_data.get('assignees', [])
         }
 
     def analyze_prosecution(self, application_number: str) -> Dict[str, Any]:
@@ -177,33 +174,33 @@ class PEDSHelper:
             return {}
 
         analysis = {
-            "total_office_actions": 0,
-            "non_final_rejections": 0,
-            "final_rejections": 0,
-            "allowance": False,
-            "responses": 0,
-            "abandonment": False,
+            'total_office_actions': 0,
+            'non_final_rejections': 0,
+            'final_rejections': 0,
+            'allowance': False,
+            'responses': 0,
+            'abandonment': False
         }
 
         for trans in transactions:
-            code = trans.get("code", "")
-            if code == "CTNF":
-                analysis["non_final_rejections"] += 1
-                analysis["total_office_actions"] += 1
-            elif code == "CTFR":
-                analysis["final_rejections"] += 1
-                analysis["total_office_actions"] += 1
-            elif code in ["AOPF", "OA"]:
-                analysis["total_office_actions"] += 1
-            elif code == "NOA":
-                analysis["allowance"] = True
-            elif code == "WRIT":
-                analysis["responses"] += 1
-            elif code == "ABND":
-                analysis["abandonment"] = True
+            code = trans.get('code', '')
+            if code == 'CTNF':
+                analysis['non_final_rejections'] += 1
+                analysis['total_office_actions'] += 1
+            elif code == 'CTFR':
+                analysis['final_rejections'] += 1
+                analysis['total_office_actions'] += 1
+            elif code in ['AOPF', 'OA']:
+                analysis['total_office_actions'] += 1
+            elif code == 'NOA':
+                analysis['allowance'] = True
+            elif code == 'WRIT':
+                analysis['responses'] += 1
+            elif code == 'ABND':
+                analysis['abandonment'] = True
 
-        analysis["status"] = app_summary.get("current_status")
-        analysis["pendency_days"] = app_summary.get("pendency_days")
+        analysis['status'] = app_summary.get('current_status')
+        analysis['pendency_days'] = app_summary.get('pendency_days')
 
         return analysis
 
@@ -219,7 +216,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Query USPTO Patent Examination Data System (PEDS)",
+        description='Query USPTO Patent Examination Data System (PEDS)',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -240,28 +237,20 @@ Examples:
 
   # Get office actions
   %(prog)s --office-actions 16123456
-        """,
+        """
     )
 
     if not HAS_USPTO_LIB:
-        parser.error(
-            "uspto-opendata-python library not installed. Install with: pip install uspto-opendata-python"
-        )
+        parser.error("uspto-opendata-python library not installed. Install with: pip install uspto-opendata-python")
 
     # Main operation arguments (mutually exclusive)
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument(
-        "--application", "-a", help="Get application by application number"
-    )
-    group.add_argument("--patent", "-p", help="Get patent by patent number")
-    group.add_argument("--status", "-s", help="Get status summary for application")
-    group.add_argument("--analyze", help="Analyze prosecution history for application")
-    group.add_argument(
-        "--transactions", "-t", help="Get transaction history for application"
-    )
-    group.add_argument(
-        "--office-actions", "-o", help="Get office actions for application"
-    )
+    group.add_argument('--application', '-a', help='Get application by application number')
+    group.add_argument('--patent', '-p', help='Get patent by patent number')
+    group.add_argument('--status', '-s', help='Get status summary for application')
+    group.add_argument('--analyze', help='Analyze prosecution history for application')
+    group.add_argument('--transactions', '-t', help='Get transaction history for application')
+    group.add_argument('--office-actions', '-o', help='Get office actions for application')
 
     args = parser.parse_args()
 

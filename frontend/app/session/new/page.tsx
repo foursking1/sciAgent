@@ -48,11 +48,11 @@ export default function NewSessionPage() {
         {/* Header */}
         <div className="mb-8">
           <Link
-            href="/dashboard"
+            href="/"
             className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-4"
           >
             <ArrowLeft className="w-5 h-5" />
-            <span>Back to Dashboard</span>
+            <span>Back to Home</span>
           </Link>
           <h1 className="text-3xl font-bold gradient-text">New Session</h1>
           <p className="text-gray-400 mt-2">

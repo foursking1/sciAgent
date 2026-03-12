@@ -9,6 +9,7 @@ from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.problems import get_problem
 from pymoo.optimize import minimize
 from pymoo.visualization.scatter import Scatter
+import matplotlib.pyplot as plt
 
 
 def run_multi_objective_optimization():
@@ -18,15 +19,24 @@ def run_multi_objective_optimization():
     problem = get_problem("zdt1")
 
     # Configure NSGA-II algorithm
-    algorithm = NSGA2(pop_size=100, eliminate_duplicates=True)
+    algorithm = NSGA2(
+        pop_size=100,
+        eliminate_duplicates=True
+    )
 
     # Run optimization
-    result = minimize(problem, algorithm, ("n_gen", 200), seed=1, verbose=True)
+    result = minimize(
+        problem,
+        algorithm,
+        ('n_gen', 200),
+        seed=1,
+        verbose=True
+    )
 
     # Print results summary
-    print("\n" + "=" * 60)
+    print("\n" + "="*60)
     print("MULTI-OBJECTIVE OPTIMIZATION RESULTS")
-    print("=" * 60)
+    print("="*60)
     print(f"Number of solutions in Pareto front: {len(result.F)}")
     print(f"Number of generations: {result.algorithm.n_gen}")
     print(f"Number of function evaluations: {result.algorithm.evaluator.n_eval}")
@@ -34,7 +44,7 @@ def run_multi_objective_optimization():
     print(result.X[:5])
     print("\nFirst 5 solutions (objective values):")
     print(result.F[:5])
-    print("=" * 60)
+    print("="*60)
 
     # Visualize results
     plot = Scatter(title="ZDT1 - NSGA-II Results")

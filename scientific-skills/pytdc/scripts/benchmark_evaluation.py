@@ -24,7 +24,7 @@ def load_benchmark_group():
     print("=" * 60)
 
     # Initialize benchmark group
-    group = admet_group(path="data/")
+    group = admet_group(path='data/')
 
     # Get available benchmarks
     print("\nAvailable benchmarks in ADMET group:")
@@ -40,7 +40,7 @@ def load_benchmark_group():
     return group
 
 
-def single_dataset_evaluation(group, dataset_name="Caco2_Wang"):
+def single_dataset_evaluation(group, dataset_name='Caco2_Wang'):
     """
     Example: Evaluate on a single dataset with 5-seed protocol
     """
@@ -51,7 +51,7 @@ def single_dataset_evaluation(group, dataset_name="Caco2_Wang"):
     # Get dataset benchmarks
     benchmark = group.get(dataset_name)
 
-    print("\nBenchmark structure:")
+    print(f"\nBenchmark structure:")
     print(f"  Seeds: {list(benchmark.keys())}")
 
     # Required: Evaluate with 5 different seeds
@@ -61,8 +61,8 @@ def single_dataset_evaluation(group, dataset_name="Caco2_Wang"):
         print(f"\n--- Seed {seed} ---")
 
         # Get train/valid data for this seed
-        train = benchmark[seed]["train"]
-        valid = benchmark[seed]["valid"]
+        train = benchmark[seed]['train']
+        valid = benchmark[seed]['valid']
 
         print(f"Train size: {len(train)}")
         print(f"Valid size: {len(valid)}")
@@ -73,8 +73,8 @@ def single_dataset_evaluation(group, dataset_name="Caco2_Wang"):
 
         # For demonstration, create dummy predictions
         # Replace with: predictions[seed] = model.predict(benchmark[seed]['test'])
-        test = benchmark[seed]["test"]
-        y_true = test["Y"].values
+        test = benchmark[seed]['test']
+        y_true = test['Y'].values
 
         # Simulate predictions (add controlled noise)
         np.random.seed(seed)
@@ -83,7 +83,7 @@ def single_dataset_evaluation(group, dataset_name="Caco2_Wang"):
         predictions[seed] = y_pred
 
         # Evaluate this seed
-        evaluator = Evaluator(name="MAE")
+        evaluator = Evaluator(name='MAE')
         score = evaluator(y_true, y_pred)
         print(f"MAE for seed {seed}: {score:.4f}")
 
@@ -108,7 +108,7 @@ def multiple_datasets_evaluation(group):
     print("=" * 60)
 
     # Select a subset of datasets for demonstration
-    selected_datasets = ["Caco2_Wang", "HIA_Hou", "Bioavailability_Ma"]
+    selected_datasets = ['Caco2_Wang', 'HIA_Hou', 'Bioavailability_Ma']
 
     all_predictions = {}
     all_results = {}
@@ -123,8 +123,8 @@ def multiple_datasets_evaluation(group):
 
         # Train and predict for each seed
         for seed in [1, 2, 3, 4, 5]:
-            train = benchmark[seed]["train"]
-            test = benchmark[seed]["test"]
+            train = benchmark[seed]['train']
+            test = benchmark[seed]['test']
 
             # TODO: Replace with your model
             # model = YourModel()
@@ -133,7 +133,7 @@ def multiple_datasets_evaluation(group):
 
             # Dummy predictions for demonstration
             np.random.seed(seed)
-            y_true = test["Y"].values
+            y_true = test['Y'].values
             y_pred = y_true + np.random.normal(0, 0.3, len(y_true))
             predictions[seed] = y_pred
 
@@ -151,12 +151,14 @@ def multiple_datasets_evaluation(group):
     print("Summary of Results")
     print("=" * 60)
 
-    results_df = pd.DataFrame(
-        [
-            {"Dataset": name, "Mean MAE": f"{mean:.4f}", "Std MAE": f"{std:.4f}"}
-            for name, (mean, std) in all_results.items()
-        ]
-    )
+    results_df = pd.DataFrame([
+        {
+            'Dataset': name,
+            'Mean MAE': f"{mean:.4f}",
+            'Std MAE': f"{std:.4f}"
+        }
+        for name, (mean, std) in all_results.items()
+    ])
 
     print(results_df.to_string(index=False))
 
@@ -171,7 +173,7 @@ def custom_model_template():
     print("Example 3: Custom Model Template")
     print("=" * 60)
 
-    code_template = """
+    code_template = '''
 # Template for using your own model with TDC benchmarks
 
 from tdc.benchmark_group import admet_group
@@ -207,7 +209,7 @@ for seed in [1, 2, 3, 4, 5]:
 # Evaluate with TDC
 results = group.evaluate(predictions)
 print(f"Results: {results}")
-"""
+'''
 
     print("\nCustom Model Integration Template:")
     print("=" * 60)
@@ -236,7 +238,7 @@ def multi_seed_statistics(predictions_dict):
 
     # Per-sample variance
     per_sample_std = all_preds.std(axis=0)
-    print("\nPer-sample prediction std:")
+    print(f"\nPer-sample prediction std:")
     print(f"  Mean: {per_sample_std.mean():.4f}")
     print(f"  Median: {np.median(per_sample_std):.4f}")
     print(f"  Max: {per_sample_std.max():.4f}")

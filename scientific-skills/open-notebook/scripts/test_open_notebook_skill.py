@@ -285,9 +285,7 @@ class TestReferenceFiles(unittest.TestCase):
     def test_configuration_reference_exists(self):
         """references/configuration.md must exist with setup details."""
         content = self._read_reference("configuration.md")
-        self.assertGreater(
-            len(content), 1500, "Configuration guide must be substantive"
-        )
+        self.assertGreater(len(content), 1500, "Configuration guide must be substantive")
         content_lower = content.lower()
         self.assertTrue(
             "docker" in content_lower,

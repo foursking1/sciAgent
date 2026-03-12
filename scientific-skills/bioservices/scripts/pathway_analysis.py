@@ -49,13 +49,13 @@ def analyze_pathway(kegg, pathway_id):
         # Parse KGML pathway
         kgml = kegg.parse_kgml_pathway(pathway_id)
 
-        entries = kgml.get("entries", [])
-        relations = kgml.get("relations", [])
+        entries = kgml.get('entries', [])
+        relations = kgml.get('relations', [])
 
         # Count relation types
         relation_types = Counter()
         for rel in relations:
-            rel_type = rel.get("name", "unknown")
+            rel_type = rel.get('name', 'unknown')
             relation_types[rel_type] += 1
 
         # Get pathway name
@@ -70,13 +70,13 @@ def analyze_pathway(kegg, pathway_id):
             pathway_name = "Unknown"
 
         result = {
-            "pathway_id": pathway_id,
-            "pathway_name": pathway_name,
-            "num_entries": len(entries),
-            "num_relations": len(relations),
-            "relation_types": dict(relation_types),
-            "entries": entries,
-            "relations": relations,
+            'pathway_id': pathway_id,
+            'pathway_name': pathway_name,
+            'num_entries': len(entries),
+            'num_relations': len(relations),
+            'relation_types': dict(relation_types),
+            'entries': entries,
+            'relations': relations
         }
 
         return result
@@ -111,72 +111,59 @@ def save_pathway_summary(results, output_file):
     """Save pathway summary to CSV."""
     print(f"\nSaving pathway summary to {output_file}...")
 
-    with open(output_file, "w", newline="") as f:
+    with open(output_file, 'w', newline='') as f:
         writer = csv.writer(f)
 
         # Header
-        writer.writerow(
-            [
-                "Pathway_ID",
-                "Pathway_Name",
-                "Num_Genes",
-                "Num_Interactions",
-                "Activation",
-                "Inhibition",
-                "Phosphorylation",
-                "Binding",
-                "Other",
-            ]
-        )
+        writer.writerow([
+            'Pathway_ID',
+            'Pathway_Name',
+            'Num_Genes',
+            'Num_Interactions',
+            'Activation',
+            'Inhibition',
+            'Phosphorylation',
+            'Binding',
+            'Other'
+        ])
 
         # Data
         for result in results:
-            rel_types = result["relation_types"]
+            rel_types = result['relation_types']
 
-            writer.writerow(
-                [
-                    result["pathway_id"],
-                    result["pathway_name"],
-                    result["num_entries"],
-                    result["num_relations"],
-                    rel_types.get("activation", 0),
-                    rel_types.get("inhibition", 0),
-                    rel_types.get("phosphorylation", 0),
-                    rel_types.get("binding/association", 0),
-                    sum(
-                        v
-                        for k, v in rel_types.items()
-                        if k
-                        not in [
-                            "activation",
-                            "inhibition",
-                            "phosphorylation",
-                            "binding/association",
-                        ]
-                    ),
-                ]
-            )
+            writer.writerow([
+                result['pathway_id'],
+                result['pathway_name'],
+                result['num_entries'],
+                result['num_relations'],
+                rel_types.get('activation', 0),
+                rel_types.get('inhibition', 0),
+                rel_types.get('phosphorylation', 0),
+                rel_types.get('binding/association', 0),
+                sum(v for k, v in rel_types.items()
+                    if k not in ['activation', 'inhibition', 'phosphorylation', 'binding/association'])
+            ])
 
-    print("✓ Summary saved")
+    print(f"✓ Summary saved")
 
 
 def save_interactions_sif(results, output_file):
     """Save all interactions in SIF format."""
     print(f"\nSaving interactions to {output_file}...")
 
-    with open(output_file, "w") as f:
+    with open(output_file, 'w') as f:
         for result in results:
-            pathway_id = result["pathway_id"]
+            pathway_id = result['pathway_id']
 
-            for rel in result["relations"]:
-                entry1 = rel.get("entry1", "")
-                entry2 = rel.get("entry2", "")
-                interaction_type = rel.get("name", "interaction")
+            for rel in result['relations']:
+                entry1 = rel.get('entry1', '')
+                entry2 = rel.get('entry2', '')
+                interaction_type = rel.get('name', 'interaction')
 
                 # Write SIF format: source\tinteraction\ttarget
                 f.write(f"{entry1}\t{interaction_type}\t{entry2}\n")
 
-    print("✓ Interactions saved")
+    print(f"✓ Interactions saved")
 
 
 def save_detailed_pathway_info(results, output_dir):
@@ -187,22 +174,20 @@ def save_detailed_pathway_info(results, output_dir):
     os.makedirs(pathway_dir, exist_ok=True)
 
     for result in results:
-        pathway_id = result["pathway_id"].replace(":", "_")
+        pathway_id = result['pathway_id'].replace(":", "_")
         filename = os.path.join(pathway_dir, f"{pathway_id}_interactions.csv")
 
-        with open(filename, "w", newline="") as f:
+        with open(filename, 'w', newline='') as f:
             writer = csv.writer(f)
-            writer.writerow(["Source", "Target", "Interaction_Type", "Link_Type"])
+            writer.writerow(['Source', 'Target', 'Interaction_Type', 'Link_Type'])
 
-            for rel in result["relations"]:
-                writer.writerow(
-                    [
-                        rel.get("entry1", ""),
-                        rel.get("entry2", ""),
-                        rel.get("name", "unknown"),
-                        rel.get("link", "unknown"),
-                    ]
-                )
+            for rel in result['relations']:
+                writer.writerow([
+                    rel.get('entry1', ''),
+                    rel.get('entry2', ''),
+                    rel.get('name', 'unknown'),
+                    rel.get('link', 'unknown')
+                ])
 
     print(f"✓ Detailed files saved for {len(results)} pathways")
 
@@ -215,35 +200,33 @@ def print_statistics(results):
 
     # Total stats
     total_pathways = len(results)
-    total_interactions = sum(r["num_relations"] for r in results)
-    total_genes = sum(r["num_entries"] for r in results)
+    total_interactions = sum(r['num_relations'] for r in results)
+    total_genes = sum(r['num_entries'] for r in results)
 
-    print("\nOverall:")
+    print(f"\nOverall:")
     print(f"  Total pathways: {total_pathways}")
     print(f"  Total genes/proteins: {total_genes}")
     print(f"  Total interactions: {total_interactions}")
 
     # Largest pathways
-    print("\nLargest pathways (by gene count):")
-    sorted_by_size = sorted(results, key=lambda x: x["num_entries"], reverse=True)
+    print(f"\nLargest pathways (by gene count):")
+    sorted_by_size = sorted(results, key=lambda x: x['num_entries'], reverse=True)
     for i, result in enumerate(sorted_by_size[:10], 1):
         print(f"  {i}. {result['pathway_id']}: {result['num_entries']} genes")
         print(f"     {result['pathway_name']}")
 
     # Most connected pathways
-    print("\nMost connected pathways (by interactions):")
-    sorted_by_connections = sorted(
-        results, key=lambda x: x["num_relations"], reverse=True
-    )
+    print(f"\nMost connected pathways (by interactions):")
+    sorted_by_connections = sorted(results, key=lambda x: x['num_relations'], reverse=True)
     for i, result in enumerate(sorted_by_connections[:10], 1):
         print(f"  {i}. {result['pathway_id']}: {result['num_relations']} interactions")
         print(f"     {result['pathway_name']}")
 
     # Interaction type distribution
-    print("\nInteraction type distribution:")
+    print(f"\nInteraction type distribution:")
     all_types = Counter()
     for result in results:
-        for rel_type, count in result["relation_types"].items():
+        for rel_type, count in result['relation_types'].items():
             all_types[rel_type] += count
 
     for rel_type, count in all_types.most_common():
@@ -267,13 +250,12 @@ Organism codes:
   dme = Drosophila melanogaster
   sce = Saccharomyces cerevisiae (yeast)
   eco = Escherichia coli
-        """,
+        """
     )
     parser.add_argument("organism", help="KEGG organism code (e.g., hsa, mmu)")
     parser.add_argument("output_dir", help="Output directory for results")
-    parser.add_argument(
-        "--limit", type=int, default=None, help="Limit analysis to first N pathways"
-    )
+    parser.add_argument("--limit", type=int, default=None,
+                       help="Limit analysis to first N pathways")
 
     args = parser.parse_args()
 

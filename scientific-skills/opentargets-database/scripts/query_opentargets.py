@@ -10,6 +10,7 @@ Dependencies: requests (pip install requests)
 """
 
 import requests
+import json
 from typing import Dict, List, Optional, Any
 
 
@@ -17,9 +18,7 @@ from typing import Dict, List, Optional, Any
 BASE_URL = "https://api.platform.opentargets.org/api/v4/graphql"
 
 
-def execute_query(
-    query: str, variables: Optional[Dict[str, Any]] = None
-) -> Dict[str, Any]:
+def execute_query(query: str, variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     Execute a GraphQL query against the Open Targets Platform API.
 
@@ -51,9 +50,7 @@ def execute_query(
         raise Exception(f"API request failed: {str(e)}")
 
 
-def search_entities(
-    query_string: str, entity_types: Optional[List[str]] = None
-) -> List[Dict[str, Any]]:
+def search_entities(query_string: str, entity_types: Optional[List[str]] = None) -> List[Dict[str, Any]]:
     """
     Search for targets, diseases, or drugs by name or identifier.
 
@@ -96,8 +93,7 @@ def get_target_info(ensembl_id: str, include_diseases: bool = False) -> Dict[str
     Returns:
         Dictionary with target information including tractability, safety, expression
     """
-    disease_fragment = (
-        """
+    disease_fragment = """
       associatedDiseases(page: {size: 10}) {
         rows {
           disease {
@@ -111,10 +107,7 @@ def get_target_info(ensembl_id: str, include_diseases: bool = False) -> Dict[str
           }
         }
       }
-    """
-        if include_diseases
-        else ""
-    )
+    """ if include_diseases else ""
 
     query = f"""
       query targetInfo($ensemblId: String!) {{
@@ -171,8 +164,7 @@ def get_disease_info(efo_id: str, include_targets: bool = False) -> Dict[str, An
     Returns:
         Dictionary with disease information
     """
-    target_fragment = (
-        """
+    target_fragment = """
       associatedTargets(page: {size: 10}) {
         rows {
           target {
@@ -187,10 +179,7 @@ def get_disease_info(efo_id: str, include_targets: bool = False) -> Dict[str, An
           }
         }
       }
-    """
-        if include_targets
-        else ""
-    )
+    """ if include_targets else ""
 
     query = f"""
       query diseaseInfo($efoId: String!) {{
@@ -214,9 +203,8 @@ def get_disease_info(efo_id: str, include_targets: bool = False) -> Dict[str, An
     return result.get("disease", {})
 
 
-def get_target_disease_evidence(
-    ensembl_id: str, efo_id: str, data_types: Optional[List[str]] = None
-) -> List[Dict[str, Any]]:
+def get_target_disease_evidence(ensembl_id: str, efo_id: str,
+                                  data_types: Optional[List[str]] = None) -> List[Dict[str, Any]]:
     """
     Retrieve evidence linking a target to a disease.
 
@@ -339,9 +327,7 @@ def get_drug_info(chembl_id: str) -> Dict[str, Any]:
     return result.get("drug", {})
 
 
-def get_target_associations(
-    ensembl_id: str, min_score: float = 0.0
-) -> List[Dict[str, Any]]:
+def get_target_associations(ensembl_id: str, min_score: float = 0.0) -> List[Dict[str, Any]]:
     """
     Get all disease associations for a target, filtered by minimum score.
 
@@ -374,9 +360,7 @@ def get_target_associations(
     """
 
     result = execute_query(query, {"ensemblId": ensembl_id})
-    associations = (
-        result.get("target", {}).get("associatedDiseases", {}).get("rows", [])
-    )
+    associations = result.get("target", {}).get("associatedDiseases", {}).get("rows", [])
 
     # Filter by minimum score
     return [assoc for assoc in associations if assoc.get("score", 0) >= min_score]
@@ -392,30 +376,28 @@ if __name__ == "__main__":
 
     # Example 2: Get target information
     if results:
-        ensembl_id = results[0]["id"]
+        ensembl_id = results[0]['id']
         print(f"\nGetting info for {ensembl_id}...")
         target_info = get_target_info(ensembl_id, include_diseases=True)
         print(f"  Symbol: {target_info.get('approvedSymbol')}")
         print(f"  Name: {target_info.get('approvedName')}")
 
         # Show top diseases
-        diseases = target_info.get("associatedDiseases", {}).get("rows", [])
+        diseases = target_info.get('associatedDiseases', {}).get('rows', [])
         if diseases:
-            print("\n  Top associated diseases:")
+            print(f"\n  Top associated diseases:")
             for disease in diseases[:3]:
-                print(
-                    f"    - {disease['disease']['name']} (score: {disease['score']:.2f})"
-                )
+                print(f"    - {disease['disease']['name']} (score: {disease['score']:.2f})")
 
     # Example 3: Search for a disease
     print("\n\nSearching for Alzheimer's disease...")
     disease_results = search_entities("alzheimer", entity_types=["disease"])
     if disease_results:
-        efo_id = disease_results[0]["id"]
+        efo_id = disease_results[0]['id']
         print(f"  Found: {disease_results[0]['name']} ({efo_id})")
 
         # Get known drugs
         print(f"\n  Known drugs for {disease_results[0]['name']}:")
         drugs = get_known_drugs_for_disease(efo_id)
-        for drug in drugs.get("rows", [])[:5]:
+        for drug in drugs.get('rows', [])[:5]:
             print(f"    - {drug['drug']['name']} (Phase {drug['phase']})")

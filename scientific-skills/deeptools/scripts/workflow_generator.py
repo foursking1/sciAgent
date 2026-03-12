@@ -10,21 +10,21 @@ import sys
 
 
 WORKFLOWS = {
-    "chipseq_qc": {
-        "name": "ChIP-seq Quality Control",
-        "description": "Complete QC workflow for ChIP-seq experiments",
+    'chipseq_qc': {
+        'name': 'ChIP-seq Quality Control',
+        'description': 'Complete QC workflow for ChIP-seq experiments',
     },
-    "chipseq_analysis": {
-        "name": "ChIP-seq Complete Analysis",
-        "description": "Full ChIP-seq analysis from BAM to heatmaps",
+    'chipseq_analysis': {
+        'name': 'ChIP-seq Complete Analysis',
+        'description': 'Full ChIP-seq analysis from BAM to heatmaps',
     },
-    "rnaseq_coverage": {
-        "name": "RNA-seq Coverage Tracks",
-        "description": "Generate strand-specific RNA-seq coverage",
+    'rnaseq_coverage': {
+        'name': 'RNA-seq Coverage Tracks',
+        'description': 'Generate strand-specific RNA-seq coverage',
     },
-    "atacseq": {
-        "name": "ATAC-seq Analysis",
-        "description": "ATAC-seq workflow with Tn5 correction",
+    'atacseq': {
+        'name': 'ATAC-seq Analysis',
+        'description': 'ATAC-seq workflow with Tn5 correction',
     },
 }
 
@@ -98,7 +98,7 @@ echo "=== ChIP-seq QC workflow complete ==="
 echo "Results are in: $OUTPUT_DIR"
 """
 
-    with open(output_file, "w") as f:
+    with open(output_file, 'w') as f:
         f.write(script)
 
     return f"✓ Generated ChIP-seq QC workflow: {output_file}"
@@ -217,7 +217,7 @@ echo "=== ChIP-seq analysis complete ==="
 echo "Results are in: $OUTPUT_DIR"
 """
 
-    with open(output_file, "w") as f:
+    with open(output_file, 'w') as f:
         f.write(script)
 
     return f"✓ Generated ChIP-seq analysis workflow: {output_file}"
@@ -266,7 +266,7 @@ echo "Note: These bigWig files can be loaded into genome browsers"
 echo "for strand-specific visualization of RNA-seq data."
 """
 
-    with open(output_file, "w") as f:
+    with open(output_file, 'w') as f:
         f.write(script)
 
     return f"✓ Generated RNA-seq coverage workflow: {output_file}"
@@ -352,7 +352,7 @@ echo "  ~200bp: mono-nucleosome"
 echo "  ~400bp: di-nucleosome"
 """
 
-    with open(output_file, "w") as f:
+    with open(output_file, 'w') as f:
         f.write(script)
 
     return f"✓ Generated ATAC-seq workflow: {output_file}"
@@ -376,47 +376,32 @@ Examples:
 
   # List all available workflows
   python workflow_generator.py --list
-        """,
+        """
     )
 
-    parser.add_argument(
-        "workflow",
-        nargs="?",
-        choices=list(WORKFLOWS.keys()),
-        help="Workflow type to generate",
-    )
-    parser.add_argument(
-        "-o",
-        "--output",
-        default="deeptools_workflow.sh",
-        help="Output script filename (default: deeptools_workflow.sh)",
-    )
-    parser.add_argument(
-        "--list", action="store_true", help="List all available workflows"
-    )
+    parser.add_argument('workflow', nargs='?', choices=list(WORKFLOWS.keys()),
+                        help='Workflow type to generate')
+    parser.add_argument('-o', '--output', default='deeptools_workflow.sh',
+                        help='Output script filename (default: deeptools_workflow.sh)')
+    parser.add_argument('--list', action='store_true',
+                        help='List all available workflows')
 
     # Common parameters
-    parser.add_argument(
-        "--threads", type=int, default=8, help="Number of threads (default: 8)"
-    )
-    parser.add_argument(
-        "--genome-size",
-        type=int,
-        default=2913022398,
-        help="Effective genome size (default: 2913022398 for hg38)",
-    )
-    parser.add_argument(
-        "--output-dir", default=None, help="Output directory for results"
-    )
+    parser.add_argument('--threads', type=int, default=8,
+                        help='Number of threads (default: 8)')
+    parser.add_argument('--genome-size', type=int, default=2913022398,
+                        help='Effective genome size (default: 2913022398 for hg38)')
+    parser.add_argument('--output-dir', default=None,
+                        help='Output directory for results')
 
     # Workflow-specific parameters
-    parser.add_argument("--input-bam", help="Input/control BAM file")
-    parser.add_argument("--chip-bam", help="ChIP BAM file")
-    parser.add_argument("--chip-bams", help="Multiple ChIP BAM files (space-separated)")
-    parser.add_argument("--rnaseq-bam", help="RNA-seq BAM file")
-    parser.add_argument("--atac-bam", help="ATAC-seq BAM file")
-    parser.add_argument("--genes-bed", help="Genes BED file")
-    parser.add_argument("--peaks-bed", help="Peaks BED file")
+    parser.add_argument('--input-bam', help='Input/control BAM file')
+    parser.add_argument('--chip-bam', help='ChIP BAM file')
+    parser.add_argument('--chip-bams', help='Multiple ChIP BAM files (space-separated)')
+    parser.add_argument('--rnaseq-bam', help='RNA-seq BAM file')
+    parser.add_argument('--atac-bam', help='ATAC-seq BAM file')
+    parser.add_argument('--genes-bed', help='Genes BED file')
+    parser.add_argument('--peaks-bed', help='Peaks BED file')
 
     args = parser.parse_args()
 
@@ -436,33 +421,33 @@ Examples:
 
     # Prepare parameters
     params = {
-        "threads": args.threads,
-        "genome_size": args.genome_size,
-        "output_dir": args.output_dir or f"{args.workflow}_output",
-        "input_bam": args.input_bam,
-        "chip_bam": args.chip_bam,
-        "chip_bams": args.chip_bams,
-        "rnaseq_bam": args.rnaseq_bam,
-        "atac_bam": args.atac_bam,
-        "genes_bed": args.genes_bed,
-        "peaks_bed": args.peaks_bed,
+        'threads': args.threads,
+        'genome_size': args.genome_size,
+        'output_dir': args.output_dir or f"{args.workflow}_output",
+        'input_bam': args.input_bam,
+        'chip_bam': args.chip_bam,
+        'chip_bams': args.chip_bams,
+        'rnaseq_bam': args.rnaseq_bam,
+        'atac_bam': args.atac_bam,
+        'genes_bed': args.genes_bed,
+        'peaks_bed': args.peaks_bed,
     }
 
     # Generate workflow
-    if args.workflow == "chipseq_qc":
+    if args.workflow == 'chipseq_qc':
         message = generate_chipseq_qc_workflow(args.output, params)
-    elif args.workflow == "chipseq_analysis":
+    elif args.workflow == 'chipseq_analysis':
         message = generate_chipseq_analysis_workflow(args.output, params)
-    elif args.workflow == "rnaseq_coverage":
+    elif args.workflow == 'rnaseq_coverage':
         message = generate_rnaseq_coverage_workflow(args.output, params)
-    elif args.workflow == "atacseq":
+    elif args.workflow == 'atacseq':
         message = generate_atacseq_workflow(args.output, params)
 
     print(message)
-    print("\nTo run the workflow:")
+    print(f"\nTo run the workflow:")
     print(f"  chmod +x {args.output}")
     print(f"  ./{args.output}")
-    print("\nNote: Edit the script to customize file paths and parameters.")
+    print(f"\nNote: Edit the script to customize file paths and parameters.")
 
 
 if __name__ == "__main__":

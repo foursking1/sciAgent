@@ -44,7 +44,6 @@ def create_tree_style(args):
     # Title
     if args.title:
         from ete3 import TextFace
-
         title_face = TextFace(args.title, fsize=16, bold=True)
         ts.title.add_face(title_face, column=0)
 
@@ -66,7 +65,7 @@ def apply_node_styling(tree, args):
             nstyle["size"] = args.internal_size
 
             # Color by support if enabled
-            if args.color_by_support and hasattr(node, "support") and node.support:
+            if args.color_by_support and hasattr(node, 'support') and node.support:
                 if node.support >= 0.9:
                     nstyle["fgcolor"] = "darkgreen"
                 elif node.support >= 0.7:
@@ -138,94 +137,62 @@ Examples:
 
   # Semicircular layout
   %(prog)s tree.nw output.pdf --mode c --arc-start -90 --arc-span 180
-        """,
+        """
     )
 
     parser.add_argument("input", help="Input tree file (Newick format)")
     parser.add_argument("output", help="Output image file (png, pdf, or svg)")
 
     # Tree format
-    parser.add_argument(
-        "--format", type=int, default=0, help="Newick format number (default: 0)"
-    )
+    parser.add_argument("--format", type=int, default=0,
+                        help="Newick format number (default: 0)")
 
     # Display options
     display = parser.add_argument_group("Display options")
-    display.add_argument(
-        "--no-names",
-        dest="show_names",
-        action="store_false",
-        help="Don't show leaf names",
-    )
-    display.add_argument(
-        "--show-lengths", action="store_true", help="Show branch lengths"
-    )
-    display.add_argument(
-        "--show-support", action="store_true", help="Show support values"
-    )
-    display.add_argument("--show-scale", action="store_true", help="Show scale bar")
+    display.add_argument("--no-names", dest="show_names", action="store_false",
+                         help="Don't show leaf names")
+    display.add_argument("--show-lengths", action="store_true",
+                         help="Show branch lengths")
+    display.add_argument("--show-support", action="store_true",
+                         help="Show support values")
+    display.add_argument("--show-scale", action="store_true",
+                         help="Show scale bar")
 
     # Layout options
     layout = parser.add_argument_group("Layout options")
-    layout.add_argument(
-        "--mode",
-        choices=["r", "c"],
-        default="r",
-        help="Tree mode: r=rectangular, c=circular (default: r)",
-    )
-    layout.add_argument(
-        "--rotation", type=int, default=0, help="Tree rotation in degrees (default: 0)"
-    )
-    layout.add_argument(
-        "--arc-start",
-        type=int,
-        default=0,
-        help="Circular tree start angle (default: 0)",
-    )
-    layout.add_argument(
-        "--arc-span",
-        type=int,
-        default=360,
-        help="Circular tree arc span (default: 360)",
-    )
+    layout.add_argument("--mode", choices=["r", "c"], default="r",
+                        help="Tree mode: r=rectangular, c=circular (default: r)")
+    layout.add_argument("--rotation", type=int, default=0,
+                        help="Tree rotation in degrees (default: 0)")
+    layout.add_argument("--arc-start", type=int, default=0,
+                        help="Circular tree start angle (default: 0)")
+    layout.add_argument("--arc-span", type=int, default=360,
+                        help="Circular tree arc span (default: 360)")
 
     # Styling options
     styling = parser.add_argument_group("Styling options")
-    styling.add_argument(
-        "--leaf-color", default="blue", help="Leaf node color (default: blue)"
-    )
-    styling.add_argument(
-        "--leaf-size", type=int, default=6, help="Leaf node size (default: 6)"
-    )
-    styling.add_argument(
-        "--internal-color", default="gray", help="Internal node color (default: gray)"
-    )
-    styling.add_argument(
-        "--internal-size", type=int, default=4, help="Internal node size (default: 4)"
-    )
-    styling.add_argument(
-        "--color-by-support",
-        action="store_true",
-        help="Color internal nodes by support value",
-    )
+    styling.add_argument("--leaf-color", default="blue",
+                         help="Leaf node color (default: blue)")
+    styling.add_argument("--leaf-size", type=int, default=6,
+                         help="Leaf node size (default: 6)")
+    styling.add_argument("--internal-color", default="gray",
+                         help="Internal node color (default: gray)")
+    styling.add_argument("--internal-size", type=int, default=4,
+                         help="Internal node size (default: 4)")
+    styling.add_argument("--color-by-support", action="store_true",
+                         help="Color internal nodes by support value")
 
     # Size and spacing
     size = parser.add_argument_group("Size and spacing")
     size.add_argument("--width", type=int, help="Output width")
     size.add_argument("--height", type=int, help="Output height")
-    size.add_argument(
-        "--units", choices=["px", "mm", "in"], help="Size units (px, mm, in)"
-    )
+    size.add_argument("--units", choices=["px", "mm", "in"],
+                      help="Size units (px, mm, in)")
     size.add_argument("--dpi", type=int, help="DPI for raster output")
-    size.add_argument(
-        "--scale-factor", type=int, help="Branch length scale factor (pixels per unit)"
-    )
-    size.add_argument(
-        "--vertical-margin",
-        type=int,
-        default=10,
-        help="Vertical margin between branches (default: 10)",
-    )
+    size.add_argument("--scale-factor", type=int,
+                      help="Branch length scale factor (pixels per unit)")
+    size.add_argument("--vertical-margin", type=int, default=10,
+                      help="Vertical margin between branches (default: 10)")
 
     # Other options
     parser.add_argument("--title", help="Tree title")
@@ -236,7 +203,7 @@ Examples:
     output_path = Path(args.output)
     valid_extensions = {".png", ".pdf", ".svg"}
     if output_path.suffix.lower() not in valid_extensions:
-        print("Error: Output must be PNG, PDF, or SVG file")
+        print(f"Error: Output must be PNG, PDF, or SVG file")
         sys.exit(1)
 
     # Visualize

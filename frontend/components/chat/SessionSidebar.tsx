@@ -1,14 +1,18 @@
 'use client'
 
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Clock, MessageSquare, Trash2, ChevronLeft, ChevronDown, ChevronRight, Database, Zap } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Plus, Clock, MessageSquare, Trash2, ChevronLeft, ChevronDown, ChevronRight, Database, Zap, LogOut, User } from 'lucide-react'
+import { cn, formatDateTime } from '@/lib/utils'
 import { sessionsApi, type Session } from '@/lib/api'
+import { useAuth } from '@/hooks/useAuth'
+import { useSessionStore } from '@/stores/sessionStore'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('SessionSidebar')
 
 interface SessionSidebarProps {
   token: string
-  currentSessionId: string
   className?: string
   isCollapsed?: boolean
   onToggle?: () => void
@@ -28,24 +32,60 @@ interface SessionSidebarProps {
  */
 export function SessionSidebar({
   token,
-  currentSessionId,
   className,
   isCollapsed = false,
   onToggle,
   onOpenDataSourceMarket
 }: SessionSidebarProps) {
   const router = useRouter()
+  const { user, logout } = useAuth()
+  const { getCurrentState, activeSessionId } = useSessionStore()
+
   const [sessions, setSessions] = useState<Session[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false) // 默认折叠
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
+
+  // Get current session state from store - must be memoized to update when activeSessionId changes
+  const currentSessionState = React.useMemo(() => {
+    const state = getCurrentState(activeSessionId || '')
+    logger.debug('getCurrentState for', activeSessionId?.slice(0, 8) || 'null', ':', state ? `${state.events.length} events` : 'null')
+    return state
+  }, [activeSessionId, getCurrentState])
 
   // 当有当前会话时，自动展开历史列表
   useEffect(() => {
-    if (currentSessionId && sessions.some(s => s.id === currentSessionId)) {
+    if (activeSessionId && sessions.some(s => s.id === activeSessionId)) {
       setIsHistoryExpanded(true)
     }
-  }, [currentSessionId, sessions])
+  }, [activeSessionId, sessions])
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false)
+      }
+    }
+
+    if (isUserMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isUserMenuOpen])
+
+  // Get user initials
+  const getUserInitials = () => {
+    if (!user) return ''
+    return user.full_name
+      ? user.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+      : user.email.charAt(0).toUpperCase()
+  }
 
   // Load sessions
   const loadSessions = useCallback(async () => {
@@ -55,6 +95,10 @@ export function SessionSidebar({
       setIsLoading(true)
       setError(null)
       const data = await sessionsApi.list(token)
+      logger.debug('Loaded sessions from API:', data.length)
+      data.forEach(s => {
+        logger.debug(`Session ${s.id.slice(0, 8)}: title="${s.title}", created_at="${s.created_at}", updated_at="${s.updated_at}"`)
+      })
       setSessions(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load sessions')
@@ -65,6 +109,26 @@ export function SessionSidebar({
 
   useEffect(() => {
     loadSessions()
+  }, [loadSessions])
+
+  // Reload sessions when current session changes to ensure list is up-to-date
+  useEffect(() => {
+    if (activeSessionId) {
+      loadSessions()
+    }
+  }, [activeSessionId, loadSessions])
+
+  // Listen for session update events to refresh the list
+  useEffect(() => {
+    const handleSessionUpdate = () => {
+      logger.debug('Session updated, refreshing list')
+      loadSessions()
+    }
+
+    window.addEventListener('session-updated', handleSessionUpdate)
+    return () => {
+      window.removeEventListener('session-updated', handleSessionUpdate)
+    }
   }, [loadSessions])
 
   // Create new session
@@ -90,13 +154,15 @@ export function SessionSidebar({
       await sessionsApi.delete(token, sessionId)
       setSessions(prev => prev.filter(s => s.id !== sessionId))
 
-      // If deleted session is current, navigate to a new one or dashboard
-      if (sessionId === currentSessionId) {
+      // If deleted session is current, navigate to a new one or create a new session
+      if (sessionId === activeSessionId) {
         const remainingSessions = sessions.filter(s => s.id !== sessionId)
         if (remainingSessions.length > 0) {
           router.push(`/session/${remainingSessions[0].id}`)
         } else {
-          router.push('/dashboard')
+          // Create a new session if no sessions left
+          const newSession = await sessionsApi.create(token)
+          router.push(`/session/${newSession.id}`)
         }
       }
     } catch (err) {
@@ -104,22 +170,31 @@ export function SessionSidebar({
     }
   }
 
-  // Format date
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diff = now.getTime() - date.getTime()
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  // Calculate display times for all sessions - use unified time source (API data)
+  const sessionDisplayTimes = React.useMemo(() => {
+    const times: Record<string, string> = {}
 
-    if (days === 0) {
-      return '今天'
-    } else if (days === 1) {
-      return '昨天'
-    } else if (days < 7) {
-      return `${days} 天前`
-    } else {
-      return date.toLocaleDateString('zh-CN')
-    }
+    logger.debug('===== Calculating session times =====')
+    logger.debug('sessions count:', sessions.length)
+
+    sessions.forEach(session => {
+      // All sessions use the same logic: updated_at if available and different from created_at, otherwise created_at
+      const timeToUse = session.updated_at && session.updated_at !== session.created_at
+        ? session.updated_at
+        : session.created_at
+      const formatted = formatDateTime(timeToUse)
+      times[session.id] = formatted
+
+      logger.debug(`Session ${session.id.slice(0, 8)}: ${timeToUse} -> ${formatted}`)
+    })
+
+    logger.debug('===== Final times:', times)
+    return times
+  }, [sessions])
+
+  // Get the display time for a session
+  const getSessionDisplayTime = (session: Session) => {
+    return sessionDisplayTimes[session.id] || ''
   }
 
   // Get session title (use first message or ID)
@@ -243,33 +318,26 @@ export function SessionSidebar({
                   key={session.id}
                   onClick={() => router.push(`/session/${session.id}`)}
                   className={cn(
-                    'group relative p-3 rounded-lg cursor-pointer transition-all',
+                    'group relative px-3 py-2 rounded-lg cursor-pointer transition-all',
                     'hover:bg-surface',
-                    session.id === currentSessionId
+                    session.id === activeSessionId
                       ? 'bg-primary-500/10 border border-primary-500/30'
                       : 'border border-transparent'
                   )}
                 >
                   {/* Title */}
                   <h4 className={cn(
-                    'font-medium text-sm truncate',
-                    session.id === currentSessionId ? 'text-primary-400' : 'text-gray-200'
+                    'font-medium text-sm truncate pr-6',
+                    session.id === activeSessionId ? 'text-primary-400' : 'text-gray-200'
                   )}>
                     {getSessionTitle(session)}
                   </h4>
 
                   {/* Time */}
                   <div className="flex items-center gap-1 mt-1">
-                    <Clock className="w-3 h-3 text-gray-500" />
-                    <span className="text-xs text-gray-500">{formatDate(session.created_at)}</span>
+                    <Clock className="w-3 h-3 text-gray-500 flex-shrink-0" />
+                    <span className="text-xs text-gray-500">{getSessionDisplayTime(session)}</span>
                   </div>
-
-                  {/* Preview */}
-                  {session.preview && (
-                    <p className="text-xs text-gray-500 mt-1 truncate">
-                      {session.preview}
-                    </p>
-                  )}
 
                   {/* Delete button */}
                   <button
@@ -285,11 +353,54 @@ export function SessionSidebar({
                   </button>
 
                   {/* Active indicator */}
-                  {session.id === currentSessionId && (
+                  {session.id === activeSessionId && (
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-primary-500 rounded-r-full" />
                   )}
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* User menu - bottom left */}
+      <div className="flex-shrink-0 p-3 border-t border-gray-800">
+        <div className="relative" ref={userMenuRef}>
+          <button
+            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+          >
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+              {getUserInitials()}
+            </div>
+            <span className="text-sm text-gray-300 truncate">
+              {user?.full_name || user?.email?.split('@')[0] || 'User'}
+            </span>
+          </button>
+
+          {isUserMenuOpen && (
+            <div className="absolute bottom-full left-0 mb-2 w-56 bg-surface border border-gray-800 rounded-xl shadow-xl py-2 z-50">
+              {/* User info */}
+              <div className="px-4 py-3 border-b border-gray-800">
+                <p className="text-sm font-medium text-white">
+                  {user?.full_name || 'User'}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5 truncate">
+                  {user?.email}
+                </p>
+              </div>
+
+              {/* Logout button */}
+              <button
+                onClick={() => {
+                  logout()
+                  setIsUserMenuOpen(false)
+                }}
+                className="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-red-400 hover:text-red-300 hover:bg-gray-700 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>登出</span>
+              </button>
             </div>
           )}
         </div>

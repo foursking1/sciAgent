@@ -16,32 +16,25 @@ import sys
 
 
 PRETRAINED_MODELS = {
-    "chemberta": {
-        "name": "ChemBERTa",
-        "description": "BERT pretrained on 77M molecules from ZINC15",
-        "model_id": "seyonec/ChemBERTa-zinc-base-v1",
+    'chemberta': {
+        'name': 'ChemBERTa',
+        'description': 'BERT pretrained on 77M molecules from ZINC15',
+        'model_id': 'seyonec/ChemBERTa-zinc-base-v1'
     },
-    "grover": {
-        "name": "GROVER",
-        "description": "Graph transformer pretrained on 10M molecules",
-        "model_id": None,  # GROVER uses its own loading mechanism
+    'grover': {
+        'name': 'GROVER',
+        'description': 'Graph transformer pretrained on 10M molecules',
+        'model_id': None  # GROVER uses its own loading mechanism
     },
-    "molformer": {
-        "name": "MolFormer",
-        "description": "Transformer pretrained on molecular structures",
-        "model_id": "ibm/MoLFormer-XL-both-10pct",
-    },
+    'molformer': {
+        'name': 'MolFormer',
+        'description': 'Transformer pretrained on molecular structures',
+        'model_id': 'ibm/MoLFormer-XL-both-10pct'
+    }
 }
 
 
-def train_chemberta(
-    train_dataset,
-    valid_dataset,
-    test_dataset,
-    task_type="classification",
-    n_tasks=1,
-    n_epochs=10,
-):
+def train_chemberta(train_dataset, valid_dataset, test_dataset, task_type='classification', n_tasks=1, n_epochs=10):
     """
     Fine-tune ChemBERTa on a dataset.
 
@@ -63,13 +56,13 @@ def train_chemberta(
     print("It uses SMILES strings as input and has learned rich molecular")
     print("representations that transfer well to downstream tasks.")
 
-    print("\nLoading pretrained ChemBERTa model...")
+    print(f"\nLoading pretrained ChemBERTa model...")
     model = dc.models.HuggingFaceModel(
-        model=PRETRAINED_MODELS["chemberta"]["model_id"],
+        model=PRETRAINED_MODELS['chemberta']['model_id'],
         task=task_type,
         n_tasks=n_tasks,
         batch_size=32,
-        learning_rate=2e-5,  # Lower LR for fine-tuning
+        learning_rate=2e-5  # Lower LR for fine-tuning
     )
 
     print(f"\nFine-tuning for {n_epochs} epochs...")
@@ -82,23 +75,19 @@ def train_chemberta(
     print("Model Evaluation")
     print("=" * 70)
 
-    if task_type == "classification":
+    if task_type == 'classification':
         metrics = [
-            dc.metrics.Metric(dc.metrics.roc_auc_score, name="ROC-AUC"),
-            dc.metrics.Metric(dc.metrics.accuracy_score, name="Accuracy"),
+            dc.metrics.Metric(dc.metrics.roc_auc_score, name='ROC-AUC'),
+            dc.metrics.Metric(dc.metrics.accuracy_score, name='Accuracy'),
         ]
     else:
         metrics = [
-            dc.metrics.Metric(dc.metrics.r2_score, name="R²"),
-            dc.metrics.Metric(dc.metrics.mean_absolute_error, name="MAE"),
+            dc.metrics.Metric(dc.metrics.r2_score, name='R²'),
+            dc.metrics.Metric(dc.metrics.mean_absolute_error, name='MAE'),
         ]
 
     results = {}
-    for name, dataset in [
-        ("Train", train_dataset),
-        ("Valid", valid_dataset),
-        ("Test", test_dataset),
-    ]:
+    for name, dataset in [('Train', train_dataset), ('Valid', valid_dataset), ('Test', test_dataset)]:
         print(f"\n{name} Set:")
         scores = model.evaluate(dataset, metrics)
         results[name] = scores
@@ -108,9 +97,7 @@ def train_chemberta(
     return model, results
 
 
-def train_grover(
-    train_dataset, test_dataset, task_type="classification", n_tasks=1, n_epochs=20
-):
+def train_grover(train_dataset, test_dataset, task_type='classification', n_tasks=1, n_epochs=20):
     """
     Fine-tune GROVER on a dataset.
 
@@ -131,9 +118,11 @@ def train_grover(
     print("self-supervised learning. It learns both node and graph-level")
     print("representations through masked atom/bond prediction tasks.")
 
-    print("\nCreating GROVER model...")
+    print(f"\nCreating GROVER model...")
     model = dc.models.GroverModel(
-        task=task_type, n_tasks=n_tasks, model_dir="./grover_pretrained"
+        task=task_type,
+        n_tasks=n_tasks,
+        model_dir='./grover_pretrained'
     )
 
     print(f"\nFine-tuning for {n_epochs} epochs...")
@@ -145,19 +134,19 @@ def train_grover(
     print("Model Evaluation")
     print("=" * 70)
 
-    if task_type == "classification":
+    if task_type == 'classification':
         metrics = [
-            dc.metrics.Metric(dc.metrics.roc_auc_score, name="ROC-AUC"),
-            dc.metrics.Metric(dc.metrics.accuracy_score, name="Accuracy"),
+            dc.metrics.Metric(dc.metrics.roc_auc_score, name='ROC-AUC'),
+            dc.metrics.Metric(dc.metrics.accuracy_score, name='Accuracy'),
         ]
     else:
         metrics = [
-            dc.metrics.Metric(dc.metrics.r2_score, name="R²"),
-            dc.metrics.Metric(dc.metrics.mean_absolute_error, name="MAE"),
+            dc.metrics.Metric(dc.metrics.r2_score, name='R²'),
+            dc.metrics.Metric(dc.metrics.mean_absolute_error, name='MAE'),
         ]
 
     results = {}
-    for name, dataset in [("Train", train_dataset), ("Test", test_dataset)]:
+    for name, dataset in [('Train', train_dataset), ('Test', test_dataset)]:
         print(f"\n{name} Set:")
         scores = model.evaluate(dataset, metrics)
         results[name] = scores
@@ -180,31 +169,32 @@ def load_molnet_dataset(dataset_name, model_type):
     """
     # Map of MoleculeNet datasets
     molnet_datasets = {
-        "tox21": dc.molnet.load_tox21,
-        "bbbp": dc.molnet.load_bbbp,
-        "bace": dc.molnet.load_bace_classification,
-        "hiv": dc.molnet.load_hiv,
-        "delaney": dc.molnet.load_delaney,
-        "freesolv": dc.molnet.load_freesolv,
-        "lipo": dc.molnet.load_lipo,
+        'tox21': dc.molnet.load_tox21,
+        'bbbp': dc.molnet.load_bbbp,
+        'bace': dc.molnet.load_bace_classification,
+        'hiv': dc.molnet.load_hiv,
+        'delaney': dc.molnet.load_delaney,
+        'freesolv': dc.molnet.load_freesolv,
+        'lipo': dc.molnet.load_lipo
     }
 
     if dataset_name not in molnet_datasets:
         raise ValueError(f"Unknown dataset: {dataset_name}")
 
     # ChemBERTa and MolFormer use raw SMILES
-    if model_type in ["chemberta", "molformer"]:
-        featurizer = "Raw"
+    if model_type in ['chemberta', 'molformer']:
+        featurizer = 'Raw'
     # GROVER needs graph features
-    elif model_type == "grover":
-        featurizer = "GraphConv"
+    elif model_type == 'grover':
+        featurizer = 'GraphConv'
     else:
-        featurizer = "ECFP"
+        featurizer = 'ECFP'
 
     print(f"\nLoading {dataset_name} dataset...")
     load_func = molnet_datasets[dataset_name]
     tasks, datasets, transformers = load_func(
-        featurizer=featurizer, splitter="scaffold"
+        featurizer=featurizer,
+        splitter='scaffold'
     )
 
     return tasks, datasets, transformers
@@ -226,15 +216,17 @@ def load_custom_dataset(data_path, target_cols, smiles_col, model_type):
     print(f"\nLoading custom data from {data_path}...")
 
     # Choose featurizer based on model
-    if model_type in ["chemberta", "molformer"]:
+    if model_type in ['chemberta', 'molformer']:
         featurizer = dc.feat.DummyFeaturizer()  # Models handle featurization
-    elif model_type == "grover":
+    elif model_type == 'grover':
         featurizer = dc.feat.MolGraphConvFeaturizer()
     else:
         featurizer = dc.feat.CircularFingerprint()
 
     loader = dc.data.CSVLoader(
-        tasks=target_cols, feature_field=smiles_col, featurizer=featurizer
+        tasks=target_cols,
+        feature_field=smiles_col,
+        featurizer=featurizer
     )
     dataset = loader.create_dataset(data_path)
 
@@ -244,7 +236,10 @@ def load_custom_dataset(data_path, target_cols, smiles_col, model_type):
     print("Splitting data with scaffold splitter...")
     splitter = dc.splits.ScaffoldSplitter()
     train, valid, test = splitter.train_valid_test_split(
-        dataset, frac_train=0.8, frac_valid=0.1, frac_test=0.1
+        dataset,
+        frac_train=0.8,
+        frac_valid=0.1,
+        frac_test=0.1
     )
 
     print(f"  Training: {len(train)}")
@@ -256,46 +251,52 @@ def load_custom_dataset(data_path, target_cols, smiles_col, model_type):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Transfer learning for molecular property prediction"
+        description='Transfer learning for molecular property prediction'
     )
     parser.add_argument(
-        "--model",
+        '--model',
         type=str,
         choices=list(PRETRAINED_MODELS.keys()),
         required=True,
-        help="Pretrained model to use",
+        help='Pretrained model to use'
     )
     parser.add_argument(
-        "--dataset",
+        '--dataset',
         type=str,
-        choices=["tox21", "bbbp", "bace", "hiv", "delaney", "freesolv", "lipo"],
+        choices=['tox21', 'bbbp', 'bace', 'hiv', 'delaney', 'freesolv', 'lipo'],
         default=None,
-        help="MoleculeNet dataset to use",
+        help='MoleculeNet dataset to use'
     )
     parser.add_argument(
-        "--data", type=str, default=None, help="Path to custom CSV file"
-    )
-    parser.add_argument(
-        "--target",
-        nargs="+",
-        default=["target"],
-        help="Target column name(s) for custom data",
-    )
-    parser.add_argument(
-        "--smiles-col",
+        '--data',
         type=str,
-        default="smiles",
-        help="SMILES column name for custom data",
+        default=None,
+        help='Path to custom CSV file'
     )
     parser.add_argument(
-        "--task-type",
+        '--target',
+        nargs='+',
+        default=['target'],
+        help='Target column name(s) for custom data'
+    )
+    parser.add_argument(
+        '--smiles-col',
         type=str,
-        choices=["classification", "regression"],
-        default="classification",
-        help="Type of prediction task",
+        default='smiles',
+        help='SMILES column name for custom data'
     )
     parser.add_argument(
-        "--epochs", type=int, default=10, help="Number of fine-tuning epochs"
+        '--task-type',
+        type=str,
+        choices=['classification', 'regression'],
+        default='classification',
+        help='Type of prediction task'
+    )
+    parser.add_argument(
+        '--epochs',
+        type=int,
+        default=10,
+        help='Number of fine-tuning epochs'
     )
 
     args = parser.parse_args()
@@ -319,36 +320,34 @@ def main():
     try:
         # Load dataset
         if args.dataset:
-            tasks, datasets, transformers = load_molnet_dataset(
-                args.dataset, args.model
-            )
+            tasks, datasets, transformers = load_molnet_dataset(args.dataset, args.model)
             train, valid, test = datasets
-            task_type = (
-                "classification"
-                if args.dataset in ["tox21", "bbbp", "bace", "hiv"]
-                else "regression"
-            )
+            task_type = 'classification' if args.dataset in ['tox21', 'bbbp', 'bace', 'hiv'] else 'regression'
             n_tasks = len(tasks)
         else:
             train, valid, test = load_custom_dataset(
-                args.data, args.target, args.smiles_col, args.model
+                args.data,
+                args.target,
+                args.smiles_col,
+                args.model
             )
             task_type = args.task_type
             n_tasks = len(args.target)
 
         # Train model
-        if args.model == "chemberta":
+        if args.model == 'chemberta':
             model, results = train_chemberta(
-                train,
-                valid,
-                test,
+                train, valid, test,
                 task_type=task_type,
                 n_tasks=n_tasks,
-                n_epochs=args.epochs,
+                n_epochs=args.epochs
             )
-        elif args.model == "grover":
+        elif args.model == 'grover':
             model, results = train_grover(
-                train, test, task_type=task_type, n_tasks=n_tasks, n_epochs=args.epochs
+                train, test,
+                task_type=task_type,
+                n_tasks=n_tasks,
+                n_epochs=args.epochs
             )
         else:
             print(f"Error: Model {args.model} not yet implemented", file=sys.stderr)
@@ -368,10 +367,9 @@ def main():
     except Exception as e:
         print(f"\nError: {e}", file=sys.stderr)
         import traceback
-
         traceback.print_exc()
         return 1
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     sys.exit(main())

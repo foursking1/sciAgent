@@ -65,6 +65,9 @@ class Session(Base):
     files: Mapped[list["File"]] = relationship(
         "File", back_populates="session", cascade="all, delete-orphan"
     )
+    events: Mapped[list["SessionEvent"]] = relationship(
+        "SessionEvent", back_populates="session", cascade="all, delete-orphan"
+    )
 
     # Non-persisted attribute for last message preview
     preview: Optional[str] = None

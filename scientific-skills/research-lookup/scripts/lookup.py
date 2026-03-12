@@ -6,10 +6,11 @@ Performs research queries using Perplexity Sonar Pro Search via OpenRouter.
 
 import os
 import sys
-from typing import Dict, Optional
+import json
+from typing import Dict, List, Optional
 
 # Import the main research lookup class
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts"))
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'scripts'))
 from research_lookup import ResearchLookup
 
 
@@ -45,16 +46,16 @@ def format_response(result: Dict) -> str:
             url = source.get("url", "")
             date = source.get("date", "")
             snippet = source.get("snippet", "")
-
+            
             # Format source entry with available metadata
             date_str = f" ({date})" if date else ""
             output += f"{i}. **{title}**{date_str}\n"
-
+            
             # Add venue indicator if detectable from URL
             venue_indicator = _detect_venue_tier(url)
             if venue_indicator:
                 output += f"   📊 Venue: {venue_indicator}\n"
-
+            
             if url:
                 output += f"   🔗 {url}\n"
             if snippet:
@@ -65,18 +66,16 @@ def format_response(result: Dict) -> str:
     if citations:
         doi_citations = [c for c in citations if c.get("type") == "doi"]
         url_citations = [c for c in citations if c.get("type") == "url"]
-
+        
         if doi_citations:
             output += f"\n🔗 **DOI References ({len(doi_citations)}):**\n"
             for i, citation in enumerate(doi_citations, 1):
-                output += (
-                    f"{i}. DOI: {citation.get('doi', '')} → {citation.get('url', '')}\n"
-                )
-
+                output += f"{i}. DOI: {citation.get('doi', '')} → {citation.get('url', '')}\n"
+        
         if url_citations:
             output += f"\n🌐 **Additional URLs ({len(url_citations)}):**\n"
             for i, citation in enumerate(url_citations, 1):
-                url = citation.get("url", "")
+                url = citation.get('url', '')
                 venue = _detect_venue_tier(url)
                 venue_str = f" [{venue}]" if venue else ""
                 output += f"{i}. {url}{venue_str}\n"
@@ -92,9 +91,9 @@ def _detect_venue_tier(url: str) -> Optional[str]:
     """Detect venue tier from URL to indicate source quality."""
     if not url:
         return None
-
+    
     url_lower = url.lower()
-
+    
     # Tier 1 - Premier venues
     tier1_indicators = {
         "nature.com": "Nature (Tier 1)",
@@ -105,7 +104,7 @@ def _detect_venue_tier(url: str) -> Optional[str]:
         "jamanetwork.com": "JAMA (Tier 1)",
         "pnas.org": "PNAS (Tier 1)",
     }
-
+    
     # Tier 2 - High-impact specialized
     tier2_indicators = {
         "neurips.cc": "NeurIPS (Tier 2 - Top ML)",
@@ -116,7 +115,7 @@ def _detect_venue_tier(url: str) -> Optional[str]:
         "bloodjournal.org": "Blood (Tier 2)",
         "jci.org": "JCI (Tier 2)",
     }
-
+    
     # Tier 3 - Respected academic sources
     tier3_indicators = {
         "springer.com": "Springer",
@@ -131,19 +130,19 @@ def _detect_venue_tier(url: str) -> Optional[str]:
         "ieee.org": "IEEE",
         "acm.org": "ACM",
     }
-
+    
     for domain, label in tier1_indicators.items():
         if domain in url_lower:
             return label
-
+    
     for domain, label in tier2_indicators.items():
         if domain in url_lower:
             return label
-
+    
     for domain, label in tier3_indicators.items():
         if domain in url_lower:
             return label
-
+    
     return None
 
 

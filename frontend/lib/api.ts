@@ -25,6 +25,24 @@ function getApiBaseUrl(): string {
 
 const API_BASE_URL = getApiBaseUrl();
 
+// Custom error class for API errors that includes HTTP status code
+export class APIError extends Error {
+  public readonly statusCode: number;
+  public readonly detail: string;
+
+  constructor(statusCode: number, detail: string) {
+    super(`HTTP ${statusCode}: ${detail}`);
+    this.name = 'APIError';
+    this.statusCode = statusCode;
+    this.detail = detail;
+  }
+
+  // Check if this error is a specific HTTP status code
+  isStatus(code: number): boolean {
+    return this.statusCode === code;
+  }
+}
+
 export interface User {
   id: number;
   email: string;
@@ -145,11 +163,14 @@ async function apiCall<T>(
   const response = await fetch(url, {
     ...options,
     headers,
+    // Prevent caching to ensure we always get fresh data
+    cache: 'no-store',
   });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-    throw new Error(error.detail || `HTTP ${response.status}`);
+    const errorMessage = error.detail || 'Request failed';
+    throw new APIError(response.status, errorMessage);
   }
 
   // Handle no-content responses
@@ -204,7 +225,9 @@ export const authApi = {
 // Sessions API
 export const sessionsApi = {
   async list(token: string): Promise<Session[]> {
-    const data = await apiCall<{ sessions: Session[]; total: number }>('/api/sessions', {
+    // Add cache-busting timestamp
+    const timestamp = Date.now();
+    const data = await apiCall<{ sessions: Session[]; total: number }>(`/api/sessions?_t=${timestamp}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -213,7 +236,9 @@ export const sessionsApi = {
   },
 
   async get(token: string, sessionId: string): Promise<Session> {
-    return apiCall<Session>(`/api/sessions/${sessionId}`, {
+    // Add cache-busting timestamp to ensure we always get fresh data
+    const timestamp = Date.now();
+    return apiCall<Session>(`/api/sessions/${sessionId}?_t=${timestamp}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -251,6 +276,18 @@ export const sessionsApi = {
 
   async getMessages(token: string, sessionId: string): Promise<Message[]> {
     return apiCall<Message[]>(`/api/sessions/${sessionId}/messages`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  },
+
+  /**
+   * Get all events for a session (including function_call, function_response, etc.)
+   * This is used for page refresh recovery to reconstruct full session history.
+   */
+  async getEvents(token: string, sessionId: string): Promise<{ events: unknown[]; total: number }> {
+    return apiCall<{ events: unknown[]; total: number }>(`/api/sessions/${sessionId}/history`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -295,6 +332,29 @@ export const sessionsApi = {
         },
       }
     );
+  },
+
+  /**
+   * Get the currently active task for a session (if any)
+   * Returns null if no active task exists
+   */
+  async getActiveTask(token: string, sessionId: string): Promise<{ task_id: string; session_id: string; status: string; created_at: string; started_at: string | null; message: string } | null> {
+    try {
+      return await apiCall<{ task_id: string; session_id: string; status: string; created_at: string; started_at: string | null; message: string }>(
+        `/api/sessions/${sessionId}/active-task`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+    } catch (error) {
+      // 404 means no active task - return null
+      if (error instanceof APIError && error.isStatus(404)) {
+        return null;
+      }
+      throw error;
+    }
   },
 
   /**

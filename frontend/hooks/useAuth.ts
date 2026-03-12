@@ -105,7 +105,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsAuthenticated(true)
       setIsLoading(false)
 
-      router.push('/dashboard')
+      // Check for existing sessions and navigate to most recent one, or create new
+      const sessionsApi = (await import('@/lib/api')).sessionsApi
+      const existingSessions = await sessionsApi.list(result.access_token)
+
+      if (existingSessions.length > 0) {
+        // Navigate to most recent session
+        const mostRecentSession = existingSessions[0]
+        router.push(`/session/${mostRecentSession.id}`)
+      } else {
+        // No existing sessions, create new one
+        const session = await sessionsApi.create(result.access_token)
+        router.push(`/session/${session.id}`)
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Login failed'
       setError(message)
@@ -131,7 +143,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsAuthenticated(true)
       setIsLoading(false)
 
-      router.push('/dashboard')
+      // Check for existing sessions and navigate to most recent one, or create new
+      const sessionsApi = (await import('@/lib/api')).sessionsApi
+      const existingSessions = await sessionsApi.list(result.access_token)
+
+      if (existingSessions.length > 0) {
+        // Navigate to most recent session
+        const mostRecentSession = existingSessions[0]
+        router.push(`/session/${mostRecentSession.id}`)
+      } else {
+        // No existing sessions, create new one
+        const session = await sessionsApi.create(result.access_token)
+        router.push(`/session/${session.id}`)
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Registration failed'
       setError(message)

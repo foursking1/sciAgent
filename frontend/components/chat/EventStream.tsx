@@ -1,9 +1,12 @@
 'use client'
 
 import React, { memo, useImperativeHandle, forwardRef } from 'react'
-import { cn } from '@/lib/utils'
+import { cn, formatDateTime } from '@/lib/utils'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Button } from '@/components/ui/Button'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('EventStream')
 import type {
   StreamEvent,
   UserMessageEvent,
@@ -128,31 +131,6 @@ interface EventMessageProps {
   event: UserMessageEvent
 }
 
-// Helper function to format timestamp safely
-const formatTimestamp = (timestamp: string): string => {
-  try {
-    // Handle different timestamp formats
-    let date: Date
-    if (timestamp.includes('T') || timestamp.includes('-')) {
-      // ISO format or date string
-      date = new Date(timestamp)
-    } else if (timestamp.includes(':')) {
-      // Time-only format (HH:MM:SS.mmm) - use today's date
-      date = new Date(`1970-01-01T${timestamp}`)
-    } else {
-      date = new Date(timestamp)
-    }
-
-    // Check if date is valid
-    if (isNaN(date.getTime())) {
-      return new Date().toLocaleTimeString()
-    }
-    return date.toLocaleTimeString()
-  } catch {
-    return new Date().toLocaleTimeString()
-  }
-}
-
 const UserMessage: React.FC<EventMessageProps> = ({ event }) => {
   return (
     <div className="flex gap-3 animate-fade-in">
@@ -163,7 +141,7 @@ const UserMessage: React.FC<EventMessageProps> = ({ event }) => {
         <div className="flex items-center gap-2 mb-1">
           <span className="text-sm font-medium text-gray-200">You</span>
           <span className="text-xs text-gray-500">
-            {formatTimestamp(event.timestamp)}
+            {formatDateTime(event.timestamp)}
           </span>
         </div>
         <div className="bg-surface-200 rounded-2xl rounded-tl-none px-4 py-3 inline-block max-w-full">
@@ -193,7 +171,7 @@ const AgentMessage: React.FC<AgentMessageProps> = memo(({ event }) => {
           <div className="flex items-center gap-2 mb-1">
             <span className="text-sm font-medium text-gray-200">Assistant</span>
             <span className="text-xs text-gray-500">
-              {formatTimestamp(event.timestamp)}
+              {formatDateTime(event.timestamp)}
             </span>
           </div>
           <CodeBlock code={code.trim()} language={language || 'text'} />
@@ -211,7 +189,7 @@ const AgentMessage: React.FC<AgentMessageProps> = memo(({ event }) => {
         <div className="flex items-center gap-2 mb-1">
           <span className="text-sm font-medium text-gray-200">Assistant</span>
           <span className="text-xs text-gray-500">
-            {formatTimestamp(event.timestamp)}
+            {formatDateTime(event.timestamp)}
           </span>
         </div>
         <div className="text-gray-300 whitespace-pre-wrap break-words leading-relaxed">
@@ -248,7 +226,7 @@ const FunctionCall: React.FC<FunctionCallProps> = ({ event }) => {
         <div className="flex items-center gap-2 mb-1">
           <span className="text-sm font-medium text-purple-300">Calling: {event.name}</span>
           <span className="text-xs text-gray-500">
-            {formatTimestamp(event.timestamp)}
+            {formatDateTime(event.timestamp)}
           </span>
         </div>
         <div className="bg-surface-200/50 rounded-lg border border-purple-500/20 overflow-hidden">
@@ -305,7 +283,7 @@ const FunctionResponse: React.FC<FunctionResponseProps> = ({ event }) => {
             Response from: {event.name}
           </span>
           <span className="text-xs text-gray-500">
-            {formatTimestamp(event.timestamp)}
+            {formatDateTime(event.timestamp)}
           </span>
         </div>
         <div className="bg-surface-200/50 rounded-lg border border-emerald-500/20 overflow-hidden">
@@ -358,7 +336,7 @@ const Completed: React.FC<CompletedProps> = ({ event }) => {
         <div>
           <p className="text-sm font-medium text-emerald-300">Task completed successfully</p>
           <p className="text-xs text-gray-500 mt-1">
-            {formatTimestamp(event.timestamp)}
+            {formatDateTime(event.timestamp)}
           </p>
         </div>
       </div>
@@ -374,7 +352,7 @@ const Completed: React.FC<CompletedProps> = ({ event }) => {
         <div className="flex items-center gap-2 mb-1">
           <span className="text-sm font-medium text-emerald-300">Task completed</span>
           <span className="text-xs text-gray-500">
-            {formatTimestamp(event.timestamp)}
+            {formatDateTime(event.timestamp)}
           </span>
         </div>
         <div className="bg-emerald-500/10 rounded-lg border border-emerald-500/20 p-4 mt-2">
@@ -418,7 +396,7 @@ const Error: React.FC<ErrorProps> = ({ event }) => {
             </span>
           )}
           <span className="text-xs text-gray-500">
-            {formatTimestamp(event.timestamp)}
+            {formatDateTime(event.timestamp)}
           </span>
         </div>
         <div className="bg-red-500/10 rounded-lg border border-red-500/20 px-4 py-3 mt-2">
@@ -443,7 +421,7 @@ const Cancelled: React.FC<CancelledProps> = ({ event }) => {
         <div className="flex items-center gap-2 mb-1">
           <span className="text-sm font-medium text-yellow-300">Stopped</span>
           <span className="text-xs text-gray-500">
-            {formatTimestamp(event.timestamp)}
+            {formatDateTime(event.timestamp)}
           </span>
         </div>
         <div className="bg-yellow-500/10 rounded-lg border border-yellow-500/20 px-4 py-3 mt-2">
@@ -536,7 +514,7 @@ export const EventStream = forwardRef<EventStreamRef, EventStreamProps>(({ event
         return null
       default:
         // Log unknown events for debugging but don't render them
-        console.log('[EventStream] Skipping unknown event type:', eventWith_type.type)
+        logger.debug('Skipping unknown event type:', eventWith_type.type)
         return null
     }
   }

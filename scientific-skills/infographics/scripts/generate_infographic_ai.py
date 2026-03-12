@@ -23,6 +23,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -41,13 +42,13 @@ def _load_env_file():
         from dotenv import load_dotenv
     except ImportError:
         return False
-
+    
     # Try current working directory first
     env_path = Path.cwd() / ".env"
     if env_path.exists():
         load_dotenv(dotenv_path=env_path, override=False)
         return True
-
+        
     # Try parent directories (up to 5 levels)
     cwd = Path.cwd()
     for _ in range(5):
@@ -58,7 +59,7 @@ def _load_env_file():
         cwd = cwd.parent
         if cwd == cwd.parent:
             break
-
+    
     # Try the package's parent directory
     script_dir = Path(__file__).resolve().parent
     for _ in range(5):
@@ -69,7 +70,7 @@ def _load_env_file():
         script_dir = script_dir.parent
         if script_dir == script_dir.parent:
             break
-
+            
     return False
 
 
@@ -86,7 +87,7 @@ STATISTICAL INFOGRAPHIC REQUIREMENTS:
 - Legend if multiple data series
 - Source attribution area at bottom
 - Clean grid or alignment for data elements
-""",
+"""
     },
     "timeline": {
         "name": "Timeline/Chronological",
@@ -100,7 +101,7 @@ TIMELINE INFOGRAPHIC REQUIREMENTS:
 - Consistent spacing between events
 - Visual progression indicating time direction
 - Start and end points clearly marked
-""",
+"""
     },
     "process": {
         "name": "Process/How-To",
@@ -113,7 +114,7 @@ PROCESS INFOGRAPHIC REQUIREMENTS:
 - Clear start and end indicators
 - Logical flow direction (top-to-bottom or left-to-right)
 - Visual connection between sequential steps
-""",
+"""
     },
     "comparison": {
         "name": "Comparison",
@@ -126,7 +127,7 @@ COMPARISON INFOGRAPHIC REQUIREMENTS:
 - Balanced visual weight on both sides
 - Color differentiation between options
 - Summary or verdict section if applicable
-""",
+"""
     },
     "list": {
         "name": "List/Informational",
@@ -139,7 +140,7 @@ LIST INFOGRAPHIC REQUIREMENTS:
 - Clear hierarchy (title, items, details)
 - Adequate spacing between items
 - Visual variety to prevent monotony
-""",
+"""
     },
     "geographic": {
         "name": "Geographic/Map-Based",
@@ -152,7 +153,7 @@ GEOGRAPHIC INFOGRAPHIC REQUIREMENTS:
 - Region labels where space permits
 - Scale or context indicator
 - Clean cartographic style
-""",
+"""
     },
     "hierarchical": {
         "name": "Hierarchical/Pyramid",
@@ -165,7 +166,7 @@ HIERARCHICAL INFOGRAPHIC REQUIREMENTS:
 - Color gradient or distinct colors per level
 - Clear top-to-bottom or bottom-to-top hierarchy
 - Balanced, centered composition
-""",
+"""
     },
     "anatomical": {
         "name": "Anatomical/Visual Metaphor",
@@ -177,7 +178,7 @@ ANATOMICAL INFOGRAPHIC REQUIREMENTS:
 - Explanatory text for each labeled part
 - Consistent callout style throughout
 - Educational, diagram-like appearance
-""",
+"""
     },
     "resume": {
         "name": "Resume/Professional",
@@ -190,7 +191,7 @@ RESUME INFOGRAPHIC REQUIREMENTS:
 - Achievement or certification badges
 - Clean, professional layout
 - Personal branding colors
-""",
+"""
     },
     "social": {
         "name": "Social Media",
@@ -203,7 +204,7 @@ SOCIAL MEDIA INFOGRAPHIC REQUIREMENTS:
 - Vibrant, eye-catching colors
 - Call-to-action element
 - Brand/logo placement area
-""",
+"""
     },
 }
 
@@ -270,23 +271,23 @@ PALETTE_PRESETS = {
 
 class InfographicGenerator:
     """Generate infographics using AI with smart iterative refinement.
-
+    
     Uses Gemini 3 Pro for quality review to determine if regeneration is needed.
     Multiple passes only occur if the generated infographic doesn't meet the
     quality threshold for the target document type.
     """
-
+    
     # Quality thresholds by document type (score out of 10)
     QUALITY_THRESHOLDS = {
-        "marketing": 8.5,  # Marketing materials - must be compelling
-        "report": 8.0,  # Business reports - professional quality
+        "marketing": 8.5,     # Marketing materials - must be compelling
+        "report": 8.0,        # Business reports - professional quality
         "presentation": 7.5,  # Slides/talks - clear and engaging
-        "social": 7.0,  # Social media - eye-catching
-        "internal": 7.0,  # Internal use - good quality
-        "draft": 6.5,  # Draft/working - acceptable
-        "default": 7.5,  # Default threshold
+        "social": 7.0,        # Social media - eye-catching
+        "internal": 7.0,      # Internal use - good quality
+        "draft": 6.5,         # Draft/working - acceptable
+        "default": 7.5,       # Default threshold
     }
-
+    
     # Base infographic design guidelines
     INFOGRAPHIC_GUIDELINES = """
 Create a high-quality professional infographic with these requirements:
@@ -338,11 +339,11 @@ IMPORTANT - NO META CONTENT:
     def __init__(self, api_key: Optional[str] = None, verbose: bool = False):
         """Initialize the generator."""
         self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
-
+        
         if not self.api_key:
             _load_env_file()
             self.api_key = os.getenv("OPENROUTER_API_KEY")
-
+        
         if not self.api_key:
             raise ValueError(
                 "OPENROUTER_API_KEY not found. Please either:\n"
@@ -351,7 +352,7 @@ IMPORTANT - NO META CONTENT:
                 "  3. Pass api_key parameter to the constructor\n"
                 "Get your API key from: https://openrouter.ai/keys"
             )
-
+        
         self.verbose = verbose
         self._last_error = None
         self.base_url = "https://openrouter.ai/api/v1"
@@ -359,57 +360,45 @@ IMPORTANT - NO META CONTENT:
         self.image_model = "google/gemini-3-pro-image-preview"
         # Gemini 3 Pro for quality review
         self.review_model = "google/gemini-3-pro"
-
+        
     def _log(self, message: str):
         """Log message if verbose mode is enabled."""
         if self.verbose:
             print(f"[{time.strftime('%H:%M:%S')}] {message}")
-
+    
     # ========== RESEARCH METHODS ==========
-
-    def research_topic(
-        self, topic: str, infographic_type: Optional[str] = None
-    ) -> Dict[str, Any]:
+    
+    def research_topic(self, topic: str, infographic_type: Optional[str] = None) -> Dict[str, Any]:
         """
         Research a topic using Perplexity Sonar Pro to gather facts and data.
-
+        
         Args:
             topic: The topic to research
             infographic_type: Type of infographic to tailor the research
-
+            
         Returns:
             Dictionary with research results including facts, statistics, and sources
         """
         self._log(f"Researching topic: {topic}")
-
+        
         # Build research query based on infographic type
         type_context = ""
         if infographic_type:
             if infographic_type == "statistical":
-                type_context = (
-                    "Focus on statistics, numbers, percentages, and quantitative data."
-                )
+                type_context = "Focus on statistics, numbers, percentages, and quantitative data."
             elif infographic_type == "timeline":
-                type_context = (
-                    "Focus on key dates, milestones, and chronological events."
-                )
+                type_context = "Focus on key dates, milestones, and chronological events."
             elif infographic_type == "process":
                 type_context = "Focus on steps, procedures, and sequential information."
             elif infographic_type == "comparison":
-                type_context = (
-                    "Focus on comparing different options, pros/cons, and differences."
-                )
+                type_context = "Focus on comparing different options, pros/cons, and differences."
             elif infographic_type == "list":
-                type_context = (
-                    "Focus on key points, tips, facts, and organized information."
-                )
+                type_context = "Focus on key points, tips, facts, and organized information."
             elif infographic_type == "geographic":
                 type_context = "Focus on regional data, location-based statistics, and geographic distribution."
             elif infographic_type == "hierarchical":
-                type_context = (
-                    "Focus on levels, rankings, and hierarchical relationships."
-                )
-
+                type_context = "Focus on levels, rankings, and hierarchical relationships."
+        
         research_prompt = f"""You are a research assistant gathering information for an infographic.
 
 TOPIC: {topic}
@@ -430,77 +419,77 @@ Include citation hints where possible."""
         messages = [
             {
                 "role": "system",
-                "content": "You are an expert research assistant. Provide accurate, well-sourced information formatted for infographic creation. Always include specific numbers, dates, and statistics.",
+                "content": "You are an expert research assistant. Provide accurate, well-sourced information formatted for infographic creation. Always include specific numbers, dates, and statistics."
             },
-            {"role": "user", "content": research_prompt},
+            {"role": "user", "content": research_prompt}
         ]
-
+        
         try:
             # Use Perplexity Sonar Pro for research
             research_model = "perplexity/sonar-pro"
-
+            
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
                 "HTTP-Referer": "https://github.com/scientific-writer",
-                "X-Title": "Infographic Research",
+                "X-Title": "Infographic Research"
             }
-
+            
             payload = {
                 "model": research_model,
                 "messages": messages,
                 "max_tokens": 2000,
                 "temperature": 0.1,
                 "search_mode": "academic",
-                "search_context_size": "high",
+                "search_context_size": "high"
             }
-
+            
             response = requests.post(
                 f"{self.base_url}/chat/completions",
                 headers=headers,
                 json=payload,
-                timeout=60,
+                timeout=60
             )
-
+            
             if response.status_code != 200:
                 self._log(f"Research request failed: {response.status_code}")
                 return {"success": False, "error": f"API error: {response.status_code}"}
-
+            
             result = response.json()
-
+            
             if "choices" in result and len(result["choices"]) > 0:
                 content = result["choices"][0].get("message", {}).get("content", "")
-
+                
                 # Extract any sources from the response
                 sources = result.get("search_results", [])
-
+                
                 self._log(f"Research complete: {len(content)} chars")
-
+                
                 return {
                     "success": True,
                     "content": content,
                     "sources": sources,
-                    "model": research_model,
+                    "model": research_model
                 }
             else:
                 return {"success": False, "error": "No response from research model"}
-
+                
         except Exception as e:
             self._log(f"Research failed: {str(e)}")
             return {"success": False, "error": str(e)}
-
+    
     def web_search(self, query: str) -> Dict[str, Any]:
         """
         Perform a quick web search for current information.
-
+        
         Args:
             query: Search query
-
+            
         Returns:
             Dictionary with search results
         """
         self._log(f"Web search: {query}")
-
+        
         search_prompt = f"""Search for current information about: {query}
 
 Provide:
@@ -514,71 +503,69 @@ Be concise and factual. Focus on information useful for an infographic."""
         messages = [
             {
                 "role": "system",
-                "content": "You are a web search assistant. Provide accurate, current information with sources.",
+                "content": "You are a web search assistant. Provide accurate, current information with sources."
             },
-            {"role": "user", "content": search_prompt},
+            {"role": "user", "content": search_prompt}
         ]
-
+        
         try:
             # Use Perplexity Sonar for web search
             search_model = "perplexity/sonar-pro"
-
+            
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
                 "HTTP-Referer": "https://github.com/scientific-writer",
-                "X-Title": "Infographic Web Search",
+                "X-Title": "Infographic Web Search"
             }
-
+            
             payload = {
                 "model": search_model,
                 "messages": messages,
                 "max_tokens": 1000,
-                "temperature": 0.1,
+                "temperature": 0.1
             }
-
+            
             response = requests.post(
                 f"{self.base_url}/chat/completions",
                 headers=headers,
                 json=payload,
-                timeout=30,
+                timeout=30
             )
-
+            
             if response.status_code != 200:
                 return {"success": False, "error": f"API error: {response.status_code}"}
-
+            
             result = response.json()
-
+            
             if "choices" in result and len(result["choices"]) > 0:
                 content = result["choices"][0].get("message", {}).get("content", "")
                 return {
                     "success": True,
                     "content": content,
-                    "sources": result.get("search_results", []),
+                    "sources": result.get("search_results", [])
                 }
             else:
                 return {"success": False, "error": "No response from search"}
-
+                
         except Exception as e:
             self._log(f"Web search failed: {str(e)}")
             return {"success": False, "error": str(e)}
-
-    def _enhance_prompt_with_research(
-        self, user_prompt: str, research_data: Dict[str, Any]
-    ) -> str:
+    
+    def _enhance_prompt_with_research(self, user_prompt: str, research_data: Dict[str, Any]) -> str:
         """
         Enhance the user prompt with researched information.
-
+        
         Args:
             user_prompt: Original user prompt
             research_data: Research results dictionary
-
+            
         Returns:
             Enhanced prompt with research data
         """
         if not research_data.get("success") or not research_data.get("content"):
             return user_prompt
-
+        
         enhanced = f"""{user_prompt}
 
 RESEARCHED DATA AND FACTS (use these in the infographic):
@@ -586,58 +573,55 @@ RESEARCHED DATA AND FACTS (use these in the infographic):
 
 Use the above researched facts, statistics, and data points to create an accurate, informative infographic.
 Incorporate specific numbers, percentages, and dates from the research."""
-
+        
         return enhanced
-
+    
     # ========== END RESEARCH METHODS ==========
-
-    def _make_request(
-        self,
-        model: str,
-        messages: List[Dict[str, Any]],
-        modalities: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+    
+    def _make_request(self, model: str, messages: List[Dict[str, Any]], 
+                     modalities: Optional[List[str]] = None) -> Dict[str, Any]:
         """Make a request to OpenRouter API."""
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": "https://github.com/scientific-writer",
-            "X-Title": "Infographic Generator",
+            "X-Title": "Infographic Generator"
         }
-
-        payload = {"model": model, "messages": messages}
-
+        
+        payload = {
+            "model": model,
+            "messages": messages
+        }
+        
         if modalities:
             payload["modalities"] = modalities
-
+        
         self._log(f"Making request to {model}...")
-
+        
         try:
             response = requests.post(
                 f"{self.base_url}/chat/completions",
                 headers=headers,
                 json=payload,
-                timeout=120,
+                timeout=120
             )
-
+            
             try:
                 response_json = response.json()
             except json.JSONDecodeError:
                 response_json = {"raw_text": response.text[:500]}
-
+            
             if response.status_code != 200:
                 error_detail = response_json.get("error", response_json)
                 self._log(f"HTTP {response.status_code}: {error_detail}")
-                raise RuntimeError(
-                    f"API request failed (HTTP {response.status_code}): {error_detail}"
-                )
-
+                raise RuntimeError(f"API request failed (HTTP {response.status_code}): {error_detail}")
+            
             return response_json
         except requests.exceptions.Timeout:
             raise RuntimeError("API request timed out after 120 seconds")
         except requests.exceptions.RequestException as e:
             raise RuntimeError(f"API request failed: {str(e)}")
-
+    
     def _extract_image_from_response(self, response: Dict[str, Any]) -> Optional[bytes]:
         """Extract base64-encoded image from API response."""
         try:
@@ -645,55 +629,39 @@ Incorporate specific numbers, percentages, and dates from the research."""
             if not choices:
                 self._log("No choices in response")
                 return None
-
+            
             message = choices[0].get("message", {})
-
+            
             # Nano Banana Pro returns images in 'images' field
             images = message.get("images", [])
             if images and len(images) > 0:
                 self._log(f"Found {len(images)} image(s) in 'images' field")
-
+                
                 first_image = images[0]
                 if isinstance(first_image, dict):
                     if first_image.get("type") == "image_url":
                         url = first_image.get("image_url", {})
                         if isinstance(url, dict):
                             url = url.get("url", "")
-
+                        
                         if url and url.startswith("data:image"):
                             if "," in url:
                                 base64_str = url.split(",", 1)[1]
-                                base64_str = (
-                                    base64_str.replace("\n", "")
-                                    .replace("\r", "")
-                                    .replace(" ", "")
-                                )
-                                self._log(
-                                    f"Extracted base64 data (length: {len(base64_str)})"
-                                )
+                                base64_str = base64_str.replace('\n', '').replace('\r', '').replace(' ', '')
+                                self._log(f"Extracted base64 data (length: {len(base64_str)})")
                                 return base64.b64decode(base64_str)
-
+            
             # Fallback: check content field
             content = message.get("content", "")
-
+            
             if isinstance(content, str) and "data:image" in content:
                 import re
-
-                match = re.search(
-                    r"data:image/[^;]+;base64,([A-Za-z0-9+/=\n\r]+)", content, re.DOTALL
-                )
+                match = re.search(r'data:image/[^;]+;base64,([A-Za-z0-9+/=\n\r]+)', content, re.DOTALL)
                 if match:
-                    base64_str = (
-                        match.group(1)
-                        .replace("\n", "")
-                        .replace("\r", "")
-                        .replace(" ", "")
-                    )
-                    self._log(
-                        f"Found image in content field (length: {len(base64_str)})"
-                    )
+                    base64_str = match.group(1).replace('\n', '').replace('\r', '').replace(' ', '')
+                    self._log(f"Found image in content field (length: {len(base64_str)})")
                     return base64.b64decode(base64_str)
-
+            
             if isinstance(content, list):
                 for i, block in enumerate(content):
                     if isinstance(block, dict) and block.get("type") == "image_url":
@@ -701,98 +669,95 @@ Incorporate specific numbers, percentages, and dates from the research."""
                         if isinstance(url, dict):
                             url = url.get("url", "")
                         if url and url.startswith("data:image") and "," in url:
-                            base64_str = (
-                                url.split(",", 1)[1]
-                                .replace("\n", "")
-                                .replace("\r", "")
-                                .replace(" ", "")
-                            )
+                            base64_str = url.split(",", 1)[1].replace('\n', '').replace('\r', '').replace(' ', '')
                             self._log(f"Found image in content block {i}")
                             return base64.b64decode(base64_str)
-
+            
             self._log("No image data found in response")
             return None
-
+            
         except Exception as e:
             self._log(f"Error extracting image: {str(e)}")
             return None
-
+    
     def _image_to_base64(self, image_path: str) -> str:
         """Convert image file to base64 data URL."""
         with open(image_path, "rb") as f:
             image_data = f.read()
-
+        
         ext = Path(image_path).suffix.lower()
         mime_type = {
             ".png": "image/png",
             ".jpg": "image/jpeg",
             ".jpeg": "image/jpeg",
             ".gif": "image/gif",
-            ".webp": "image/webp",
+            ".webp": "image/webp"
         }.get(ext, "image/png")
-
+        
         base64_data = base64.b64encode(image_data).decode("utf-8")
         return f"data:{mime_type};base64,{base64_data}"
-
-    def _build_generation_prompt(
-        self,
-        user_prompt: str,
-        infographic_type: Optional[str] = None,
-        style: Optional[str] = None,
-        palette: Optional[str] = None,
-        background: str = "white",
-    ) -> str:
+    
+    def _build_generation_prompt(self, user_prompt: str, 
+                                  infographic_type: Optional[str] = None,
+                                  style: Optional[str] = None,
+                                  palette: Optional[str] = None,
+                                  background: str = "white") -> str:
         """Build the full generation prompt with all enhancements."""
         parts = [self.INFOGRAPHIC_GUIDELINES]
-
+        
         # Add type-specific guidelines
         if infographic_type and infographic_type in INFOGRAPHIC_TYPES:
             type_config = INFOGRAPHIC_TYPES[infographic_type]
             parts.append(f"\nINFOGRAPHIC TYPE: {type_config['name']}")
-            parts.append(type_config["guidelines"])
-
+            parts.append(type_config['guidelines'])
+        
         # Add style preset
         if style and style in STYLE_PRESETS:
             style_config = STYLE_PRESETS[style]
             parts.append(f"\nSTYLE: {style_config['name']}")
             parts.append(f"Colors: {style_config['colors']}")
             parts.append(f"Design: {style_config['description']}")
-
+        
         # Add colorblind-safe palette
         if palette and palette in PALETTE_PRESETS:
             palette_config = PALETTE_PRESETS[palette]
             parts.append(f"\nCOLORBLIND-SAFE PALETTE: {palette_config['name']}")
             parts.append(f"Use these colors: {palette_config['colors']}")
-
+        
         # Add user request
         parts.append(f"\nUSER REQUEST: {user_prompt}")
-
+        
         # Add background
         parts.append(f"\nBackground: {background} background")
-
+        
         # Final instruction
-        parts.append(
-            "\nGenerate a professional, publication-quality infographic that meets all the guidelines above."
-        )
-
+        parts.append("\nGenerate a professional, publication-quality infographic that meets all the guidelines above.")
+        
         return "\n".join(parts)
-
+    
     def generate_image(self, prompt: str) -> Optional[bytes]:
         """Generate an image using Nano Banana Pro."""
         self._last_error = None
-
-        messages = [{"role": "user", "content": prompt}]
-
+        
+        messages = [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+        
         try:
             response = self._make_request(
-                model=self.image_model, messages=messages, modalities=["image", "text"]
+                model=self.image_model,
+                messages=messages,
+                modalities=["image", "text"]
             )
-
+            
             if self.verbose:
                 self._log(f"Response keys: {response.keys()}")
                 if "error" in response:
                     self._log(f"API Error: {response['error']}")
-
+            
             if "error" in response:
                 error_msg = response["error"]
                 if isinstance(error_msg, dict):
@@ -800,14 +765,14 @@ Incorporate specific numbers, percentages, and dates from the research."""
                 self._last_error = f"API Error: {error_msg}"
                 print(f"✗ {self._last_error}")
                 return None
-
+            
             image_data = self._extract_image_from_response(response)
             if image_data:
                 self._log(f"✓ Generated image ({len(image_data)} bytes)")
             else:
                 self._last_error = "No image data in API response"
                 self._log(f"✗ {self._last_error}")
-
+            
             return image_data
         except RuntimeError as e:
             self._last_error = str(e)
@@ -817,32 +782,26 @@ Incorporate specific numbers, percentages, and dates from the research."""
             self._last_error = f"Unexpected error: {str(e)}"
             self._log(f"✗ Generation failed: {self._last_error}")
             return None
-
-    def review_image(
-        self,
-        image_path: str,
-        original_prompt: str,
-        infographic_type: Optional[str],
-        iteration: int,
-        doc_type: str = "default",
-        max_iterations: int = 3,
-    ) -> Tuple[str, float, bool]:
+    
+    def review_image(self, image_path: str, original_prompt: str,
+                    infographic_type: Optional[str],
+                    iteration: int, doc_type: str = "default",
+                    max_iterations: int = 3) -> Tuple[str, float, bool]:
         """
         Review generated infographic using Gemini 3 Pro for quality analysis.
-
+        
         Evaluates the infographic on multiple criteria specific to good
         infographic design and determines if regeneration is needed.
         """
         image_data_url = self._image_to_base64(image_path)
-
-        threshold = self.QUALITY_THRESHOLDS.get(
-            doc_type.lower(), self.QUALITY_THRESHOLDS["default"]
-        )
-
+        
+        threshold = self.QUALITY_THRESHOLDS.get(doc_type.lower(), 
+                                                 self.QUALITY_THRESHOLDS["default"])
+        
         type_name = "general"
         if infographic_type and infographic_type in INFOGRAPHIC_TYPES:
             type_name = INFOGRAPHIC_TYPES[infographic_type]["name"]
-
+        
         review_prompt = f"""You are an expert infographic designer reviewing a generated infographic for quality.
 
 ORIGINAL REQUEST: {original_prompt}
@@ -907,109 +866,106 @@ If score < {threshold}, mark as NEEDS_IMPROVEMENT with specific suggestions."""
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": review_prompt},
-                    {"type": "image_url", "image_url": {"url": image_data_url}},
-                ],
+                    {
+                        "type": "text",
+                        "text": review_prompt
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": image_data_url
+                        }
+                    }
+                ]
             }
         ]
-
+        
         try:
-            response = self._make_request(model=self.review_model, messages=messages)
-
+            response = self._make_request(
+                model=self.review_model,
+                messages=messages
+            )
+            
             choices = response.get("choices", [])
             if not choices:
                 return "Image generated successfully", 7.5, False
-
+            
             message = choices[0].get("message", {})
             content = message.get("content", "")
-
+            
             reasoning = message.get("reasoning", "")
             if reasoning and not content:
                 content = reasoning
-
+            
             if isinstance(content, list):
                 text_parts = []
                 for block in content:
                     if isinstance(block, dict) and block.get("type") == "text":
                         text_parts.append(block.get("text", ""))
                 content = "\n".join(text_parts)
-
+            
             # Extract score
             score = 7.5
             import re
-
-            score_match = re.search(r"SCORE:\s*(\d+(?:\.\d+)?)", content, re.IGNORECASE)
+            
+            score_match = re.search(r'SCORE:\s*(\d+(?:\.\d+)?)', content, re.IGNORECASE)
             if score_match:
                 score = float(score_match.group(1))
             else:
-                score_match = re.search(
-                    r"(?:score|rating|quality)[:\s]+(\d+(?:\.\d+)?)\s*(?:/\s*10)?",
-                    content,
-                    re.IGNORECASE,
-                )
+                score_match = re.search(r'(?:score|rating|quality)[:\s]+(\d+(?:\.\d+)?)\s*(?:/\s*10)?', content, re.IGNORECASE)
                 if score_match:
                     score = float(score_match.group(1))
-
+            
             # Determine if improvement is needed
             needs_improvement = False
             if "NEEDS_IMPROVEMENT" in content.upper():
                 needs_improvement = True
             elif score < threshold:
                 needs_improvement = True
-
-            self._log(
-                f"✓ Review complete (Score: {score}/10, Threshold: {threshold}/10)"
-            )
-            self._log(
-                f"  Verdict: {'Needs improvement' if needs_improvement else 'Acceptable'}"
-            )
-
-            return (
-                content if content else "Image generated successfully",
-                score,
-                needs_improvement,
-            )
+            
+            self._log(f"✓ Review complete (Score: {score}/10, Threshold: {threshold}/10)")
+            self._log(f"  Verdict: {'Needs improvement' if needs_improvement else 'Acceptable'}")
+            
+            return (content if content else "Image generated successfully", 
+                    score, 
+                    needs_improvement)
         except Exception as e:
             self._log(f"Review skipped: {str(e)}")
             return "Image generated successfully (review skipped)", 7.5, False
-
-    def improve_prompt(
-        self,
-        original_prompt: str,
-        critique: str,
-        infographic_type: Optional[str],
-        style: Optional[str],
-        palette: Optional[str],
-        background: str,
-        iteration: int,
-    ) -> str:
+    
+    def improve_prompt(self, original_prompt: str, critique: str, 
+                      infographic_type: Optional[str],
+                      style: Optional[str],
+                      palette: Optional[str],
+                      background: str,
+                      iteration: int) -> str:
         """Improve the generation prompt based on critique."""
-
+        
         parts = [self.INFOGRAPHIC_GUIDELINES]
-
+        
         # Add type-specific guidelines
         if infographic_type and infographic_type in INFOGRAPHIC_TYPES:
             type_config = INFOGRAPHIC_TYPES[infographic_type]
             parts.append(f"\nINFOGRAPHIC TYPE: {type_config['name']}")
-            parts.append(type_config["guidelines"])
-
+            parts.append(type_config['guidelines'])
+        
         # Add style preset
         if style and style in STYLE_PRESETS:
             style_config = STYLE_PRESETS[style]
             parts.append(f"\nSTYLE: {style_config['name']}")
             parts.append(f"Colors: {style_config['colors']}")
             parts.append(f"Design: {style_config['description']}")
-
+        
         # Add palette
         if palette and palette in PALETTE_PRESETS:
             palette_config = PALETTE_PRESETS[palette]
             parts.append(f"\nCOLORBLIND-SAFE PALETTE: {palette_config['name']}")
             parts.append(f"Use these colors: {palette_config['colors']}")
-
+        
         # Add original request
         parts.append(f"\nUSER REQUEST: {original_prompt}")
         parts.append(f"\nBackground: {background} background")
-
+        
         # Add improvement instructions
         parts.append(f"""
 ITERATION {iteration}: Based on previous review, address these specific improvements:
@@ -1021,26 +977,22 @@ Generate an improved version that:
 3. Ensures professional, publication-ready quality
 4. Has no visual bugs, overlapping elements, or readability issues
 """)
-
+        
         return "\n".join(parts)
-
-    def generate_iterative(
-        self,
-        user_prompt: str,
-        output_path: str,
-        infographic_type: Optional[str] = None,
-        style: Optional[str] = None,
-        palette: Optional[str] = None,
-        background: str = "white",
-        iterations: int = 3,
-        doc_type: str = "default",
-        research: bool = False,
-    ) -> Dict[str, Any]:
+    
+    def generate_iterative(self, user_prompt: str, output_path: str,
+                          infographic_type: Optional[str] = None,
+                          style: Optional[str] = None,
+                          palette: Optional[str] = None,
+                          background: str = "white",
+                          iterations: int = 3,
+                          doc_type: str = "default",
+                          research: bool = False) -> Dict[str, Any]:
         """
         Generate infographic with smart iterative refinement.
-
+        
         Only regenerates if the quality score is below the threshold.
-
+        
         Args:
             user_prompt: Description of the infographic content
             output_path: Path to save final image
@@ -1055,17 +1007,16 @@ Generate an improved version that:
         output_path = Path(output_path)
         output_dir = output_path.parent
         output_dir.mkdir(parents=True, exist_ok=True)
-
+        
         base_name = output_path.stem
         extension = output_path.suffix or ".png"
-
-        threshold = self.QUALITY_THRESHOLDS.get(
-            doc_type.lower(), self.QUALITY_THRESHOLDS["default"]
-        )
-
+        
+        threshold = self.QUALITY_THRESHOLDS.get(doc_type.lower(), 
+                                                 self.QUALITY_THRESHOLDS["default"])
+        
         type_name = infographic_type if infographic_type else "general"
         style_name = style if style else "default"
-
+        
         results = {
             "user_prompt": user_prompt,
             "infographic_type": infographic_type,
@@ -1080,11 +1031,11 @@ Generate an improved version that:
             "final_score": 0.0,
             "success": False,
             "early_stop": False,
-            "early_stop_reason": None,
+            "early_stop_reason": None
         }
-
+        
         print(f"\n{'='*60}")
-        print("Generating Infographic with Nano Banana Pro")
+        print(f"Generating Infographic with Nano Banana Pro")
         print(f"{'='*60}")
         print(f"Content: {user_prompt}")
         print(f"Type: {type_name}")
@@ -1094,70 +1045,68 @@ Generate an improved version that:
         print(f"Max Iterations: {iterations}")
         print(f"Output: {output_path}")
         print(f"{'='*60}\n")
-
+        
         # ===== RESEARCH PHASE =====
         enhanced_prompt = user_prompt
         if research:
-            print("\n[Research Phase]")
+            print(f"\n[Research Phase]")
             print("-" * 40)
-            print("Researching topic for accurate data...")
-
+            print(f"Researching topic for accurate data...")
+            
             research_result = self.research_topic(user_prompt, infographic_type)
-
+            
             if research_result.get("success"):
-                print("✓ Research complete - gathered facts and statistics")
+                print(f"✓ Research complete - gathered facts and statistics")
                 results["research_data"] = research_result
-
+                
                 # Enhance the prompt with researched data
-                enhanced_prompt = self._enhance_prompt_with_research(
-                    user_prompt, research_result
-                )
-
+                enhanced_prompt = self._enhance_prompt_with_research(user_prompt, research_result)
+                
                 # Save research data to file
                 research_path = output_dir / f"{base_name}_research.json"
                 with open(research_path, "w") as f:
                     json.dump(research_result, f, indent=2)
                 print(f"✓ Research saved: {research_path}")
             else:
-                print(
-                    f"⚠ Research failed: {research_result.get('error', 'Unknown error')}"
-                )
-                print("  Proceeding with original prompt...")
-
+                print(f"⚠ Research failed: {research_result.get('error', 'Unknown error')}")
+                print(f"  Proceeding with original prompt...")
+        
         # Build initial prompt (using enhanced prompt if research was done)
         current_prompt = self._build_generation_prompt(
             enhanced_prompt, infographic_type, style, palette, background
         )
-
+        
         for i in range(1, iterations + 1):
             print(f"\n[Iteration {i}/{iterations}]")
             print("-" * 40)
-
+            
             # Generate image
-            print("Generating infographic with Nano Banana Pro...")
+            print(f"Generating infographic with Nano Banana Pro...")
             image_data = self.generate_image(current_prompt)
-
+            
             if not image_data:
-                error_msg = getattr(self, "_last_error", "Generation failed")
+                error_msg = getattr(self, '_last_error', 'Generation failed')
                 print(f"✗ Generation failed: {error_msg}")
-                results["iterations"].append(
-                    {"iteration": i, "success": False, "error": error_msg}
-                )
+                results["iterations"].append({
+                    "iteration": i,
+                    "success": False,
+                    "error": error_msg
+                })
                 continue
-
+            
             # Save iteration image
             iter_path = output_dir / f"{base_name}_v{i}{extension}"
             with open(iter_path, "wb") as f:
                 f.write(image_data)
             print(f"✓ Saved: {iter_path}")
-
+            
             # Review image using Gemini 3 Pro
-            print("Reviewing with Gemini 3 Pro...")
+            print(f"Reviewing with Gemini 3 Pro...")
             critique, score, needs_improvement = self.review_image(
                 str(iter_path), user_prompt, infographic_type, i, doc_type, iterations
             )
             print(f"✓ Score: {score}/10 (threshold: {threshold}/10)")
-
+            
             # Save iteration results
             iteration_result = {
                 "iteration": i,
@@ -1166,69 +1115,58 @@ Generate an improved version that:
                 "critique": critique,
                 "score": score,
                 "needs_improvement": needs_improvement,
-                "success": True,
+                "success": True
             }
             results["iterations"].append(iteration_result)
-
+            
             # Check if quality is acceptable
             if not needs_improvement:
                 print(f"\n✓ Quality meets threshold ({score} >= {threshold})")
-                print("  No further iterations needed!")
+                print(f"  No further iterations needed!")
                 results["final_image"] = str(iter_path)
                 results["final_score"] = score
                 results["success"] = True
                 results["early_stop"] = True
-                results["early_stop_reason"] = (
-                    f"Quality score {score} meets threshold {threshold}"
-                )
+                results["early_stop_reason"] = f"Quality score {score} meets threshold {threshold}"
                 break
-
+            
             # If this is the last iteration, we're done
             if i == iterations:
-                print("\n⚠ Maximum iterations reached")
+                print(f"\n⚠ Maximum iterations reached")
                 results["final_image"] = str(iter_path)
                 results["final_score"] = score
                 results["success"] = True
                 break
-
+            
             # Quality below threshold - improve prompt
             print(f"\n⚠ Quality below threshold ({score} < {threshold})")
-            print("Improving prompt based on feedback...")
+            print(f"Improving prompt based on feedback...")
             current_prompt = self.improve_prompt(
-                user_prompt,
-                critique,
-                infographic_type,
-                style,
-                palette,
-                background,
-                i + 1,
+                user_prompt, critique, infographic_type, style, palette, background, i + 1
             )
-
+        
         # Copy final version to output path
         if results["success"] and results["final_image"]:
             final_iter_path = Path(results["final_image"])
             if final_iter_path != output_path:
                 import shutil
-
                 shutil.copy(final_iter_path, output_path)
                 print(f"\n✓ Final image: {output_path}")
-
+        
         # Save review log
         log_path = output_dir / f"{base_name}_review_log.json"
         with open(log_path, "w") as f:
             json.dump(results, f, indent=2)
         print(f"✓ Review log: {log_path}")
-
+        
         print(f"\n{'='*60}")
-        print("Generation Complete!")
+        print(f"Generation Complete!")
         print(f"Final Score: {results['final_score']}/10")
         if results["early_stop"]:
-            iterations_used = len(
-                [r for r in results["iterations"] if r.get("success")]
-            )
+            iterations_used = len([r for r in results['iterations'] if r.get('success')])
             print(f"Iterations Used: {iterations_used}/{iterations} (early stop)")
         print(f"{'='*60}\n")
-
+        
         return results
 
 
@@ -1283,70 +1221,34 @@ Document Types (quality thresholds):
 
 Environment:
   OPENROUTER_API_KEY    OpenRouter API key (required)
-        """,
+        """
     )
-
+    
     parser.add_argument("prompt", help="Description of the infographic content")
-    parser.add_argument(
-        "-o",
-        "--output",
-        required=True,
-        help="Output image path (e.g., infographic.png)",
-    )
-    parser.add_argument(
-        "--type",
-        "-t",
-        choices=list(INFOGRAPHIC_TYPES.keys()),
-        help="Infographic type preset",
-    )
-    parser.add_argument(
-        "--style",
-        "-s",
-        choices=list(STYLE_PRESETS.keys()),
-        help="Industry style preset",
-    )
-    parser.add_argument(
-        "--palette",
-        "-p",
-        choices=list(PALETTE_PRESETS.keys()),
-        help="Colorblind-safe palette",
-    )
-    parser.add_argument(
-        "--background", "-b", default="white", help="Background color (default: white)"
-    )
-    parser.add_argument(
-        "--iterations",
-        type=int,
-        default=3,
-        help="Maximum refinement iterations (default: 3)",
-    )
-    parser.add_argument(
-        "--doc-type",
-        default="default",
-        choices=[
-            "marketing",
-            "report",
-            "presentation",
-            "social",
-            "internal",
-            "draft",
-            "default",
-        ],
-        help="Document type for quality threshold (default: default)",
-    )
-    parser.add_argument(
-        "--api-key", help="OpenRouter API key (or set OPENROUTER_API_KEY)"
-    )
-    parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
-    parser.add_argument(
-        "--research",
-        "-r",
-        action="store_true",
-        help="Research the topic first using Perplexity Sonar for accurate data",
-    )
-
+    parser.add_argument("-o", "--output", required=True, 
+                       help="Output image path (e.g., infographic.png)")
+    parser.add_argument("--type", "-t", choices=list(INFOGRAPHIC_TYPES.keys()),
+                       help="Infographic type preset")
+    parser.add_argument("--style", "-s", choices=list(STYLE_PRESETS.keys()),
+                       help="Industry style preset")
+    parser.add_argument("--palette", "-p", choices=list(PALETTE_PRESETS.keys()),
+                       help="Colorblind-safe palette")
+    parser.add_argument("--background", "-b", default="white",
+                       help="Background color (default: white)")
+    parser.add_argument("--iterations", type=int, default=3,
+                       help="Maximum refinement iterations (default: 3)")
+    parser.add_argument("--doc-type", default="default",
+                       choices=["marketing", "report", "presentation", "social", 
+                               "internal", "draft", "default"],
+                       help="Document type for quality threshold (default: default)")
+    parser.add_argument("--api-key", help="OpenRouter API key (or set OPENROUTER_API_KEY)")
+    parser.add_argument("-v", "--verbose", action="store_true",
+                       help="Verbose output")
+    parser.add_argument("--research", "-r", action="store_true",
+                       help="Research the topic first using Perplexity Sonar for accurate data")
+    
     args = parser.parse_args()
-
+    
     # Check for API key
     api_key = args.api_key or os.getenv("OPENROUTER_API_KEY")
     if not api_key:
@@ -1355,7 +1257,7 @@ Environment:
         print("  export OPENROUTER_API_KEY='your_api_key'")
         print("\nOr provide via --api-key flag")
         sys.exit(1)
-
+    
     try:
         generator = InfographicGenerator(api_key=api_key, verbose=args.verbose)
         results = generator.generate_iterative(
@@ -1367,21 +1269,17 @@ Environment:
             background=args.background,
             iterations=args.iterations,
             doc_type=args.doc_type,
-            research=args.research,
+            research=args.research
         )
-
+        
         if results["success"]:
             print(f"\n✓ Success! Infographic saved to: {args.output}")
             if results.get("early_stop"):
-                iterations_used = len(
-                    [r for r in results["iterations"] if r.get("success")]
-                )
-                print(
-                    f"  (Completed in {iterations_used} iteration(s) - quality threshold met)"
-                )
+                iterations_used = len([r for r in results['iterations'] if r.get('success')])
+                print(f"  (Completed in {iterations_used} iteration(s) - quality threshold met)")
             sys.exit(0)
         else:
-            print("\n✗ Generation failed. Check review log for details.")
+            print(f"\n✗ Generation failed. Check review log for details.")
             sys.exit(1)
     except Exception as e:
         print(f"\n✗ Error: {str(e)}")
