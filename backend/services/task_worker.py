@@ -113,7 +113,9 @@ class TaskWorker:
             )
         except Exception as e:
             logger.error(f"Error processing task {task_id}: {e}")
-            await self._task_queue.update_status(task_id, TaskStatus.FAILED, error=str(e))
+            await self._task_queue.update_status(
+                task_id, TaskStatus.FAILED, error=str(e)
+            )
         finally:
             del self._active_tasks[task_id]
 
@@ -165,7 +167,9 @@ class TaskWorker:
             try:
                 from backend.db.models.session import Session
 
-                result = await db.execute(select(Session).where(Session.id == task.session_id))
+                result = await db.execute(
+                    select(Session).where(Session.id == task.session_id)
+                )
                 session = result.scalar_one_or_none()
 
                 if not session:
@@ -183,13 +187,17 @@ class TaskWorker:
                 # Set session title if this is the first message
                 if not session.title:
                     # Truncate title to 100 chars
-                    title = task.message[:100] + ("..." if len(task.message) > 100 else "")
+                    title = task.message[:100] + (
+                        "..." if len(task.message) > 100 else ""
+                    )
                     session.title = title
                     await db.commit()
                     logger.info(f"Set session {task.session_id} title: {title}")
 
             except Exception as e:
-                await self._task_queue.update_status(task_id, TaskStatus.FAILED, error=str(e))
+                await self._task_queue.update_status(
+                    task_id, TaskStatus.FAILED, error=str(e)
+                )
                 error_event = {
                     "type": "error",
                     "message": str(e),
@@ -298,7 +306,9 @@ class TaskWorker:
                             ]
                         ):
                             should_filter = True
-                            logger.debug(f"Filtered initialization message: {content[:50]}...")
+                            logger.debug(
+                                f"Filtered initialization message: {content[:50]}..."
+                            )
 
                 if should_filter:
                     continue
@@ -318,7 +328,9 @@ class TaskWorker:
                             await save_response()
 
                 # Publish event to Redis
-                logger.debug(f"Publishing event to Redis: type={event.get('type', 'unknown')}")
+                logger.debug(
+                    f"Publishing event to Redis: type={event.get('type', 'unknown')}"
+                )
                 await self._task_queue.publish_event(task_id, event)
 
                 # Save event to database for history reconstruction
@@ -347,7 +359,9 @@ class TaskWorker:
             await save_response()
 
             # Update status to failed
-            await self._task_queue.update_status(task_id, TaskStatus.FAILED, error=str(e))
+            await self._task_queue.update_status(
+                task_id, TaskStatus.FAILED, error=str(e)
+            )
 
             # Publish error event
             error_event = {

@@ -21,7 +21,9 @@ def upgrade() -> None:
     # Update existing mode values to new ones
     # normal -> data-question
     # research -> scientific-experiment
-    op.execute("UPDATE sessions SET current_mode = 'data-question' WHERE current_mode = 'normal'")
+    op.execute(
+        "UPDATE sessions SET current_mode = 'data-question' WHERE current_mode = 'normal'"
+    )
     op.execute(
         "UPDATE sessions SET current_mode = 'scientific-experiment' WHERE current_mode = 'research'"
     )
@@ -32,7 +34,9 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # Revert mode values to old ones
-    op.execute("UPDATE sessions SET current_mode = 'normal' WHERE current_mode = 'data-question'")
+    op.execute(
+        "UPDATE sessions SET current_mode = 'normal' WHERE current_mode = 'data-question'"
+    )
     op.execute(
         "UPDATE sessions SET current_mode = 'research' WHERE current_mode = 'scientific-experiment'"
     )

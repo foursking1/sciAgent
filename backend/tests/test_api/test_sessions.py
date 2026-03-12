@@ -32,5 +32,7 @@ class TestSessionsAPI:
 
     async def test_get_session_events_unauthenticated(self, api_client: AsyncClient):
         """Test getting session events without auth"""
-        response = await api_client.get("/api/sessions/fake-id/events?task_id=fake-task")
+        response = await api_client.get(
+            "/api/sessions/fake-id/events?task_id=fake-task"
+        )
         assert response.status_code in [401, 404]

@@ -112,7 +112,9 @@ async def list_public_sessions(
     Returns sessions with preview image and PDF paths.
     """
     result = await db.execute(
-        select(Session).where(Session.is_public.is_(True)).order_by(Session.created_at.desc())
+        select(Session)
+        .where(Session.is_public.is_(True))
+        .order_by(Session.created_at.desc())
     )
     sessions = result.scalars().all()
 
@@ -451,9 +453,11 @@ async def get_session_events(
                         {
                             "type": "user_message",
                             "content": msg.content,
-                            "timestamp": msg.created_at.isoformat()
-                            if msg.created_at
-                            else datetime.now().isoformat(),
+                            "timestamp": (
+                                msg.created_at.isoformat()
+                                if msg.created_at
+                                else datetime.now().isoformat()
+                            ),
                         }
                     )
                 else:
@@ -461,9 +465,11 @@ async def get_session_events(
                         {
                             "type": "message",
                             "content": msg.content,
-                            "timestamp": msg.created_at.isoformat()
-                            if msg.created_at
-                            else datetime.now().isoformat(),
+                            "timestamp": (
+                                msg.created_at.isoformat()
+                                if msg.created_at
+                                else datetime.now().isoformat()
+                            ),
                             "is_stopped": msg.is_stopped,
                         }
                     )
@@ -488,9 +494,11 @@ async def get_session_events(
                     {
                         "type": "user_message",
                         "content": msg.content,
-                        "timestamp": msg.created_at.isoformat()
-                        if msg.created_at
-                        else datetime.now().isoformat(),
+                        "timestamp": (
+                            msg.created_at.isoformat()
+                            if msg.created_at
+                            else datetime.now().isoformat()
+                        ),
                     }
                 )
             else:
@@ -498,14 +506,18 @@ async def get_session_events(
                     {
                         "type": "message",
                         "content": msg.content,
-                        "timestamp": msg.created_at.isoformat()
-                        if msg.created_at
-                        else datetime.now().isoformat(),
+                        "timestamp": (
+                            msg.created_at.isoformat()
+                            if msg.created_at
+                            else datetime.now().isoformat()
+                        ),
                         "is_stopped": msg.is_stopped,
                     }
                 )
 
-        logger.info(f"Returning {len(event_dicts)} message-based events for session {session_id}")
+        logger.info(
+            f"Returning {len(event_dicts)} message-based events for session {session_id}"
+        )
         return {
             "events": event_dicts,
             "total": len(event_dicts),
@@ -755,7 +767,9 @@ async def toggle_session_public(
     """
     # Query session directly from database
     result = await db.execute(
-        select(Session).where(Session.id == session_id, Session.user_id == current_user.id)
+        select(Session).where(
+            Session.id == session_id, Session.user_id == current_user.id
+        )
     )
     session = result.scalar_one_or_none()
 
@@ -773,6 +787,8 @@ async def toggle_session_public(
     # Update cache to reflect the new is_public status
     if session_id in session_manager._active_sessions:
         session_manager._active_sessions[session_id]["session"] = session
-        logger.info(f"Updated cache for session {session_id}, is_public={session.is_public}")
+        logger.info(
+            f"Updated cache for session {session_id}, is_public={session.is_public}"
+        )
 
     return session

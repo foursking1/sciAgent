@@ -8,7 +8,9 @@ from typing import Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 # Session mode types
-SessionMode = Literal["data-question", "scientific-experiment", "data-extraction", "paper-writing"]
+SessionMode = Literal[
+    "data-question", "scientific-experiment", "data-extraction", "paper-writing"
+]
 
 
 class SessionCreate(BaseModel):

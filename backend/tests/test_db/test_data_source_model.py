@@ -13,7 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 class TestDataSourceModel:
     """Tests for DataSource model"""
 
-    async def test_create_database_data_source(self, async_session: AsyncSession, test_user: User):
+    async def test_create_database_data_source(
+        self, async_session: AsyncSession, test_user: User
+    ):
         """测试创建数据库类型数据源"""
         ds = DataSource(
             user_id=test_user.id,
@@ -53,7 +55,9 @@ class TestDataSourceModel:
         assert ds.type == "vector_store"
         assert ds.config["collection"] == "documents"
 
-    async def test_create_skill_data_source(self, async_session: AsyncSession, test_user: User):
+    async def test_create_skill_data_source(
+        self, async_session: AsyncSession, test_user: User
+    ):
         """测试创建Skill类型数据源"""
         ds = DataSource(
             user_id=test_user.id,
@@ -120,7 +124,9 @@ class TestDataSourceModel:
         self, async_session: AsyncSession, test_user: User
     ):
         """测试数据源默认是激活状态"""
-        ds = DataSource(user_id=test_user.id, name="Active Test", type="database", config={})
+        ds = DataSource(
+            user_id=test_user.id, name="Active Test", type="database", config={}
+        )
         async_session.add(ds)
         await async_session.commit()
         await async_session.refresh(ds)
@@ -148,7 +154,9 @@ class TestDataSourceModel:
         self, async_session: AsyncSession, test_user: User
     ):
         """测试数据源创建时间戳"""
-        ds = DataSource(user_id=test_user.id, name="Timestamp Test", type="database", config={})
+        ds = DataSource(
+            user_id=test_user.id, name="Timestamp Test", type="database", config={}
+        )
         async_session.add(ds)
         await async_session.commit()
         await async_session.refresh(ds)

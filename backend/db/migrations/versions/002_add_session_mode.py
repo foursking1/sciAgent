@@ -22,7 +22,9 @@ def upgrade() -> None:
     # Add current_mode column to sessions table
     op.add_column(
         "sessions",
-        sa.Column("current_mode", sa.String(50), nullable=False, server_default="normal"),
+        sa.Column(
+            "current_mode", sa.String(50), nullable=False, server_default="normal"
+        ),
     )
 
 

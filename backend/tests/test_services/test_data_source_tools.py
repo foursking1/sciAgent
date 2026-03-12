@@ -84,10 +84,14 @@ class TestDataSourceTools:
         test_data_sources: list[DataSource],
     ):
         """测试获取所有用户数据源（包括非活跃）"""
-        sources = await get_user_data_sources(async_session, test_user.id, active_only=False)
+        sources = await get_user_data_sources(
+            async_session, test_user.id, active_only=False
+        )
         assert len(sources) == 3
 
-    async def test_get_database_schema_tool_description(self, test_data_sources: list[DataSource]):
+    async def test_get_database_schema_tool_description(
+        self, test_data_sources: list[DataSource]
+    ):
         """测试数据库工具描述生成"""
         db_source = test_data_sources[0]
         description = get_database_schema_tool_description(db_source)
@@ -96,7 +100,9 @@ class TestDataSourceTools:
         assert "localhost" in description
         assert "test" in description  # database name
 
-    async def test_get_vector_store_tool_description(self, test_data_sources: list[DataSource]):
+    async def test_get_vector_store_tool_description(
+        self, test_data_sources: list[DataSource]
+    ):
         """测试向量库工具描述生成"""
         vs_source = test_data_sources[1]
         description = get_vector_store_tool_description(vs_source)
@@ -104,7 +110,9 @@ class TestDataSourceTools:
         assert "Test Vector Store" in description
         assert "docs" in description
 
-    async def test_get_skill_tool_description(self, test_data_sources: list[DataSource]):
+    async def test_get_skill_tool_description(
+        self, test_data_sources: list[DataSource]
+    ):
         """测试Skill工具描述生成"""
         skill_source = test_data_sources[2]
         description = get_skill_tool_description(skill_source)
