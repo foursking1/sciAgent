@@ -225,7 +225,7 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
                 eventSource.close()
                 eventSourcesRef.current.delete(sessionId)
                 // Add the completed event and update state in one operation
-                const updatedState = {
+                const updatedState: SessionState = {
                   ...currentState,
                   events: [...currentState.events, data],
                   isConnected: false,
@@ -363,7 +363,7 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
                 eventSource.close()
                 eventSourcesRef.current.delete(sessionId)
                 // Add the completed event and update state in one operation
-                const updatedState = {
+                const updatedState: SessionState = {
                   ...currentState,
                   events: [...currentState.events, data],
                   isConnected: false,
