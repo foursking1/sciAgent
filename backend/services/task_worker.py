@@ -184,14 +184,6 @@ class TaskWorker:
                 db.add(user_message)
                 await db.commit()
 
-                # Save user_message event to session_events for history reconstruction
-                user_event = {
-                    "type": "user_message",
-                    "content": task.message,
-                    "timestamp": datetime.now().isoformat(),
-                }
-                await session_manager.save_event(task.session_id, user_event, db)
-
                 # Set session title if this is the first message
                 if not session.title:
                     # Truncate title to 100 chars
