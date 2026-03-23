@@ -20,6 +20,7 @@ from typing import Optional
 
 from backend.db.database import async_session_maker
 from backend.db.models.message import Message, MessageRole
+from backend.db.models.session_event import SessionEvent
 from backend.services.session_manager import session_manager
 from backend.services.task_queue import TaskStatus, task_queue
 from sqlalchemy import select, update
@@ -182,6 +183,19 @@ class TaskWorker:
                     role=MessageRole.USER,
                 )
                 db.add(user_message)
+
+                # Store user_message event to session_events for history reconstruction
+                user_event = SessionEvent(
+                    session_id=task.session_id,
+                    event_type="user_message",
+                    event_data={
+                        "type": "user_message",
+                        "content": task.message,
+                        "timestamp": datetime.now().isoformat(),
+                    },
+                )
+                db.add(user_event)
+
                 await db.commit()
 
                 # Set session title if this is the first message
