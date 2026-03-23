@@ -41,7 +41,8 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
     refreshSession,
     refreshFiles,
     getCurrentState,
-    updateSessionData
+    updateSessionData,
+    switchMode
   } = useSessionStore()
 
   // Local UI state
@@ -221,7 +222,12 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
   // Handle mode change
   const handleModeChange = useCallback(async (mode: SessionMode) => {
     logger.debug('Mode change:', mode)
-  }, [])
+    try {
+      await switchMode(sessionId, mode)
+    } catch (err) {
+      logger.error('Failed to switch mode:', err)
+    }
+  }, [sessionId, switchMode])
 
   // Handle toggle public
   const handleTogglePublic = useCallback(async () => {

@@ -38,6 +38,7 @@ interface SessionStoreContextValue {
   loadHistoricalEvents: (sessionId: string) => Promise<StreamEvent[]>
   getCurrentState: (sessionId: string) => SessionState | undefined
   updateSessionData: (sessionId: string, sessionData: Session) => void
+  switchMode: (sessionId: string, mode: SessionState['currentMode']) => Promise<void>
 }
 
 const SessionStoreContext = createContext<SessionStoreContextValue | undefined>(undefined)
@@ -678,6 +679,35 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
     }
   }, [token])
 
+  // Switch session mode
+  const switchMode = useCallback(async (sessionId: string, mode: SessionState['currentMode']) => {
+    try {
+      logger.debug('switchMode called for:', sessionId, 'mode:', mode)
+
+      // Call API to switch mode
+      const updatedSession = await sessionsApi.switchMode(token, sessionId, mode)
+
+      // Update session state with new mode
+      setSessions(prev => {
+        const newMap = new Map(prev)
+        const existing = newMap.get(sessionId)
+        if (existing) {
+          newMap.set(sessionId, {
+            ...existing,
+            currentMode: mode,
+            session: updatedSession,
+          })
+        }
+        return newMap
+      })
+
+      logger.debug('Mode switched successfully to:', mode)
+    } catch (err) {
+      logger.error('Failed to switch mode:', err)
+      throw err
+    }
+  }, [token])
+
   // Send message
   const sendMessage = useCallback(async (sessionId: string, content: string) => {
     if (!content.trim()) return
@@ -816,6 +846,7 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
     loadHistoricalEvents,
     getCurrentState,
     updateSessionData,
+    switchMode,
   }
 
   return (
