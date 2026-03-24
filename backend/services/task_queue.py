@@ -437,8 +437,13 @@ class TaskQueue:
         """
         r = await self._get_redis()
 
-        # Scan for task keys
+        # Scan for task keys (exclude task:queue which is a list, not hash)
         async for key in r.scan_iter(f"{self.TASK_PREFIX}*"):
+            # Skip non-hash keys (like task:queue which is a list)
+            key_type = await r.type(key)
+            if key_type != "hash":
+                continue
+
             data = await r.hgetall(key)
             if not data:
                 continue
