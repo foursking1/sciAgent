@@ -25,6 +25,9 @@ RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && 
 # Install agentic-data-scientist from Gitee
 RUN pip install --no-cache-dir git+https://gitee.com/foursking1/agentic-data-scientist.git
 
+# Force reinstall pydantic v2 to fix version conflict with google-adk
+RUN pip install --no-cache-dir --force-reinstall "pydantic>=2.10.0,<3.0.0" "pydantic-core>=2.10.0" "pydantic-settings>=2.6.0"
+
 # Create workspace directory with proper permissions
 RUN mkdir -p /workspaces && chown -R appuser:appuser /workspaces
 
