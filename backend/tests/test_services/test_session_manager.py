@@ -2,6 +2,7 @@
 Tests for SessionManager and DataScientist integration.
 """
 
+import json
 import os
 import tempfile
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -73,6 +74,28 @@ class TestSessionManagerBasic:
         )
         assert session is None
 
+    async def test_create_data_extraction_session_does_not_copy_sciminer_skill(
+        self, session_manager_instance, test_user
+    ):
+        """Test data extraction workspace keeps business folders only and hides sciminer files."""
+        session = await session_manager_instance.create_session(
+            user_id=test_user.id,
+            mode="data-extraction",
+            db=None,
+        )
+
+        assert os.path.exists(os.path.join(session.working_dir, "dataset", "papers"))
+        assert os.path.exists(os.path.join(session.working_dir, "schemas"))
+        assert os.path.exists(os.path.join(session.working_dir, "parsed_documents"))
+        assert os.path.exists(os.path.join(session.working_dir, "extraction_outputs"))
+        assert not os.path.exists(
+            os.path.join(session.working_dir, "scientific-skills", "sciminer")
+        )
+
+        import shutil
+
+        shutil.rmtree(session.working_dir, ignore_errors=True)
+
     async def test_add_message_no_db(self, session_manager_instance):
         """Test add_message returns None without database"""
         message = await session_manager_instance.add_message(
@@ -98,19 +121,22 @@ class TestDataScientistIntegration:
                 {"type": "completed", "status": "done"},
             ]
             for event in events:
-                yield event
+                yield {"data": json.dumps(event)}
+
+        async def mock_run_async(msg, stream=True):
+            if stream:
+                return mock_stream_iterator()
+            return {"data": json.dumps({"result": "success"})}
 
         # Create mock DataScientist instance
         mock_ds_instance = MagicMock()
-        mock_ds_instance.run_async = AsyncMock(
-            side_effect=lambda msg, stream=True: (
-                mock_stream_iterator() if stream else {"result": "success"}
-            )
-        )
+        mock_ds_instance.run_async = AsyncMock(side_effect=mock_run_async)
+
+        mock_ds_constructor = MagicMock(return_value=mock_ds_instance)
 
         # Create mock module structure
         mock_core = MagicMock()
-        mock_core.api.DataScientist = mock_ds_instance
+        mock_core.api.DataScientist = mock_ds_constructor
         mock_module = MagicMock()
         mock_module.core = mock_core
 
@@ -140,6 +166,22 @@ class TestDataScientistIntegration:
 
             shutil.rmtree(session.working_dir, ignore_errors=True)
 
+    @pytest_asyncio.fixture
+    async def extraction_test_session(
+        self, session_manager_instance, test_user
+    ) -> Session:
+        """Create a data extraction session for SciMiner tests."""
+        session = await session_manager_instance.create_session(
+            user_id=test_user.id,
+            mode="data-extraction",
+            db=None,
+        )
+        yield session
+        if os.path.exists(session.working_dir):
+            import shutil
+
+            shutil.rmtree(session.working_dir, ignore_errors=True)
+
     async def test_run_data_scientist_streaming(
         self,
         session_manager_instance,
@@ -163,6 +205,88 @@ class TestDataScientistIntegration:
 
             event_data = json.loads(event["data"])
             assert "type" in event_data or "content" in event_data
+
+    async def test_run_data_scientist_wraps_message_for_data_extraction(
+        self,
+        session_manager_instance,
+        extraction_test_session,
+        mock_data_scientist,
+    ):
+        """Test data extraction mode wraps the user prompt with SciMiner instructions."""
+        with patch.object(
+            session_manager_instance,
+            "_resolve_sciminer_skill",
+            return_value=(True, "/tmp/sciminer/SKILL.md"),
+        ):
+            events = []
+            async for event in session_manager_instance.run_data_scientist(
+                session=extraction_test_session,
+                message="提取样本量和结局指标",
+                stream=True,
+            ):
+                events.append(event)
+
+        assert events
+        wrapped_message = mock_data_scientist.run_async.await_args_list[0].args[0]
+        assert "bundled / built-in sciminer" in wrapped_message
+        assert "Do not claim the skill is missing or unavailable" in wrapped_message
+        assert "/extract" in wrapped_message
+        assert "document-ingestion" in wrapped_message
+        assert "schema-creator" in wrapped_message
+        assert "dataset/papers" in wrapped_message
+        assert "schemas" in wrapped_message
+        assert "parsed_documents" in wrapped_message
+        assert "extraction_outputs" in wrapped_message
+        assert "用户原始需求：提取样本量和结局指标" in wrapped_message
+        assert "scientific-skills/sciminer" not in wrapped_message
+        assert "/tmp/sciminer/SKILL.md" not in wrapped_message
+
+    async def test_run_data_scientist_passthrough_for_non_extraction_mode(
+        self,
+        session_manager_instance,
+        ds_test_session,
+        mock_data_scientist,
+    ):
+        """Test non-data-extraction sessions pass the original message through unchanged."""
+        events = []
+        async for event in session_manager_instance.run_data_scientist(
+            session=ds_test_session,
+            message="Analyze this data",
+            stream=True,
+        ):
+            events.append(event)
+
+        assert events
+        sent_message = mock_data_scientist.run_async.await_args_list[0].args[0]
+        assert sent_message == "Analyze this data"
+
+    async def test_run_data_scientist_returns_error_when_sciminer_unavailable(
+        self,
+        session_manager_instance,
+        extraction_test_session,
+        mock_data_scientist,
+    ):
+        """Test data extraction mode fails clearly when bundled SciMiner is unavailable."""
+        with patch.object(
+            session_manager_instance,
+            "_resolve_sciminer_skill",
+            return_value=(False, None),
+        ):
+            events = []
+            async for event in session_manager_instance.run_data_scientist(
+                session=extraction_test_session,
+                message="提取样本量和结局指标",
+                stream=True,
+            ):
+                events.append(event)
+
+        assert len(events) == 1
+        import json
+
+        error_event = json.loads(events[0]["data"])
+        assert error_event["type"] == "error"
+        assert "bundled sciminer unavailable" in error_event["message"]
+        mock_data_scientist.run_async.assert_not_awaited()
 
     async def test_run_data_scientist_non_streaming(
         self,

@@ -46,7 +46,154 @@ def count_files_recursive(dir_path: Path) -> int:
     return count
 
 
+def _build_preview_payload(full_path: str, session_id: str, file_path: str) -> dict:
+    """Build preview payload for a file path."""
+    file_name = os.path.basename(file_path)
+    file_ext = file_name.split(".")[-1].lower() if "." in file_name else ""
+    file_size = os.path.getsize(full_path)
+
+    text_extensions = {
+        "txt",
+        "md",
+        "markdown",
+        "json",
+        "yaml",
+        "yml",
+        "py",
+        "js",
+        "ts",
+        "jsx",
+        "tsx",
+        "html",
+        "htm",
+        "css",
+        "scss",
+        "sass",
+        "less",
+        "sql",
+        "csv",
+        "log",
+        "sh",
+        "bash",
+        "zsh",
+        "fish",
+        "ps1",
+        "bat",
+        "cmd",
+        "c",
+        "cpp",
+        "h",
+        "hpp",
+        "java",
+        "go",
+        "rs",
+        "swift",
+        "kt",
+        "kts",
+        "rb",
+        "php",
+        "pl",
+        "pm",
+        "lua",
+        "r",
+        "m",
+        "mm",
+        "scala",
+        "groovy",
+        "dockerfile",
+        "makefile",
+        "cmake",
+        "toml",
+        "ini",
+        "cfg",
+        "conf",
+        "properties",
+        "env",
+        "gitignore",
+        "gitattributes",
+        "editorconfig",
+    }
+    image_extensions = {"png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "ico"}
+
+    if file_ext in text_extensions:
+        with open(full_path, "r", encoding="utf-8", errors="replace") as f:
+            content = f.read()
+
+        max_size = 100 * 1024
+        if len(content) > max_size:
+            content = (
+                content[:max_size] + "\n\n... [File truncated, too large to preview]"
+            )
+
+        return {
+            "type": "text",
+            "filename": file_name,
+            "extension": file_ext,
+            "size": file_size,
+            "content": content,
+        }
+
+    if file_ext in image_extensions:
+        return {
+            "type": "image",
+            "filename": file_name,
+            "extension": file_ext,
+            "size": file_size,
+            "url": f"/api/files/public/{session_id}/{file_path}",
+        }
+
+    return {
+        "type": "binary",
+        "filename": file_name,
+        "extension": file_ext,
+        "size": file_size,
+        "message": "Binary file - download to view",
+    }
+
+
 # ============ Public File Endpoint ============
+
+
+@router.get("/public/{session_id}/preview/{file_path:path}")
+async def preview_public_file(
+    session_id: str,
+    file_path: str,
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Preview a file from a public session without authentication."""
+    result = await db.execute(
+        select(Session).where(Session.id == session_id, Session.is_public.is_(True))
+    )
+    session = result.scalar_one_or_none()
+
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found or not public",
+        )
+
+    full_path = os.path.join(session.working_dir, file_path)
+    workspace_base = session.working_dir
+    if not os.path.abspath(full_path).startswith(os.path.abspath(workspace_base)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: file path traversal detected",
+        )
+
+    if not os.path.exists(full_path) or not os.path.isfile(full_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found",
+        )
+
+    try:
+        return _build_preview_payload(full_path, session_id, file_path)
+    except Exception as e:
+        logger.error(f"Error previewing public file {full_path}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to read file: {str(e)}",
+        )
 
 
 @router.get("/public/{session_id}/{file_path:path}")
@@ -327,119 +474,8 @@ async def preview_file(
             detail="File not found",
         )
 
-    # Get file info
-    file_name = os.path.basename(file_path)
-    file_ext = file_name.split(".")[-1].lower() if "." in file_name else ""
-    file_size = os.path.getsize(full_path)
-
-    # Text file extensions
-    text_extensions = {
-        "txt",
-        "md",
-        "markdown",
-        "json",
-        "yaml",
-        "yml",
-        "py",
-        "js",
-        "ts",
-        "jsx",
-        "tsx",
-        "html",
-        "htm",
-        "css",
-        "scss",
-        "sass",
-        "less",
-        "sql",
-        "csv",
-        "log",
-        "sh",
-        "bash",
-        "zsh",
-        "fish",
-        "ps1",
-        "bat",
-        "cmd",
-        "c",
-        "cpp",
-        "h",
-        "hpp",
-        "java",
-        "go",
-        "rs",
-        "swift",
-        "kt",
-        "kts",
-        "rb",
-        "php",
-        "pl",
-        "pm",
-        "lua",
-        "r",
-        "m",
-        "mm",
-        "scala",
-        "groovy",
-        "dockerfile",
-        "makefile",
-        "cmake",
-        "toml",
-        "ini",
-        "cfg",
-        "conf",
-        "properties",
-        "env",
-        "gitignore",
-        "gitattributes",
-        "editorconfig",
-    }
-
-    # Image file extensions
-    image_extensions = {"png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "ico"}
-
     try:
-        if file_ext in text_extensions:
-            # Read as text
-            with open(full_path, "r", encoding="utf-8", errors="replace") as f:
-                content = f.read()
-
-            # Limit preview size (100KB max)
-            max_size = 100 * 1024
-            if len(content) > max_size:
-                content = (
-                    content[:max_size]
-                    + "\n\n... [File truncated, too large to preview]"
-                )
-
-            return {
-                "type": "text",
-                "filename": file_name,
-                "extension": file_ext,
-                "size": file_size,
-                "content": content,
-            }
-
-        elif file_ext in image_extensions:
-            # Return image metadata and download URL
-            return {
-                "type": "image",
-                "filename": file_name,
-                "extension": file_ext,
-                "size": file_size,
-                "url": f"/api/files/{session_id}/{file_path}",
-            }
-
-        else:
-            # Binary file - return metadata only
-            return {
-                "type": "binary",
-                "filename": file_name,
-                "extension": file_ext,
-                "size": file_size,
-                "message": "Binary file - download to view",
-            }
-
+        return _build_preview_payload(full_path, session_id, file_path)
     except Exception as e:
         logger.error(f"Error previewing file {full_path}: {e}")
         raise HTTPException(

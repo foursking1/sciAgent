@@ -142,6 +142,105 @@ async def list_public_sessions(
     }
 
 
+@router.get("/public/{session_id}/events")
+async def get_public_session_events(
+    session_id: str,
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """
+    Get all stored historical events for a public session.
+
+    Returns persisted session_events when available, and falls back to
+    message-derived events if no stored events exist.
+    """
+    result = await db.execute(
+        select(Session).where(Session.id == session_id, Session.is_public.is_(True))
+    )
+    session = result.scalar_one_or_none()
+
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found or not public",
+        )
+
+    try:
+        events = await session_manager.get_events(session_id=session_id, db=db)
+        event_dicts = [event.to_event_dict() for event in events]
+
+        if len(event_dicts) == 0:
+            messages = await session_manager.get_messages(session_id=session_id, db=db)
+            for msg in messages:
+                if msg.role == MessageRole.USER:
+                    event_dicts.append(
+                        {
+                            "type": "user_message",
+                            "content": msg.content,
+                            "timestamp": (
+                                msg.created_at.isoformat()
+                                if msg.created_at
+                                else datetime.now().isoformat()
+                            ),
+                        }
+                    )
+                else:
+                    event_dicts.append(
+                        {
+                            "type": "message",
+                            "content": msg.content,
+                            "timestamp": (
+                                msg.created_at.isoformat()
+                                if msg.created_at
+                                else datetime.now().isoformat()
+                            ),
+                            "is_stopped": msg.is_stopped,
+                        }
+                    )
+
+        return {
+            "events": event_dicts,
+            "total": len(event_dicts),
+        }
+    except Exception as e:
+        logger.warning(
+            f"Error getting public session_events for session {session_id}, falling back to messages: {e}"
+        )
+        messages = await session_manager.get_messages(session_id=session_id, db=db)
+        event_dicts = []
+
+        for msg in messages:
+            if msg.role == MessageRole.USER:
+                event_dicts.append(
+                    {
+                        "type": "user_message",
+                        "content": msg.content,
+                        "timestamp": (
+                            msg.created_at.isoformat()
+                            if msg.created_at
+                            else datetime.now().isoformat()
+                        ),
+                    }
+                )
+            else:
+                event_dicts.append(
+                    {
+                        "type": "message",
+                        "content": msg.content,
+                        "timestamp": (
+                            msg.created_at.isoformat()
+                            if msg.created_at
+                            else datetime.now().isoformat()
+                        ),
+                        "is_stopped": msg.is_stopped,
+                    }
+                )
+
+        return {
+            "events": event_dicts,
+            "total": len(event_dicts),
+        }
+
+
 @router.get("/public/{session_id}", response_model=PublicSessionDetail)
 async def get_public_session(
     session_id: str,

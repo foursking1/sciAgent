@@ -48,6 +48,7 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
   // Local UI state
   const [message, setMessage] = useState('')
   const [isFilePanelOpen, setIsFilePanelOpen] = useState(true)
+  const [filePanelWidth, setFilePanelWidth] = useState(320)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [isDataSourceModalOpen, setIsDataSourceModalOpen] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -183,6 +184,26 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
     await refreshFiles(sessionId, path)
   }, [refreshFiles, sessionId])
 
+  const handleFilePanelResizeStart = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault()
+
+    const startX = event.clientX
+    const startWidth = filePanelWidth
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const nextWidth = Math.min(640, Math.max(240, startWidth - (moveEvent.clientX - startX)))
+      setFilePanelWidth(nextWidth)
+    }
+
+    const handleMouseUp = () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+  }, [filePanelWidth])
+
   // Handle file upload
   const handleFileUpload = useCallback(async (uploadedFiles: FileList) => {
     if (!token) return
@@ -210,9 +231,38 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
 
   // Handle send message
   const handleSubmit = useCallback(async (content: string) => {
-    await sendMessage(sessionId, content)
+    const trimmedContent = content.trim()
+    if (!trimmedContent) return
+
+    if (sessionState?.currentMode === 'data-extraction') {
+      const hasPdf = (sessionState.files || []).some(file => file.type !== 'directory' && file.name.toLowerCase().endsWith('.pdf'))
+
+      if (!hasPdf) {
+        await sendMessage(
+          sessionId,
+          '请先上传 PDF 文档，再开始数据抽取。上传后可以继续描述要提取的字段、schema 或目标数据表。'
+        )
+      } else {
+        const extractionPrompt = [
+          '必须使用内置 sciminer skill 处理当前会话中的科学文档数据抽取任务。',
+          '不要声称 skill 缺失，也不要要求用户查看或提供 skill 文件。',
+          '请直接进入 sciminer 数据抽取流程，处理当前工作区中的 PDF 文档。',
+          '目标：进入科学文档数据抽取流程，并基于用户需求执行提取。',
+          'Schema：请自动判断最合适的 schema；如果无法判断，再向用户说明。',
+          `用户需求：${trimmedContent}`,
+          '请优先复用当前工作区 dataset/papers 或已上传到工作区中的 PDF 文件，并在会话中输出中间过程、工具调用和最终产物位置。',
+          '优先使用 sciminer skill 所描述的 /extract、document-ingestion、schema-creator 工作流。',
+          '所有输出都应保留在当前工作区内。'
+        ].join('\n')
+
+        await sendMessage(sessionId, extractionPrompt)
+      }
+    } else {
+      await sendMessage(sessionId, trimmedContent)
+    }
+
     setMessage('')
-  }, [sessionId, sendMessage])
+  }, [sessionId, sendMessage, sessionState?.currentMode, sessionState?.files])
 
   // Handle stop generation
   const handleStop = useCallback(async () => {
@@ -224,8 +274,12 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
     logger.debug('Mode change:', mode)
     try {
       await switchMode(sessionId, mode)
+      if (mode === 'data-extraction') {
+        setIsFilePanelOpen(true)
+      }
     } catch (err) {
       logger.error('Failed to switch mode:', err)
+      alert('切换模式失败，请稍后再试。')
     }
   }, [sessionId, switchMode])
 
@@ -438,12 +492,22 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
           </div>
 
           {/* File browser sidebar - collapsible with slide animation */}
+          {isFilePanelOpen && (
+            <div
+              role="separator"
+              aria-label="调整文件面板宽度"
+              aria-orientation="vertical"
+              onMouseDown={handleFilePanelResizeStart}
+              className="w-1.5 cursor-col-resize bg-transparent hover:bg-primary-500/30 transition-colors"
+            />
+          )}
           <div
             className={cn(
               'flex-shrink-0 border-l border-gray-800 p-4 overflow-hidden',
               'transition-all duration-300 ease-in-out',
-              isFilePanelOpen ? 'w-80 opacity-100' : 'w-0 opacity-0 border-l-0 p-0'
+              isFilePanelOpen ? 'opacity-100' : 'w-0 opacity-0 border-l-0 p-0'
             )}
+            style={isFilePanelOpen ? { width: `${filePanelWidth}px` } : undefined}
           >
             <FileBrowser
               files={sessionState.files}
@@ -462,18 +526,14 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
       {/* Fixed Input area at bottom */}
       <div
         className={cn(
-          'fixed bottom-0 right-0 z-20 border-t border-gray-800 bg-background/95 backdrop-blur-xl',
+          'fixed bottom-0 z-20 border-t border-gray-800 bg-background/95 backdrop-blur-xl',
           'transition-all duration-300 ease-in-out',
           isSidebarCollapsed ? 'left-0' : 'left-[280px]'
         )}
+        style={{ right: isFilePanelOpen ? `${filePanelWidth}px` : 0 }}
       >
-        <div
-          className={cn(
-            'transition-all duration-300 ease-in-out',
-            isFilePanelOpen ? 'mr-80' : 'mr-0'
-          )}
-        >
-          <div className="p-4 pb-6 max-w-4xl mx-auto">
+        <div className="transition-all duration-300 ease-in-out">
+          <div className="w-full p-4 pb-6">
             <ChatInput
               value={message}
               onChange={setMessage}
@@ -482,7 +542,11 @@ export default function SessionPage({ sessionId, apiBaseUrl = '' }: SessionPageP
               onFileUpload={handleFileUpload}
               disabled={sessionState.isSending}
               isLoading={sessionState.isSending}
-              placeholder={sessionState.isSending ? '处理中...' : '输入消息...'}
+              placeholder={
+                sessionState.currentMode === 'data-extraction'
+                  ? (sessionState.isSending ? '数据抽取处理中...' : '上传 PDF 后，直接描述要提取的数据...')
+                  : (sessionState.isSending ? '处理中...' : '输入消息...')
+              }
               mode={sessionState.currentMode}
               onModeChange={handleModeChange}
             />

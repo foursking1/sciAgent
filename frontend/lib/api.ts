@@ -81,6 +81,11 @@ export interface PublicSessionDetail {
   is_owner: boolean;
 }
 
+export interface PublicSessionEventList {
+  events: Record<string, unknown>[];
+  total: number;
+}
+
 export interface Message {
   id: number;
   session_id: string;
@@ -426,6 +431,16 @@ export const filesApi = {
   },
 };
 
+export const publicFilesApi = {
+  async preview(sessionId: string, filePath: string): Promise<FilePreview> {
+    return apiCall<FilePreview>(`/api/files/public/${sessionId}/preview/${encodeURIComponent(filePath)}`);
+  },
+
+  getFileUrl(sessionId: string, filePath: string): string {
+    return `${API_BASE_URL}/api/files/public/${sessionId}/${encodeURIComponent(filePath)}`;
+  },
+};
+
 // Public API (no authentication required)
 export const publicApi = {
   /**
@@ -445,6 +460,14 @@ export const publicApi = {
       headers['Authorization'] = `Bearer ${token}`;
     }
     return apiCall<PublicSessionDetail>(`/api/sessions/public/${sessionId}`, { headers });
+  },
+
+  /**
+   * Get stored historical events for a public session
+   */
+  async getSessionEvents(sessionId: string): Promise<Record<string, unknown>[]> {
+    const data = await apiCall<PublicSessionEventList>(`/api/sessions/public/${sessionId}/events`);
+    return data.events;
   },
 };
 

@@ -96,3 +96,6 @@ secrets/
 
 # Cloned external repos
 agentic-data-scientist/
+
+# Git worktrees
+.worktrees/

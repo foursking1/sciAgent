@@ -18,6 +18,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any, AsyncGenerator, Dict, Optional
 
 from backend.core.config import settings
@@ -250,6 +251,8 @@ class SessionManager:
     def __init__(self, max_ds_instances: int = 50, ds_ttl_minutes: int = 30):
         # In-memory cache for active sessions
         self._active_sessions: dict[str, Any] = {}
+        self._repo_root = Path(__file__).resolve().parents[2]
+        self._project_skills_root = self._repo_root / "scientific-skills"
 
         # DataScientist 实例缓存
         self._ds_cache = DataScientistCache(
@@ -295,6 +298,44 @@ class SessionManager:
         """Get the workspace path for a session"""
         return os.path.join(settings.WORKSPACE_BASE, str(user_id), session_id)
 
+    def _ensure_data_extraction_workspace(self, working_dir: str) -> None:
+        """Provision extraction folders inside the session workspace."""
+        workspace_path = Path(working_dir)
+        (workspace_path / "dataset" / "papers").mkdir(parents=True, exist_ok=True)
+        (workspace_path / "schemas").mkdir(parents=True, exist_ok=True)
+        (workspace_path / "parsed_documents").mkdir(parents=True, exist_ok=True)
+        (workspace_path / "extraction_outputs").mkdir(parents=True, exist_ok=True)
+
+    def _resolve_sciminer_skill(self) -> tuple[bool, Optional[str]]:
+        """Resolve whether the bundled SciMiner skill is available to the backend."""
+        candidate_paths = [
+            Path("/home/appuser/.claude/agents/sciminer/SKILL.md"),
+            self._project_skills_root / "sciminer" / "SKILL.md",
+        ]
+
+        for candidate in candidate_paths:
+            if candidate.exists():
+                return True, str(candidate)
+
+        return False, None
+
+    def _build_data_extraction_message(self, user_message: str) -> str:
+        """Wrap data extraction prompts with deterministic SciMiner workflow instructions."""
+        return "\n".join(
+            [
+                "You must use the bundled / built-in sciminer for this data-extraction task.",
+                "Do not claim the skill is missing or unavailable because the backend has already verified it is available.",
+                "Use the sciminer workflows centered on /extract, document-ingestion, and schema-creator.",
+                "Only operate on the current workspace business directories: dataset/papers, schemas, parsed_documents, extraction_outputs.",
+                "Keep all generated artifacts inside the current workspace.",
+                f"用户原始需求：{user_message}",
+            ]
+        )
+
+    def _provision_mode_workspace(self, mode: str, working_dir: str) -> None:
+        if mode == "data-extraction":
+            self._ensure_data_extraction_workspace(working_dir)
+
     async def create_session(
         self,
         user_id: int,
@@ -330,6 +371,7 @@ class SessionManager:
         # Create working directory
         os.makedirs(working_dir, exist_ok=True)
         logger.debug(f"工作目录已创建：{working_dir}")
+        self._provision_mode_workspace(mode, working_dir)
 
         # Create database record
         session = Session(
@@ -443,6 +485,7 @@ class SessionManager:
         session.current_mode = new_mode
         session.agent_type = MODE_AGENT_MAP.get(new_mode, "claude_code")
         session.updated_at = datetime.now()
+        self._provision_mode_workspace(new_mode, session.working_dir)
 
         await db.commit()
         await db.refresh(session)
@@ -738,6 +781,8 @@ class SessionManager:
 
         session_id = session.id
         agent_type = session.agent_type or "claude_code"
+        mode = session.current_mode or "data-question"
+        message_to_send = message
 
         # 禁用 CLAUDECODE 检查 (在 Claude Code 环境中运行时需要)
         os.environ["CLAUDECODE"] = ""
@@ -746,12 +791,34 @@ class SessionManager:
         logger.info("开始执行 DataScientist 请求")
         logger.info(f"  会话 ID: {session_id}")
         logger.info(f"  Agent 类型：{agent_type}")
+        logger.info(f"  模式：{mode}")
         logger.info(f"  流式模式：{stream}")
         logger.info(
             f"  消息内容：{message[:50]}..."
             if len(message) > 50
             else f"  消息内容：{message}"
         )
+
+        if mode == "data-extraction":
+            sciminer_available, sciminer_path = self._resolve_sciminer_skill()
+            if not sciminer_available:
+                self._stats["failed_requests"] += 1
+                error_event = {
+                    "type": "error",
+                    "message": "bundled sciminer unavailable: backend could not resolve the built-in SciMiner skill",
+                    "timestamp": datetime.now().isoformat(),
+                }
+                logger.error(
+                    "❌ Data extraction blocked: bundled SciMiner unavailable for session %s",
+                    session_id,
+                )
+                yield {"data": json.dumps(error_event)}
+                return
+
+            logger.info(
+                "Data extraction bound to bundled SciMiner at %s", sciminer_path
+            )
+            message_to_send = self._build_data_extraction_message(message)
 
         try:
             # 获取或创建 DataScientist 实例（复用缓存）
@@ -770,7 +837,7 @@ class SessionManager:
                 logger.info("开始流式执行...")
 
                 # Stream events
-                stream_iterator = await ds.run_async(message, stream=True)
+                stream_iterator = await ds.run_async(message_to_send, stream=True)
                 async for event in stream_iterator:
                     event_count += 1
 
@@ -805,7 +872,7 @@ class SessionManager:
                 logger.info("开始非流式执行...")
 
                 # Non-streaming mode
-                result = await ds.run_async(message, stream=False)
+                result = await ds.run_async(message_to_send, stream=False)
                 event_count = 1
 
                 # Handle result

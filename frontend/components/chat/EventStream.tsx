@@ -16,6 +16,8 @@ import type {
   CompletedEvent,
   CancelledEvent,
   ErrorEvent,
+  StatusEvent,
+  UsageEvent,
 } from '@/hooks/useSSE'
 
 // Icon components
@@ -124,6 +126,20 @@ const FileIcon: React.FC<{ className?: string }> = ({ className }) => (
   >
     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
     <polyline points="14 2 14 8 20 8" />
+  </svg>
+)
+
+const ActivityIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
   </svg>
 )
 
@@ -322,25 +338,68 @@ const FunctionResponse: React.FC<FunctionResponseProps> = ({ event }) => {
   )
 }
 
+interface StatusCardProps {
+  title: string
+  detail?: string
+  timestamp: string
+  tone?: 'neutral' | 'success'
+}
+
+const StatusCard: React.FC<StatusCardProps> = ({ title, detail, timestamp, tone = 'neutral' }) => {
+  const toneClasses = tone === 'success'
+    ? {
+        wrapper: 'bg-emerald-500/8 border-emerald-500/20',
+        icon: 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400',
+        title: 'text-emerald-300'
+      }
+    : {
+        wrapper: 'bg-surface/60 border-gray-800',
+        icon: 'bg-surface-200 border-gray-700 text-gray-400',
+        title: 'text-gray-300'
+      }
+
+  return (
+    <div className="flex gap-3 animate-fade-in">
+      <div className={cn('flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center border', toneClasses.icon)}>
+        <ActivityIcon className="w-4 h-4" />
+      </div>
+      <div className={cn('flex-1 min-w-0 rounded-xl border px-4 py-3', toneClasses.wrapper)}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={cn('text-sm font-medium', toneClasses.title)}>{title}</span>
+          <span className="text-xs text-gray-500">{formatDateTime(timestamp)}</span>
+        </div>
+        {detail && <p className="text-sm text-gray-400 mt-1 whitespace-pre-wrap break-words">{detail}</p>}
+      </div>
+    </div>
+  )
+}
+
+const Started: React.FC<{ event: { timestamp: string } }> = ({ event }) => (
+  <StatusCard title="任务已开始" timestamp={event.timestamp} />
+)
+
+const Status: React.FC<{ event: StatusEvent }> = ({ event }) => (
+  <StatusCard title="处理中" detail={event.status} timestamp={event.timestamp} />
+)
+
+const Usage: React.FC<{ event: UsageEvent }> = ({ event }) => {
+  const usage = event.usage
+  const detail = [
+    `Input: ${usage.total_input_tokens}`,
+    usage.cached_input_tokens ? `Cached: ${usage.cached_input_tokens}` : null,
+    `Output: ${usage.output_tokens}`,
+  ].filter(Boolean).join(' · ')
+
+  return <StatusCard title="使用统计" detail={detail} timestamp={event.timestamp} />
+}
+
 interface CompletedProps {
   event: CompletedEvent
 }
 
 const Completed: React.FC<CompletedProps> = ({ event }) => {
   if (!event.files_created || event.files_created.length === 0) {
-    return (
-      <div className="flex gap-3 animate-fade-in">
-        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
-          <CheckCircleIcon className="w-5 h-5 text-emerald-400" />
-        </div>
-        <div>
-          <p className="text-sm font-medium text-emerald-300">Task completed successfully</p>
-          <p className="text-xs text-gray-500 mt-1">
-            {formatDateTime(event.timestamp)}
-          </p>
-        </div>
-      </div>
-    )
+    return <StatusCard title="任务已完成" timestamp={event.timestamp} tone="success" />
   }
 
   return (
@@ -501,17 +560,18 @@ export const EventStream = forwardRef<EventStreamRef, EventStreamProps>(({ event
         return <FunctionCall key={index} event={event as FunctionCallEvent} />
       case 'function_response':
         return <FunctionResponse key={index} event={event as FunctionResponseEvent} />
+      case 'started':
+        return <Started key={index} event={event as { timestamp: string }} />
+      case 'status':
+        return <Status key={index} event={event as StatusEvent} />
+      case 'usage':
+        return <Usage key={index} event={event as UsageEvent} />
       case 'completed':
         return <Completed key={index} event={event as CompletedEvent} />
       case 'cancelled':
         return <Cancelled key={index} event={event as CancelledEvent} />
       case 'error':
         return <Error key={index} event={event as ErrorEvent} />
-      case 'status':
-      case 'usage':
-      case 'started':
-        // Skip status/usage events in the message list
-        return null
       default:
         // Log unknown events for debugging but don't render them
         logger.debug('Skipping unknown event type:', eventWith_type.type)

@@ -3,10 +3,14 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { publicApi, filesApi, PublicSessionDetail, Message } from '@/lib/api';
+import { publicApi, filesApi, PublicSessionDetail, sessionsApi } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
-import { cn } from '@/lib/utils';
-import { ArrowLeft, Download, FileText, Clock } from 'lucide-react';
+import { FileBrowser, type FileItem } from '@/components/chat/FileBrowser';
+import { FilePreview } from '@/components/chat/FilePreview';
+import { EventStream } from '@/components/chat/EventStream';
+import type { StreamEvent } from '@/hooks/useSSE';
+import { cn, formatDateTime } from '@/lib/utils';
+import { ArrowLeft, Check, Clock, Copy, Globe, PanelRightClose, PanelRightOpen } from 'lucide-react';
 
 interface PublicSessionPageProps {
   params: {
@@ -18,6 +22,13 @@ export default function PublicSessionPage({ params }: PublicSessionPageProps) {
   const { token, isAuthenticated } = useAuth();
   const router = useRouter();
   const [session, setSession] = useState<PublicSessionDetail | null>(null);
+  const [events, setEvents] = useState<StreamEvent[]>([]);
+  const [files, setFiles] = useState<FileItem[]>([]);
+  const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
+  const [currentPath, setCurrentPath] = useState('');
+  const [isFilePanelOpen, setIsFilePanelOpen] = useState(true);
+  const [filePanelWidth, setFilePanelWidth] = useState(320);
+  const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -27,17 +38,8 @@ export default function PublicSessionPage({ params }: PublicSessionPageProps) {
     if (!token) return;
     setIsCreating(true);
     try {
-      const sessionsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/sessions`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      if (sessionsResponse.ok) {
-        const newSession = await sessionsResponse.json();
-        router.push(`/session/${newSession.id}`);
-      }
+      const newSession = await sessionsApi.create(token);
+      router.push(`/session/${newSession.id}`);
     } catch (err) {
       console.error('Failed to create session:', err);
     } finally {
@@ -45,12 +47,82 @@ export default function PublicSessionPage({ params }: PublicSessionPageProps) {
     }
   };
 
+  const loadFiles = useCallback(async (path = '') => {
+    if (!token) {
+      setFiles([]);
+      setCurrentPath(path);
+      return;
+    }
+
+    try {
+      const fileRecords = await filesApi.list(token, params.id, path);
+      setFiles(
+        fileRecords.map((record) => ({
+          name: record.filename,
+          path: record.file_path,
+          size: record.file_size,
+          type: record.content_type === 'directory' ? 'directory' : 'file',
+          createdAt: record.created_at,
+          itemCount: record.item_count,
+        }))
+      );
+      setCurrentPath(path);
+    } catch (err) {
+      console.error('Failed to load files:', err);
+      setFiles([]);
+    }
+  }, [params.id, token]);
+
+  const handleRefreshFiles = useCallback(async () => {
+    await loadFiles(currentPath);
+  }, [currentPath, loadFiles]);
+
+  const handleNavigate = useCallback(async (path: string) => {
+    await loadFiles(path);
+  }, [loadFiles]);
+
+  const handleFilePanelResizeStart = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+
+    const startX = event.clientX;
+    const startWidth = filePanelWidth;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const nextWidth = Math.min(640, Math.max(240, startWidth - (moveEvent.clientX - startX)));
+      setFilePanelWidth(nextWidth);
+    };
+
+    const handleMouseUp = () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  }, [filePanelWidth]);
+
+  const handleSelectFile = useCallback((file: FileItem) => {
+    if (file.type !== 'directory') {
+      setPreviewFile(file);
+    }
+  }, []);
+
+  const handleCopyLink = useCallback(async () => {
+    await navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, []);
+
   useEffect(() => {
     const loadSession = async () => {
       try {
         setIsLoading(true);
-        const data = await publicApi.getSession(params.id, token || undefined);
-        setSession(data);
+        const [sessionData, eventData] = await Promise.all([
+          publicApi.getSession(params.id, token || undefined),
+          publicApi.getSessionEvents(params.id),
+        ]);
+        setSession(sessionData);
+        setEvents(eventData as StreamEvent[]);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load session');
       } finally {
@@ -59,6 +131,12 @@ export default function PublicSessionPage({ params }: PublicSessionPageProps) {
     };
     loadSession();
   }, [params.id, token]);
+
+  useEffect(() => {
+    if (!isLoading && session) {
+      loadFiles('');
+    }
+  }, [isLoading, loadFiles, session]);
 
   if (isLoading) {
     return (
@@ -85,165 +163,153 @@ export default function PublicSessionPage({ params }: PublicSessionPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="glass border-b border-gray-800 sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-gray-400 hover:text-white transition-colors">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div>
-              <h1 className="text-lg font-semibold text-white">
-                {session.title || `Analysis ${session.id.slice(0, 8)}`}
-              </h1>
-              <div className="flex items-center gap-3 text-sm text-gray-500">
-                <span className="px-2 py-0.5 rounded bg-surface border border-gray-700">
-                  {session.current_mode}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  {new Date(session.created_at).toLocaleDateString()}
-                </span>
+    <div className="h-screen bg-background overflow-hidden flex">
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="flex-shrink-0 border-b border-gray-800 bg-surface/50 backdrop-blur-xl">
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <Link href="/" className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors" aria-label="Back to home">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+              <div className="min-w-0">
+                <h1 className="text-lg font-semibold text-gray-100 truncate">
+                  {session.title || `Analysis ${session.id.slice(0, 8)}`}
+                </h1>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-1">
+                  <span className="w-2 h-2 rounded-full bg-primary-500" aria-hidden="true" />
+                  <span>Public example</span>
+                  <span className="px-2 py-0.5 rounded bg-primary-500/10 text-primary-300 border border-primary-500/20">
+                    {session.current_mode}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {formatDateTime(session.created_at)}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {session.is_owner ? (
-              <Link href={`/session/${session.id}`} className="btn-primary">
-                Open in Editor
-              </Link>
-            ) : isAuthenticated ? (
+
+            <div className="flex items-center gap-2">
               <button
-                onClick={handleCreateSession}
-                disabled={isCreating}
-                className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleCopyLink}
+                className="p-2 text-gray-500 hover:text-white transition-colors"
+                aria-label="复制公开链接"
+                title="复制公开链接"
               >
-                {isCreating ? 'Creating...' : 'New Session'}
+                {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
               </button>
-            ) : (
-              <Link href="/register" className="btn-primary">
-                Get Started
-              </Link>
-            )}
+              <button
+                onClick={() => setIsFilePanelOpen(!isFilePanelOpen)}
+                className={cn(
+                  'p-2 rounded-lg transition-colors',
+                  isFilePanelOpen
+                    ? 'bg-primary-500/20 text-primary-400'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                )}
+                aria-label={isFilePanelOpen ? '关闭文件面板' : '打开文件面板'}
+                title={isFilePanelOpen ? '关闭文件面板' : '打开文件面板'}
+              >
+                {isFilePanelOpen ? (
+                  <PanelRightClose className="w-5 h-5" />
+                ) : (
+                  <PanelRightOpen className="w-5 h-5" />
+                )}
+              </button>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Read-only banner for non-owners */}
-      {!session.is_owner && (
-        <div className="bg-primary-500/10 border-b border-primary-500/20 px-4 py-2 text-center text-sm text-primary-300">
-          This is a public example. Sign up to create your own analyses.
-        </div>
-      )}
+        <main className="flex-1 flex overflow-hidden relative">
+          <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 overflow-y-auto pb-[160px]">
+              <EventStream events={events} className="min-h-full" />
+            </div>
+          </div>
 
-      {/* Messages */}
-      <main className="max-w-4xl mx-auto px-4 py-6 pb-32">
-        <div className="space-y-4">
-          {session.messages.map((message) => (
-            <MessageCard key={message.id} message={message} sessionId={session.id} />
-          ))}
-        </div>
-      </main>
-
-      {/* Bottom action bar */}
-      <div className="fixed bottom-0 left-0 right-0 border-t border-gray-800 bg-background/95 backdrop-blur-xl">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-center gap-4">
-          {session.is_owner ? (
-            <Link href={`/session/${session.id}`} className="btn-primary w-full max-w-md">
-              Continue Editing
-            </Link>
-          ) : (
-            <Link href="/register" className="btn-primary w-full max-w-md">
-              Create Your Own Analysis
-            </Link>
+          {isFilePanelOpen && (
+            <div
+              role="separator"
+              aria-label="调整文件面板宽度"
+              aria-orientation="vertical"
+              onMouseDown={handleFilePanelResizeStart}
+              className="w-1.5 cursor-col-resize bg-transparent hover:bg-primary-500/30 transition-colors"
+            />
           )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MessageCard({ message, sessionId }: { message: Message; sessionId: string }) {
-  const isUser = message.role === 'user';
-  const [showCodeBlocks, setShowCodeBlocks] = useState(true);
-
-  // Parse content for code blocks and images
-  const renderContent = (content: string) => {
-    // Simple markdown-like rendering
-    const parts = content.split(/(```[\s\S]*?```|!\[.*?\]\(.*?\))/g);
-
-    return parts.map((part, index) => {
-      // Code block
-      if (part.startsWith('```') && part.endsWith('```')) {
-        const code = part.slice(3, -3);
-        const firstLine = code.split('\n')[0];
-        const language = firstLine.match(/^\w+$/) ? firstLine : '';
-        const codeContent = language ? code.slice(firstLine.length + 1) : code;
-
-        return (
-          <div key={index} className="my-3 rounded-lg overflow-hidden border border-gray-800">
-            {language && (
-              <div className="bg-surface px-3 py-1 text-xs text-gray-500 border-b border-gray-800">
-                {language}
-              </div>
+          <div
+            className={cn(
+              'flex-shrink-0 border-l border-gray-800 p-4 overflow-hidden',
+              'transition-all duration-300 ease-in-out',
+              isFilePanelOpen ? 'opacity-100' : 'w-0 opacity-0 border-l-0 p-0'
             )}
-            <pre className="p-4 overflow-x-auto bg-surface/50 text-sm">
-              <code className="text-gray-300">{codeContent}</code>
-            </pre>
-          </div>
-        );
-      }
-
-      // Image
-      const imageMatch = part.match(/!\[.*?\]\((.*?)\)/);
-      if (imageMatch) {
-        const imagePath = imageMatch[1];
-        const imageUrl = imagePath.startsWith('http')
-          ? imagePath
-          : filesApi.getPublicFileUrl(sessionId, imagePath);
-        return (
-          <div key={index} className="my-3">
-            <img
-              src={imageUrl}
-              alt="Analysis output"
-              className="max-w-full rounded-lg border border-gray-800"
+            style={isFilePanelOpen ? { width: `${filePanelWidth}px` } : undefined}
+          >
+            <FileBrowser
+              files={files}
+              currentPath={currentPath}
+              isLoading={false}
+              onRefresh={handleRefreshFiles}
+              onSelect={handleSelectFile}
+              onNavigate={handleNavigate}
+              emptyMessage={token ? 'No files in this folder' : 'Sign in to browse workspace files'}
+              className="h-full"
             />
           </div>
-        );
-      }
-
-      // Regular text
-      return <span key={index}>{part}</span>;
-    });
-  };
-
-  return (
-    <div
-      className={cn(
-        'rounded-xl p-4',
-        isUser
-          ? 'bg-primary-500/10 border border-primary-500/20 ml-8'
-          : 'bg-surface border border-gray-800 mr-8'
-      )}
-    >
-      <div className="flex items-center gap-2 mb-2">
-        <div
-          className={cn(
-            'w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium',
-            isUser
-              ? 'bg-primary-500 text-white'
-              : 'bg-gradient-to-br from-primary-500 to-accent-500 text-white'
-          )}
-        >
-          {isUser ? 'U' : 'AI'}
-        </div>
-        <span className="text-xs text-gray-500">
-          {new Date(message.created_at).toLocaleString()}
-        </span>
+        </main>
       </div>
-      <div className="text-gray-200 whitespace-pre-wrap prose prose-invert max-w-none">
-        {renderContent(message.content)}
+
+      {previewFile && (
+        <FilePreview
+          sessionId={session.id}
+          filePath={previewFile.path}
+          fileName={previewFile.name}
+          isPublic={true}
+          onClose={() => setPreviewFile(null)}
+        />
+      )}
+
+      <div
+        className={cn(
+          'fixed bottom-0 left-0 right-0 z-20 border-t border-gray-800 bg-background/95 backdrop-blur-xl',
+          'transition-all duration-300 ease-in-out'
+        )}
+        style={isFilePanelOpen ? { paddingRight: `${filePanelWidth}px` } : { paddingRight: 0 }}
+      >
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <div className="rounded-2xl border border-primary-500/10 bg-surface/60 px-4 py-4 sm:px-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="flex items-center gap-2 text-sm text-gray-300">
+                  <Globe className="w-4 h-4 text-primary-400" />
+                  <span>Public example</span>
+                </div>
+                <p className="mt-1 text-sm text-gray-500">
+                  Like this workflow? Start your own research session and continue from your own workspace.
+                </p>
+              </div>
+
+              {session.is_owner ? (
+                <Link href={`/session/${session.id}`} className="btn-primary whitespace-nowrap">
+                  Continue Editing
+                </Link>
+              ) : isAuthenticated ? (
+                <button
+                  onClick={handleCreateSession}
+                  disabled={isCreating}
+                  className="btn-primary whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isCreating ? 'Creating...' : '开始你的研究'}
+                </button>
+              ) : (
+                <button
+                  onClick={() => router.push('/session/new')}
+                  className="btn-primary whitespace-nowrap"
+                >
+                  开始你的研究
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { X, FileText, Image as ImageIcon, File } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { filesApi } from '@/lib/api'
+import { filesApi, publicFilesApi } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 
 interface FilePreviewProps {
@@ -11,6 +11,7 @@ interface FilePreviewProps {
   filePath: string
   fileName: string
   onClose: () => void
+  isPublic?: boolean
 }
 
 interface PreviewData {
@@ -23,7 +24,7 @@ interface PreviewData {
   message?: string
 }
 
-export function FilePreview({ sessionId, filePath, fileName, onClose }: FilePreviewProps) {
+export function FilePreview({ sessionId, filePath, fileName, onClose, isPublic = false }: FilePreviewProps) {
   const { token } = useAuth()
   const [preview, setPreview] = useState<PreviewData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -31,28 +32,33 @@ export function FilePreview({ sessionId, filePath, fileName, onClose }: FilePrev
   const [imageBlobUrl, setImageBlobUrl] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!token) return
+    if (!isPublic && !token) return
 
     const loadPreview = async () => {
       try {
         setLoading(true)
         setError(null)
         setImageBlobUrl(null)
-        const data = await filesApi.preview(token, sessionId, filePath)
+        const data = isPublic
+          ? await publicFilesApi.preview(sessionId, filePath)
+          : await filesApi.preview(token!, sessionId, filePath)
         setPreview(data)
 
-        // If it's an image, fetch it with authentication and create a blob URL
-        if (data.type === 'image' && token) {
-          const imageUrl = filesApi.getDownloadUrl(sessionId, filePath)
-          const response = await fetch(imageUrl, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          })
-          if (response.ok) {
-            const blob = await response.blob()
-            const blobUrl = URL.createObjectURL(blob)
-            setImageBlobUrl(blobUrl)
+        if (data.type === 'image') {
+          if (isPublic) {
+            setImageBlobUrl(publicFilesApi.getFileUrl(sessionId, filePath))
+          } else if (token) {
+            const imageUrl = filesApi.getDownloadUrl(sessionId, filePath)
+            const response = await fetch(imageUrl, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            })
+            if (response.ok) {
+              const blob = await response.blob()
+              const blobUrl = URL.createObjectURL(blob)
+              setImageBlobUrl(blobUrl)
+            }
           }
         }
       } catch (err) {
@@ -70,7 +76,7 @@ export function FilePreview({ sessionId, filePath, fileName, onClose }: FilePrev
         URL.revokeObjectURL(imageBlobUrl)
       }
     }
-  }, [token, sessionId, filePath])
+  }, [token, sessionId, filePath, isPublic])
 
   // Close on Escape key
   useEffect(() => {

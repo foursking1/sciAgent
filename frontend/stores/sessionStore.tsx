@@ -92,13 +92,17 @@ export function SessionStoreProvider({ children, token, apiBaseUrl }: SessionSto
     })
   }, [])
 
-  // Update session data (e.g., title, is_public)
+  // Update session data (e.g., title, is_public, current_mode)
   const updateSessionData = useCallback((sessionId: string, sessionData: Session) => {
     setSessions(prev => {
       const newMap = new Map(prev)
       const currentState = newMap.get(sessionId)
       if (currentState) {
-        newMap.set(sessionId, { ...currentState, session: sessionData })
+        newMap.set(sessionId, {
+          ...currentState,
+          session: sessionData,
+          currentMode: (sessionData.current_mode as SessionState['currentMode']) || currentState.currentMode,
+        })
       }
       return newMap
     })

@@ -53,12 +53,10 @@ export const MODE_CONFIGS: Record<SessionMode, ModeConfig> = {
   'data-extraction': {
     id: 'data-extraction',
     label: '数据抽取',
-    description: '即将推出',
+    description: '上传 PDF 后启动抽取流程',
     color: 'text-emerald-400',
     bgColor: 'bg-emerald-500/20',
     borderColor: 'border-emerald-500/50',
-    disabled: true,
-    disabledReason: '功能开发中，敬请期待',
     icon: (
       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -241,6 +239,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             </button>
           ))}
         </div>
+      )}
+
+      {normalizedMode === 'data-extraction' && (
+        <></>
       )}
 
       {/* Input area */}
